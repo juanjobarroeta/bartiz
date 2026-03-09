@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './Shared.css'
+import { api } from '../config/api'
 
 const Clientes = () => {
   const [clientes, setClientes] = useState([])
@@ -13,7 +14,7 @@ const Clientes = () => {
   })
 
   useEffect(() => {
-    fetch('/api/clientes')
+    fetch(api('/api/clientes'))
       .then(res => res.json())
       .then(data => setClientes(data))
       .catch(() => {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './Tesoreria.css'
+import { api } from '../config/api'
 
 const Tesoreria = () => {
   const [solicitudes, setSolicitudes] = useState([])
@@ -29,7 +30,7 @@ const Tesoreria = () => {
 
   const cargarSolicitudes = async () => {
     try {
-      const res = await fetch('/api/solicitudes-compra')
+      const res = await fetch(api('/api/solicitudes-compra'))
       const data = await res.json()
       // Filter to show aprobado, ordenado, recibido (ready for payment stages)
       const paraTesoreria = data.filter(s => 

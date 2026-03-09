@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './Shared.css'
 import './Inventario.css'
+import { api } from '../config/api'
 
 const Inventario = () => {
   const [inventario, setInventario] = useState([])
@@ -15,7 +16,7 @@ const Inventario = () => {
   })
 
   useEffect(() => {
-    fetch('/api/inventario')
+    fetch(api('/api/inventario'))
       .then(res => res.json())
       .then(data => setInventario(data))
       .catch(() => {

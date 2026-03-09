@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './Dashboard.css'
+import { api } from '../config/api'
 
 // Simple Sparkline component
 const Sparkline = ({ data, color = 'var(--color-primary)', trend = 'up' }) => {
@@ -142,7 +143,7 @@ const Dashboard = () => {
   ]
 
   useEffect(() => {
-    fetch('/api/proyectos?limit=4')
+    fetch(api('/api/proyectos?limit=4'))
       .then(res => res.json())
       .then(data => setProyectos(data))
       .catch(() => {

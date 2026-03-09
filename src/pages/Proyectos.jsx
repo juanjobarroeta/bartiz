@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './Proyectos.css'
+import { api } from '../config/api'
 
 const Proyectos = () => {
   const navigate = useNavigate()
@@ -23,8 +24,8 @@ const Proyectos = () => {
   const cargarDatos = async () => {
     try {
       const [proyectosRes, presupuestosRes] = await Promise.all([
-        fetch('/api/proyectos'),
-        fetch('/api/presupuestos-proyecto')
+        fetch(api('/api/proyectos')),
+        fetch(api('/api/presupuestos-proyecto'))
       ])
       
       setProyectos(await proyectosRes.json())

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import './SolicitudesCompra.css'
+import { api } from '../config/api'
 
 // Smart Search Component
 const ArticuloSearch = ({ onSelect }) => {
@@ -19,7 +20,7 @@ const ArticuloSearch = ({ onSelect }) => {
     timeoutRef.current = setTimeout(async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/catalogo/buscar?q=${encodeURIComponent(query)}`)
+        const res = await fetch(api(`/api/catalogo/buscar?q=${encodeURIComponent(query)}`))
         setResultados(await res.json())
         setMostrar(true)
       } catch (error) {
@@ -138,12 +139,12 @@ const SolicitudesCompra = () => {
   const cargarDatos = async () => {
     try {
       const [estadosRes, fasesRes, plantillasRes, proyectosRes, proveedoresRes, statsRes] = await Promise.all([
-        fetch('/api/solicitudes-compra/estados'),
-        fetch('/api/solicitudes-compra/fases'),
-        fetch('/api/solicitudes-compra/plantillas'),
-        fetch('/api/proyectos'),
-        fetch('/api/proveedores'),
-        fetch('/api/solicitudes-compra/estadisticas')
+        fetch(api('/api/solicitudes-compra/estados')),
+        fetch(api('/api/solicitudes-compra/fases')),
+        fetch(api('/api/solicitudes-compra/plantillas')),
+        fetch(api('/api/proyectos')),
+        fetch(api('/api/proveedores')),
+        fetch(api('/api/solicitudes-compra/estadisticas'))
       ])
       
       setEstados(await estadosRes.json())
@@ -275,14 +276,14 @@ const SolicitudesCompra = () => {
 
   const aplicarPlantilla = async (plantillaId) => {
     try {
-      const res = await fetch(`/api/solicitudes-compra/plantillas/${plantillaId}`)
+      const res = await fetch(api(`/api/solicitudes-compra/plantillas/${plantillaId}`))
       const plantilla = await res.json()
       
       // Cargar detalles de cada artículo
       const itemsConDetalles = await Promise.all(
         plantilla.items.map(async (item) => {
           try {
-            const artRes = await fetch(`/api/catalogo/${item.articuloId}`)
+            const artRes = await fetch(api(`/api/catalogo/${item.articuloId}`))
             const articulo = await artRes.json()
             return {
               articuloId: item.articuloId,

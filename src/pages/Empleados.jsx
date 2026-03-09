@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './Shared.css'
+import { api } from '../config/api'
 
 const Empleados = () => {
   const [empleados, setEmpleados] = useState([])
@@ -14,7 +15,7 @@ const Empleados = () => {
   })
 
   useEffect(() => {
-    fetch('/api/empleados')
+    fetch(api('/api/empleados'))
       .then(res => res.json())
       .then(data => setEmpleados(data))
       .catch(() => {

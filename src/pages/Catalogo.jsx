@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './Catalogo.css'
+import { api } from '../config/api'
 
 const Catalogo = () => {
   const [articulos, setArticulos] = useState([])
@@ -35,9 +36,9 @@ const Catalogo = () => {
   const cargarDatos = async () => {
     try {
       const [articulosRes, categoriasRes, unidadesRes] = await Promise.all([
-        fetch('/api/catalogo'),
-        fetch('/api/catalogo/categorias'),
-        fetch('/api/catalogo/unidades')
+        fetch(api('/api/catalogo')),
+        fetch(api('/api/catalogo/categorias')),
+        fetch(api('/api/catalogo/unidades'))
       ])
       
       setArticulos(await articulosRes.json())
@@ -72,8 +73,8 @@ const Catalogo = () => {
   const cargarArticulos = async () => {
     try {
       const url = filtroCategoria 
-        ? `/api/catalogo?categoria=${filtroCategoria}`
-        : '/api/catalogo'
+        ? api(`/api/catalogo?categoria=${filtroCategoria}`)
+        : api('/api/catalogo')
       const res = await fetch(url)
       setArticulos(await res.json())
     } catch (error) {
@@ -83,7 +84,7 @@ const Catalogo = () => {
 
   const buscarArticulos = async (query) => {
     try {
-      const res = await fetch(`/api/catalogo/buscar?q=${encodeURIComponent(query)}`)
+      const res = await fetch(api(`/api/catalogo/buscar?q=${encodeURIComponent(query)}`))
       let resultados = await res.json()
       
       if (filtroCategoria) {
@@ -140,8 +141,8 @@ const Catalogo = () => {
 
     try {
       const url = articuloEditando 
-        ? `/api/catalogo/${articuloEditando.id}`
-        : '/api/catalogo'
+        ? api(`/api/catalogo/${articuloEditando.id}`)
+        : api('/api/catalogo')
       
       const res = await fetch(url, {
         method: articuloEditando ? 'PUT' : 'POST',
@@ -162,7 +163,7 @@ const Catalogo = () => {
     if (!confirm('¿Eliminar este artículo del catálogo?')) return
 
     try {
-      const res = await fetch(`/api/catalogo/${id}`, { method: 'DELETE' })
+      const res = await fetch(api(`/api/catalogo/${id}`), { method: 'DELETE' })
       if (res.ok) {
         cargarArticulos()
       }

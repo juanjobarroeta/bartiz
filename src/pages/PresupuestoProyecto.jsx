@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import './PresupuestoProyecto.css'
+import { api } from '../config/api'
 
 // Smart Search Component with Quick Add
 const ArticuloSearch = ({ onSelect, onQuickAdd }) => {
@@ -20,7 +21,7 @@ const ArticuloSearch = ({ onSelect, onQuickAdd }) => {
     clearTimeout(timeoutRef.current)
     timeoutRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/catalogo/buscar?q=${encodeURIComponent(query)}`)
+        const res = await fetch(api(`/api/catalogo/buscar?q=${encodeURIComponent(query)}`))
         const data = await res.json()
         setResultados(data)
         setBuscado(true)
@@ -138,11 +139,11 @@ const PresupuestoProyecto = () => {
     setLoading(true)
     try {
       const [proyectoRes, presupuestoRes, fasesRes, proveedoresRes, categoriasRes] = await Promise.all([
-        fetch(`/api/proyectos/${proyectoId}`),
-        fetch(`/api/presupuestos-proyecto/proyecto/${proyectoId}`).catch(() => ({ ok: false })),
-        fetch('/api/presupuestos-proyecto/fases'),
-        fetch('/api/proveedores'),
-        fetch('/api/catalogo/categorias')
+        fetch(api(`/api/proyectos/${proyectoId}`)),
+        fetch(api(`/api/presupuestos-proyecto/proyecto/${proyectoId}`)).catch(() => ({ ok: false })),
+        fetch(api('/api/presupuestos-proyecto/fases')),
+        fetch(api('/api/proveedores')),
+        fetch(api('/api/catalogo/categorias'))
       ])
       
       if (proyectoRes.ok) {

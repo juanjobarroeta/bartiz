@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './Compras.css'
+import { api } from '../config/api'
 
 const Compras = () => {
   const [solicitudes, setSolicitudes] = useState([])
@@ -26,9 +27,9 @@ const Compras = () => {
   const cargarDatos = async () => {
     try {
       const [solicitudesRes, proveedoresRes, proyectosRes] = await Promise.all([
-        fetch('/api/solicitudes-compra'),
-        fetch('/api/proveedores'),
-        fetch('/api/proyectos')
+        fetch(api('/api/solicitudes-compra')),
+        fetch(api('/api/proveedores')),
+        fetch(api('/api/proyectos'))
       ])
       
       const solicitudesData = await solicitudesRes.json()

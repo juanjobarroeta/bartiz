@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './Shared.css'
+import { api } from '../config/api'
 
 const Proveedores = () => {
   const navigate = useNavigate()
@@ -24,7 +25,7 @@ const Proveedores = () => {
   })
 
   useEffect(() => {
-    fetch('/api/proveedores')
+    fetch(api('/api/proveedores'))
       .then(res => res.json())
       .then(data => setProveedores(data))
       .catch(() => {
