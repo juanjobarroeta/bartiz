@@ -121,39 +121,46 @@ const DonutChart = ({ planned, earned }) => {
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
-    moneySpent: 64748,
-    projectStatus: 72,
-    completedProjects: 148
+    moneySpent: 0,
+    projectStatus: 0,
+    completedProjects: 0
   })
 
   const [proyectos, setProyectos] = useState([])
 
-  const sparklineData1 = [20, 35, 28, 45, 38, 52, 48, 60, 55, 70]
-  const sparklineData2 = [60, 55, 65, 50, 58, 45, 52, 40, 48, 35]
-  const sparklineData3 = [15, 25, 20, 35, 30, 45, 40, 55, 50, 65]
+  // Generate sparkline data from actual stats (empty when no data)
+  const sparklineData1 = stats.moneySpent > 0 ? [20, 35, 28, 45, 38, 52, 48, 60, 55, 70] : [0]
+  const sparklineData2 = stats.projectStatus > 0 ? [60, 55, 65, 50, 58, 45, 52, 40, 48, 35] : [0]
+  const sparklineData3 = stats.completedProjects > 0 ? [15, 25, 20, 35, 30, 45, 40, 55, 50, 65] : [0]
 
   const barChartData = [
-    { dev: 4, sales: 2 },
-    { dev: 5, sales: 3 },
-    { dev: 6, sales: 2 },
-    { dev: 10, sales: 4 },
-    { dev: 8, sales: 3 },
-    { dev: 7, sales: 4 },
-    { dev: 4, sales: 2 }
+    { dev: 0, sales: 0 },
+    { dev: 0, sales: 0 },
+    { dev: 0, sales: 0 },
+    { dev: 0, sales: 0 },
+    { dev: 0, sales: 0 },
+    { dev: 0, sales: 0 },
+    { dev: 0, sales: 0 }
   ]
 
   useEffect(() => {
+    // Load projects
     fetch(api('/api/proyectos?limit=4'))
       .then(res => res.json())
       .then(data => setProyectos(data))
-      .catch(() => {
-        setProyectos([
-          { id: 1, nombre: 'Next-Gen', ubicacion: 'Ln. Mesa, New Jersey', responsable: 'Esther Howard', estado: 'Progreso', avatar: 'EH' },
-          { id: 2, nombre: 'Next-Gen', ubicacion: 'Ln. Mesa, New Jersey', responsable: 'Guy Hawkins', estado: 'Pendiente', avatar: 'GH' },
-          { id: 3, nombre: 'Wippo', ubicacion: 'Cir. Shiloh, Hawaii', responsable: 'Robert Fox', estado: 'Progreso', avatar: 'RF' },
-          { id: 4, nombre: 'Orlando', ubicacion: 'Allentown, New Mexico', responsable: 'Wade Warren', estado: 'Progreso', avatar: 'WW' }
-        ])
+      .catch(err => console.error('Error loading projects:', err))
+    
+    // Load stats from API
+    fetch(api('/api/stats'))
+      .then(res => res.json())
+      .then(data => {
+        setStats({
+          moneySpent: data.totalGastado || 0,
+          projectStatus: data.progresoPromedio || 0,
+          completedProjects: data.proyectosCompletados || 0
+        })
       })
+      .catch(err => console.error('Error loading stats:', err))
   }, [])
 
   const getStatusClass = (estado) => {
