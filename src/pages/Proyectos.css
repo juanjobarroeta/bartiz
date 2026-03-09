@@ -1,0 +1,140 @@
+.proyectos {
+  max-width: 100%;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.form-card {
+  margin-bottom: 1.5rem;
+}
+
+.form {
+  margin-top: 1.25rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.table-container {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  padding: 0;
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.proyecto-row {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.proyecto-row:hover {
+  background: var(--color-bg) !important;
+}
+
+.proyecto-row strong {
+  color: var(--color-text);
+  transition: color 0.2s ease;
+}
+
+.proyecto-row:hover strong {
+  color: var(--color-black);
+  text-decoration: underline;
+}
+
+.status-badge {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.6875rem;
+  border: none;
+  background: #F3F4F6;
+  border-radius: 4px;
+  font-weight: 500;
+  color: var(--color-text-light);
+}
+
+.status-badge.status-planeación {
+  background: #E5E7EB;
+  color: #6B7280;
+}
+
+.status-badge.status-en-progreso {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.status-badge.status-completado {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.status-badge.status-pausado {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .page-header button {
+    width: 100%;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .table-container {
+    border-radius: 6px;
+    overflow-x: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table {
+    font-size: 0.75rem;
+    min-width: 600px;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.5rem;
+    white-space: nowrap;
+  }
+
+  .table th:first-child,
+  .table td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--color-white);
+    z-index: 1;
+  }
+
+  .table thead th:first-child {
+    background: var(--color-bg);
+    z-index: 2;
+  }
+
+  .btn-sm {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.6rem;
+  }
+}
+
