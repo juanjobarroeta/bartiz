@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import './Usuarios.css'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+
 const Usuarios = () => {
   const [usuarios, setUsuarios] = useState([])
   const [roles, setRoles] = useState([])
@@ -26,8 +28,8 @@ const Usuarios = () => {
   const cargarDatos = async () => {
     try {
       const [usuariosRes, rolesRes] = await Promise.all([
-        fetch('/api/usuarios'),
-        fetch('/api/usuarios/roles')
+        fetch(`${API_URL}/api/usuarios`),
+        fetch(`${API_URL}/api/usuarios/roles`)
       ])
       setUsuarios(await usuariosRes.json())
       setRoles(await rolesRes.json())
@@ -62,7 +64,7 @@ const Usuarios = () => {
     e.preventDefault()
     
     try {
-      const url = modoEdicion ? `/api/usuarios/${usuarioForm.id}` : '/api/usuarios'
+      const url = modoEdicion ? `${API_URL}/api/usuarios/${usuarioForm.id}` : `${API_URL}/api/usuarios`
       const method = modoEdicion ? 'PUT' : 'POST'
       
       const res = await fetch(url, {
@@ -88,7 +90,7 @@ const Usuarios = () => {
     if (!confirm('¿Desactivar este usuario?')) return
 
     try {
-      const res = await fetch(`/api/usuarios/${id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_URL}/api/usuarios/${id}`, { method: 'DELETE' })
       if (res.ok) {
         await cargarDatos()
       }
@@ -99,7 +101,7 @@ const Usuarios = () => {
 
   const reactivarUsuario = async (id) => {
     try {
-      const res = await fetch(`/api/usuarios/${id}/reactivar`, { method: 'POST' })
+      const res = await fetch(`${API_URL}/api/usuarios/${id}/reactivar`, { method: 'POST' })
       if (res.ok) {
         await cargarDatos()
       }
