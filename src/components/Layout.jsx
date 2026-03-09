@@ -30,9 +30,9 @@ const Layout = ({ children }) => {
       <aside className="sidebar">
         <div className="sidebar-header">
           <div className="company-logo">
-            <div className="logo-icon">C</div>
+            <div className="logo-icon">B</div>
             <div className="company-info">
-              <span className="company-name">Tu Empresa</span>
+              <span className="company-name">Bartiz</span>
               <span className="company-sub">Construcción S.A.</span>
             </div>
           </div>
