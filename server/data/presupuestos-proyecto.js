@@ -2,6 +2,17 @@
 let presupuestosProyecto = []
 let presupuestoIdCounter = 1
 
+export const fases = [
+  'Preliminares',
+  'Cimentación',
+  'Estructura',
+  'Albañilería',
+  'Instalaciones',
+  'Acabados',
+  'Exteriores',
+  'Varios'
+]
+
 export const obtenerPresupuestos = () => {
   return presupuestosProyecto
 }
