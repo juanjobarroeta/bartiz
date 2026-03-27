@@ -192,7 +192,7 @@ const PresupuestoProyecto = () => {
     }
 
     try {
-      const res = await fetch(`/api/presupuestos-proyecto/${presupuesto.id}/fase/${faseId}/item`, {
+      const res = await fetch(api(`/api/presupuestos-proyecto/${presupuesto.id}/fase/${faseId}/item`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -220,7 +220,7 @@ const PresupuestoProyecto = () => {
 
   const actualizarItem = async (faseId, itemId, campo, valor) => {
     try {
-      await fetch(`/api/presupuestos-proyecto/${presupuesto.id}/fase/${faseId}/item/${itemId}`, {
+      await fetch(api(`/api/presupuestos-proyecto/${presupuesto.id}/fase/${faseId}/item/${itemId}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [campo]: valor })
@@ -235,7 +235,7 @@ const PresupuestoProyecto = () => {
     if (!confirm('¿Eliminar este item del presupuesto?')) return
 
     try {
-      await fetch(`/api/presupuestos-proyecto/${presupuesto.id}/fase/${faseId}/item/${itemId}`, {
+      await fetch(api(`/api/presupuestos-proyecto/${presupuesto.id}/fase/${faseId}/item/${itemId}`), {
         method: 'DELETE'
       })
       cargarDatos()
@@ -322,7 +322,7 @@ const PresupuestoProyecto = () => {
     const proveedor = proveedores.find(p => p.id === parseInt(solicitudConfig.proveedorId))
     
     try {
-      const res = await fetch(`/api/presupuestos-proyecto/${presupuesto.id}/generar-solicitud`, {
+      const res = await fetch(api(`/api/presupuestos-proyecto/${presupuesto.id}/generar-solicitud`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -464,7 +464,7 @@ const PresupuestoProyecto = () => {
                     ]
                     
                     try {
-                      await fetch(`/api/presupuestos-proyecto/${presupuesto.id}`, {
+                      await fetch(api(`/api/presupuestos-proyecto/${presupuesto.id}`), {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ fases: updatedFases })
