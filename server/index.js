@@ -23,6 +23,8 @@ const PORT = process.env.PORT || 5000
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:3001',
+  'http://localhost:3000',
+  'http://localhost:5173',
   'https://bartiz.vercel.app',
   process.env.CORS_ORIGIN
 ].filter(Boolean)
@@ -32,9 +34,18 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true)
     
-    if (allowedOrigins.includes(origin)) {
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (origin === allowedOrigin) return true
+      // Also check if it's a Vercel preview deployment
+      if (origin.endsWith('.vercel.app')) return true
+      return false
+    })
+    
+    if (isAllowed) {
       callback(null, true)
     } else {
+      console.error(`CORS blocked origin: ${origin}`)
       callback(new Error('Not allowed by CORS'))
     }
   },
