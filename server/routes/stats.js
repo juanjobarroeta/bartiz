@@ -12,7 +12,7 @@ const router = express.Router()
 
 router.get('/', (req, res) => {
   const proyectosActivos = proyectos.filter(p => 
-    p.estado === 'En Progreso' || p.estado === 'Planeación'
+    ['Cotización', 'Proceso de Licitación', 'Planeación', 'En Progreso'].includes(p.estado)
   ).length
   
   const clientesActivos = clientes.length

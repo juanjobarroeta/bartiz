@@ -373,6 +373,67 @@
   margin-top: 1.5rem;
 }
 
+/* Badge Styles */
+.badge-blue {
+  background: #DBEAFE;
+  color: #1E40AF;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge-purple {
+  background: #E0E7FF;
+  color: #4338CA;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge-gray {
+  background: #E5E7EB;
+  color: #6B7280;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge-beige {
+  background: #FEF3C7;
+  color: #92400E;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge-white {
+  background: #FEE2E2;
+  color: #991B1B;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge-black {
+  background: #D1FAE5;
+  color: #065F46;
+  padding: 0.25rem 0.625rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .overview-grid {

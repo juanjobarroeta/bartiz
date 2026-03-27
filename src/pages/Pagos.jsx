@@ -222,7 +222,7 @@ const Pagos = () => {
                   <option value="Gastos Generales">💼 Gastos Generales</option>
                   <optgroup label="Proyectos Activos">
                     {proyectos
-                      .filter(p => p.estado === 'En Progreso' || p.estado === 'Planeación')
+                      .filter(p => ['Cotización', 'Proceso de Licitación', 'Planeación', 'En Progreso'].includes(p.estado))
                       .map(proyecto => (
                         <option key={proyecto.id} value={proyecto.nombre}>
                           {proyecto.nombre}
@@ -231,7 +231,7 @@ const Pagos = () => {
                   </optgroup>
                   <optgroup label="Otros Proyectos">
                     {proyectos
-                      .filter(p => p.estado !== 'En Progreso' && p.estado !== 'Planeación')
+                      .filter(p => !['Cotización', 'Proceso de Licitación', 'Planeación', 'En Progreso'].includes(p.estado))
                       .map(proyecto => (
                         <option key={proyecto.id} value={proyecto.nombre}>
                           {proyecto.nombre}

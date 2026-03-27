@@ -75,6 +75,8 @@ const ProyectoDetalle = () => {
 
   const getEstadoBadgeClass = (estado) => {
     switch(estado) {
+      case 'Cotización': return 'badge-blue'
+      case 'Proceso de Licitación': return 'badge-purple'
       case 'Planeación': return 'badge-gray'
       case 'En Progreso': return 'badge-beige'
       case 'Pausado': return 'badge-white'

@@ -14,7 +14,7 @@ const Proyectos = () => {
     ubicacion: '',
     presupuesto: '',
     fechaInicio: '',
-    estado: 'Planeación'
+    estado: 'Cotización'
   })
 
   useEffect(() => {
@@ -63,7 +63,7 @@ const Proyectos = () => {
           ubicacion: '',
           presupuesto: '',
           fechaInicio: '',
-          estado: 'Planeación'
+          estado: 'Cotización'
         })
         setMostrarFormulario(false)
         
@@ -159,15 +159,17 @@ const Proyectos = () => {
 
             <div className="form-row">
               <div className="form-group">
-                <label className="label">Fecha de Inicio</label>
+                <label className="label">Fecha de Inicio (Opcional)</label>
                 <input
                   type="date"
                   name="fechaInicio"
                   className="input"
                   value={nuevoProyecto.fechaInicio}
                   onChange={handleChange}
-                  required
                 />
+                <small style={{ color: '#666', fontSize: '12px' }}>
+                  Deja vacío si aún no está definida
+                </small>
               </div>
               <div className="form-group">
                 <label className="label">Estado</label>
@@ -177,6 +179,8 @@ const Proyectos = () => {
                   value={nuevoProyecto.estado}
                   onChange={handleChange}
                 >
+                  <option value="Cotización">Cotización</option>
+                  <option value="Proceso de Licitación">Proceso de Licitación</option>
                   <option value="Planeación">Planeación</option>
                   <option value="En Progreso">En Progreso</option>
                   <option value="Pausado">Pausado</option>
@@ -217,7 +221,12 @@ const Proyectos = () => {
                 <td>{proyecto.cliente}</td>
                 <td>{proyecto.ubicacion}</td>
                 <td>${proyecto.presupuesto?.toLocaleString('es-MX') || '0'}</td>
-                <td>{new Date(proyecto.fechaInicio).toLocaleDateString('es-MX')}</td>
+                <td>
+                  {proyecto.fechaInicio 
+                    ? new Date(proyecto.fechaInicio).toLocaleDateString('es-MX')
+                    : <span style={{ color: '#999', fontStyle: 'italic' }}>Por definir</span>
+                  }
+                </td>
                 <td>
                   <code className={`status-badge status-${proyecto.estado.toLowerCase().replace(' ', '-')}`}>
                     {proyecto.estado}
