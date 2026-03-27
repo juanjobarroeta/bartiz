@@ -97,4 +97,24 @@ export const generarSolicitudCompra = (presupuestoId, itemsSeleccionados) => {
   }
 }
 
+export const obtenerItemsPendientes = (presupuestoId) => {
+  const presupuesto = obtenerPresupuesto(presupuestoId)
+  if (!presupuesto) return []
+  
+  const itemsPendientes = []
+  presupuesto.fases?.forEach(fase => {
+    fase.items?.forEach(item => {
+      if (!item.ordenado || item.cantidadPendiente > 0) {
+        itemsPendientes.push({
+          ...item,
+          faseId: fase.id,
+          faseNombre: fase.nombre
+        })
+      }
+    })
+  })
+  
+  return itemsPendientes
+}
+
 export default presupuestosProyecto
