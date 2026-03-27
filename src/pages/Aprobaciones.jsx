@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './Shared.css'
 import './Dashboard.css'
+import { api } from '../config/api'
 
 const Aprobaciones = () => {
   const [solicitudes, setSolicitudes] = useState([])
@@ -14,13 +15,13 @@ const Aprobaciones = () => {
 
   useEffect(() => {
     // Cargar proyectos
-    fetch('/api/proyectos')
+    fetch(api('/api/proyectos'))
       .then(res => res.json())
       .then(data => setProyectos(data))
       .catch(() => setProyectos([]))
 
     // Cargar solicitudes
-    fetch('/api/solicitudes')
+    fetch(api('/api/solicitudes'))
       .then(res => res.json())
       .then(data => setSolicitudes(data))
       .catch(() => setSolicitudes([]))

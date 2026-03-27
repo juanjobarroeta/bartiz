@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import './ProyectoDetalle.css'
 import './Shared.css'
+import { api } from '../config/api'
 
 const ProyectoDetalle = () => {
   const { id } = useParams()
@@ -16,7 +17,7 @@ const ProyectoDetalle = () => {
 
   useEffect(() => {
     // Cargar proyecto
-    fetch(`/api/proyectos/${id}`)
+    fetch(api(`/api/proyectos/${id}`))
       .then(res => res.json())
       .then(data => {
         setProyecto(data)
@@ -26,10 +27,10 @@ const ProyectoDetalle = () => {
 
     // Cargar datos relacionados
     Promise.all([
-      fetch('/api/pagos').then(r => r.json()),
-      fetch('/api/solicitudes').then(r => r.json()),
-      fetch('/api/contabilidad').then(r => r.json()),
-      fetch('/api/empleados').then(r => r.json())
+      fetch(api('/api/pagos')).then(r => r.json()),
+      fetch(api('/api/solicitudes')).then(r => r.json()),
+      fetch(api('/api/contabilidad')).then(r => r.json()),
+      fetch(api('/api/empleados')).then(r => r.json())
     ]).then(([pagosData, solicitudesData, contabilidadData, empleadosData]) => {
       setPagos(pagosData)
       setSolicitudes(solicitudesData)

@@ -341,7 +341,7 @@ const SolicitudesCompra = () => {
         })
         solicitud = await res.json()
       } else {
-        const res = await fetch('/api/solicitudes-compra', {
+        const res = await fetch(api('/api/solicitudes-compra'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

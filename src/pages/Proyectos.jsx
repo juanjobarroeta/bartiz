@@ -48,7 +48,7 @@ const Proyectos = () => {
     }
 
     try {
-      const res = await fetch('/api/proyectos', {
+      const res = await fetch(api('/api/proyectos'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(proyecto)

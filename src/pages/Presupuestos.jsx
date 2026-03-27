@@ -47,7 +47,7 @@ const Presupuestos = () => {
     const proyecto = proyectos.find(p => p.id === parseInt(proyectoSeleccionado))
     
     try {
-      const res = await fetch('/api/presupuestos-proyecto', {
+      const res = await fetch(api('/api/presupuestos-proyecto'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

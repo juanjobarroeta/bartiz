@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './Shared.css'
+import { api } from '../config/api'
 
 const Pagos = () => {
   const [pagos, setPagos] = useState([])
@@ -20,19 +21,19 @@ const Pagos = () => {
 
   useEffect(() => {
     // Cargar proyectos
-    fetch('/api/proyectos')
+    fetch(api('/api/proyectos'))
       .then(res => res.json())
       .then(data => setProyectos(data))
       .catch(() => setProyectos([]))
 
     // Cargar proveedores
-    fetch('/api/proveedores')
+    fetch(api('/api/proveedores'))
       .then(res => res.json())
       .then(data => setProveedores(data))
       .catch(() => setProveedores([]))
 
     // Cargar pagos
-    fetch('/api/pagos')
+    fetch(api('/api/pagos'))
       .then(res => res.json())
       .then(data => setPagos(data))
       .catch(() => {

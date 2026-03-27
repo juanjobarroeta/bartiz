@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import './ProyectoDetalle.css'
 import './Shared.css'
 import './Dashboard.css'
+import { api } from '../config/api'
 
 const ProveedorDetalle = () => {
   const { id } = useParams()
@@ -22,7 +23,7 @@ const ProveedorDetalle = () => {
 
   useEffect(() => {
     // Cargar proveedor
-    fetch(`/api/proveedores/${id}`)
+    fetch(api(`/api/proveedores/${id}`))
       .then(res => res.json())
       .then(data => {
         setProveedor(data)
@@ -31,13 +32,13 @@ const ProveedorDetalle = () => {
       .catch(() => setLoading(false))
 
     // Cargar todos los pagos
-    fetch('/api/pagos')
+    fetch(api('/api/pagos'))
       .then(res => res.json())
       .then(data => setPagos(data))
       .catch(() => setPagos([]))
 
     // Cargar todas las solicitudes
-    fetch('/api/solicitudes')
+    fetch(api('/api/solicitudes'))
       .then(res => res.json())
       .then(data => setSolicitudes(data))
       .catch(() => setSolicitudes([]))

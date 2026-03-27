@@ -166,7 +166,7 @@ const PresupuestoProyecto = () => {
 
   const crearPresupuesto = async () => {
     try {
-      const res = await fetch('/api/presupuestos-proyecto', {
+      const res = await fetch(api('/api/presupuestos-proyecto'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -266,7 +266,7 @@ const PresupuestoProyecto = () => {
     }
 
     try {
-      const res = await fetch('/api/catalogo', {
+      const res = await fetch(api('/api/catalogo'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -337,7 +337,7 @@ const PresupuestoProyecto = () => {
         const solicitudData = await res.json()
         
         // Crear la solicitud
-        const createRes = await fetch('/api/solicitudes-compra', {
+        const createRes = await fetch(api('/api/solicitudes-compra'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

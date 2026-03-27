@@ -4,6 +4,15 @@ import { api } from '../config/api'
 
 // Simple Sparkline component
 const Sparkline = ({ data, color = 'var(--color-primary)', trend = 'up' }) => {
+  // Ensure we have at least 2 data points to avoid division by zero
+  if (!data || data.length < 2) {
+    return (
+      <svg width={120} height={40} className="sparkline">
+        <line x1="0" y1="20" x2="120" y2="20" stroke={color} strokeWidth="2" opacity="0.3" />
+      </svg>
+    )
+  }
+
   const max = Math.max(...data)
   const min = Math.min(...data)
   const range = max - min || 1

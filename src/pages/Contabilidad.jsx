@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import './Shared.css'
 import './Dashboard.css'
 import './ProyectoDetalle.css'
+import { api } from '../config/api'
 
 const Contabilidad = () => {
   const [tabActiva, setTabActiva] = useState('ledger')
@@ -23,19 +24,19 @@ const Contabilidad = () => {
 
   useEffect(() => {
     // Cargar catálogo de cuentas
-    fetch('/api/catalogo-cuentas')
+    fetch(api('/api/catalogo-cuentas'))
       .then(res => res.json())
       .then(data => setCatalogoCuentas(data))
       .catch(() => setCatalogoCuentas([]))
 
     // Cargar proyectos
-    fetch('/api/proyectos')
+    fetch(api('/api/proyectos'))
       .then(res => res.json())
       .then(data => setProyectos(data))
       .catch(() => setProyectos([]))
 
     // Cargar movimientos contables
-    fetch('/api/contabilidad')
+    fetch(api('/api/contabilidad'))
       .then(res => res.json())
       .then(data => setMovimientos(data))
       .catch(() => {
