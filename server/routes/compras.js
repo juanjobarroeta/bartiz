@@ -7,7 +7,7 @@ import {
   compararPrecios,
   obtenerHistorialPrecios
 } from '../data/compras.js'
-import { proveedores } from '../data/proveedores.js'
+import proveedores from '../data/proveedores.js'
 
 const router = Router()
 
