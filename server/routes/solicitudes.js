@@ -1,5 +1,5 @@
 import express from 'express'
-import { solicitudes } from '../data/solicitudes.js'
+import solicitudes from '../data/solicitudes.js'
 
 const router = express.Router()
 

@@ -1,5 +1,5 @@
 import express from 'express'
-import { movimientos } from '../data/contabilidad.js'
+import movimientos from '../data/contabilidad.js'
 
 const router = express.Router()
 

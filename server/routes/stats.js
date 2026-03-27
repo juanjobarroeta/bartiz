@@ -1,12 +1,12 @@
 import express from 'express'
 import { proyectos } from '../data/proyectos.js'
-import { clientes } from '../data/clientes.js'
-import { empleados } from '../data/empleados.js'
-import { presupuestos } from '../data/presupuestos.js'
-import { solicitudes } from '../data/solicitudes.js'
-import { pagos } from '../data/pagos.js'
-import { movimientos } from '../data/contabilidad.js'
-import { proveedores } from '../data/proveedores.js'
+import clientes from '../data/clientes.js'
+import empleados from '../data/empleados.js'
+import presupuestos from '../data/presupuestos.js'
+import solicitudes from '../data/solicitudes.js'
+import pagos from '../data/pagos.js'
+import movimientos from '../data/contabilidad.js'
+import proveedores from '../data/proveedores.js'
 
 const router = express.Router()
 

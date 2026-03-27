@@ -1,5 +1,5 @@
 import express from 'express'
-import { inventario } from '../data/inventario.js'
+import inventario from '../data/inventario.js'
 
 const router = express.Router()
 
