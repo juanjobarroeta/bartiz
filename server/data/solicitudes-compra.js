@@ -2,6 +2,28 @@
 let solicitudesCompra = []
 let solicitudIdCounter = 1
 
+export const estadosSolicitud = [
+  { id: 'borrador', nombre: 'Borrador', color: '#94A3B8' },
+  { id: 'pendiente', nombre: 'Pendiente Aprobación', color: '#F59E0B' },
+  { id: 'aprobada', nombre: 'Aprobada', color: '#10B981' },
+  { id: 'rechazada', nombre: 'Rechazada', color: '#EF4444' },
+  { id: 'enviada', nombre: 'Enviada a Proveedor', color: '#3B82F6' },
+  { id: 'recibida', nombre: 'Recibida Parcial', color: '#8B5CF6' },
+  { id: 'completada', nombre: 'Completada', color: '#059669' },
+  { id: 'cancelada', nombre: 'Cancelada', color: '#6B7280' }
+]
+
+export const fases = [
+  'Preliminares',
+  'Cimentación',
+  'Estructura',
+  'Albañilería',
+  'Instalaciones',
+  'Acabados',
+  'Exteriores',
+  'Varios'
+]
+
 export const obtenerSolicitudes = (filtros = {}) => {
   let resultado = [...solicitudesCompra]
   
