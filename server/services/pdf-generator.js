@@ -99,33 +99,26 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
       const precioStr = precio.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       const subtotalStr = subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       
-      // Truncate very long names to avoid excessive wrapping
-      let itemName = item.articuloNombre
-      if (itemName.length > 120) {
-        itemName = itemName.substring(0, 117) + '...'
-      }
+      doc.fontSize(8).font('Helvetica')
       
-      doc.fontSize(9).font('Helvetica')
-      
-      // Calculate height of wrapped text
-      const itemHeight = doc.heightOfString(`${itemIndex + 1}. ${itemName}`, { 
-        width: 220
-      })
+      // Calculate height of wrapped text with full description
+      const itemText = `${itemIndex + 1}. ${item.articuloNombre}`
+      const itemHeight = doc.heightOfString(itemText, { width: 220 })
       
       // Save current Y position
       const startY = doc.y
       
-      // Write item name (this will advance doc.y)
-      doc.text(`${itemIndex + 1}. ${itemName}`, col1, itemY, { width: 220 })
+      // Write item name with wrapping (this will advance doc.y)
+      doc.text(itemText, col1, startY, { width: 220 })
       
-      // Write other columns at the ORIGINAL Y position (reset doc.y temporarily)
-      doc.text(cantidadStr, col2, itemY, { width: 60, align: 'right' })
-      doc.text(item.unidad || 'pza', col3, itemY, { width: 40, align: 'left' })
-      doc.text(`$${precioStr}`, col4, itemY, { width: 70, align: 'right' })
-      doc.text(`$${subtotalStr}`, col5, itemY, { width: 80, align: 'right' })
+      // Write other columns at the ORIGINAL Y position
+      doc.text(cantidadStr, col2, startY, { width: 60, align: 'right' })
+      doc.text(item.unidad || 'pza', col3, startY, { width: 40, align: 'left' })
+      doc.text(`$${precioStr}`, col4, startY, { width: 70, align: 'right' })
+      doc.text(`$${subtotalStr}`, col5, startY, { width: 80, align: 'right' })
       
-      // Set Y position to after the tallest element
-      doc.y = startY + itemHeight + 8
+      // Set Y position to after the wrapped text with padding
+      doc.y = startY + itemHeight + 10
     })
     
     // Phase subtotal
