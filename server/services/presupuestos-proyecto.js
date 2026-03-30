@@ -317,6 +317,27 @@ export const obtenerItemsPendientes = async (presupuestoId, faseId = null) => {
 }
 
 function mapPresupuesto(row) {
+  const fases = row.fases || []
+  
+  // Calculate totals from all items across all phases
+  let totalPresupuestado = 0
+  let totalGastoReal = 0
+  let totalPagado = 0
+  
+  fases.forEach(fase => {
+    if (fase.items) {
+      fase.items.forEach(item => {
+        const cantidad = parseFloat(item.cantidadPresupuestada) || 0
+        const precio = parseFloat(item.precioUnitarioEstimado) || 0
+        const pagado = parseFloat(item.montoPagado) || 0
+        
+        totalPresupuestado += cantidad * precio
+        totalGastoReal += pagado
+        totalPagado += pagado
+      })
+    }
+  })
+  
   return {
     id: row.id,
     proyectoId: row.proyecto_id,
@@ -324,11 +345,11 @@ function mapPresupuesto(row) {
     estado: row.estado,
     fechaCreacion: row.fecha_creacion,
     fechaActualizacion: row.fecha_actualizacion ? new Date(row.fecha_actualizacion).toLocaleDateString('es-MX') : null,
-    fases: row.fases || [],
+    fases: fases,
     resumen: {
-      totalPresupuestado: 0,
-      totalGastoReal: 0,
-      totalPagado: 0
+      totalPresupuestado,
+      totalGastoReal,
+      totalPagado
     }
   }
 }
