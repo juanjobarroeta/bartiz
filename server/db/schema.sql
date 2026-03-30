@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS items_presupuesto (
   articulo_codigo VARCHAR(100),
   articulo_unidad VARCHAR(50),
   cantidad_presupuestada DECIMAL(15, 4) DEFAULT 0,
+  costo_unitario DECIMAL(15, 2) DEFAULT 0,
+  precio_venta_unitario DECIMAL(15, 2) DEFAULT 0,
   precio_unitario DECIMAL(15, 2) DEFAULT 0,
   cantidad_solicitada DECIMAL(15, 4) DEFAULT 0,
   cantidad_recibida DECIMAL(15, 4) DEFAULT 0,

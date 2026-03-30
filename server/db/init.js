@@ -15,12 +15,19 @@ async function initDatabase() {
     
     // Run migrations
     try {
-      const migration = readFileSync(join(__dirname, 'migrations/001_increase_articulo_nombre.sql'), 'utf8')
-      await pool.query(migration)
-      console.log('✅ Migration: articulo_nombre increased to TEXT')
-    } catch (migrationError) {
-      // Migration might already be applied
-      console.log('ℹ️  Migration already applied or not needed')
+      const migration1 = readFileSync(join(__dirname, 'migrations/001_increase_articulo_nombre.sql'), 'utf8')
+      await pool.query(migration1)
+      console.log('✅ Migration 1: articulo_nombre increased to TEXT')
+    } catch (e) {
+      console.log('ℹ️  Migration 1 already applied')
+    }
+    
+    try {
+      const migration2 = readFileSync(join(__dirname, 'migrations/002_add_dual_pricing.sql'), 'utf8')
+      await pool.query(migration2)
+      console.log('✅ Migration 2: Added dual pricing columns')
+    } catch (e) {
+      console.log('ℹ️  Migration 2 already applied')
     }
     
     console.log('✅ Database initialized successfully!')
