@@ -684,15 +684,9 @@ const PresupuestoProyecto = () => {
                                 </div>
                               </div>
                               
-                              {nuevoItem.cantidad > 0 && (nuevoItem.costo > 0 || nuevoItem.precioVenta > 0) && (
-                                <div style={{ marginTop: '10px', padding: '10px', background: '#e8f5e9', borderRadius: '4px', fontSize: '14px' }}>
-                                  <div><strong>Costo Total:</strong> ${(nuevoItem.cantidad * (nuevoItem.costo || 0)).toLocaleString('es-MX')}</div>
-                                  <div><strong>Venta Total:</strong> ${(nuevoItem.cantidad * (nuevoItem.precioVenta || 0)).toLocaleString('es-MX')}</div>
-                                  {nuevoItem.precioVenta > 0 && (
-                                    <div style={{ color: '#2e7d32', marginTop: '5px' }}>
-                                      <strong>Margen:</strong> {(((nuevoItem.precioVenta - (nuevoItem.costo || 0)) / nuevoItem.precioVenta) * 100).toFixed(1)}%
-                                    </div>
-                                  )}
+                              {nuevoItem.cantidad > 0 && nuevoItem.costo > 0 && (
+                                <div style={{ marginTop: '10px', padding: '10px', background: '#fef3c7', borderRadius: '4px', fontSize: '14px' }}>
+                                  <strong>Costo Total:</strong> ${(nuevoItem.cantidad * nuevoItem.costo).toLocaleString('es-MX')}
                                 </div>
                               )}
                             </div>
