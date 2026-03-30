@@ -92,19 +92,25 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
       
       doc.fontSize(9).font('Helvetica')
       
-      // Write item name
-      doc.text(`${itemIndex + 1}. ${item.articuloNombre}`, col1, itemY, { 
+      // Write item name with text wrapping enabled and track height
+      const itemHeight = doc.heightOfString(`${itemIndex + 1}. ${item.articuloNombre}`, { 
         width: 220,
-        lineBreak: false
+        align: 'left'
       })
       
-      // Write other columns at the same Y position
+      doc.text(`${itemIndex + 1}. ${item.articuloNombre}`, col1, itemY, { 
+        width: 220,
+        align: 'left'
+      })
+      
+      // Write other columns at the ORIGINAL Y position (top of the wrapped text)
       doc.text(cantidadStr, col2, itemY, { width: 60, align: 'right' })
       doc.text(item.unidad || 'pza', col3, itemY, { width: 40, align: 'left' })
       doc.text(`$${precioStr}`, col4, itemY, { width: 70, align: 'right' })
       doc.text(`$${subtotalStr}`, col5, itemY, { width: 80, align: 'right' })
       
-      doc.moveDown(0.8)
+      // Move down based on the actual height of the tallest element (the wrapped text)
+      doc.y = itemY + itemHeight + 5
     })
     
     // Phase subtotal
