@@ -366,6 +366,10 @@ const PresupuestoProyecto = () => {
   }
 
   const calcularTotalesFase = (fase) => {
+    if (!fase.items || fase.items.length === 0) {
+      return { presupuestado: 0, solicitado: 0, recibido: 0, pagado: 0, gastoReal: 0 }
+    }
+    
     return fase.items.reduce((acc, item) => ({
       presupuestado: acc.presupuestado + (item.subtotalEstimado || 0),
       solicitado: acc.solicitado + ((item.cantidadSolicitada || 0) * (item.precioUnitarioEstimado || 0)),
@@ -502,9 +506,9 @@ const PresupuestoProyecto = () => {
             {presupuesto.fases.map(fase => {
               const totales = calcularTotalesFase(fase)
               const isExpanded = faseExpandida === fase.id
-              const pendientesCount = fase.items.filter(i => 
+              const pendientesCount = fase.items ? fase.items.filter(i => 
                 (i.cantidadPresupuestada - i.cantidadSolicitada) > 0
-              ).length
+              ).length : 0
 
               return (
                 <div key={fase.id} className={`phase-card ${isExpanded ? 'expanded' : ''}`}>
@@ -512,7 +516,7 @@ const PresupuestoProyecto = () => {
                     <div className="phase-info">
                       <span className="phase-expand">{isExpanded ? '▼' : '▶'}</span>
                       <h4>{fase.nombre}</h4>
-                      <span className="phase-count">{fase.items.length} items</span>
+                      <span className="phase-count">{fase.items?.length || 0} items</span>
                       {pendientesCount > 0 && (
                         <span className="phase-pending">{pendientesCount} pendientes</span>
                       )}
@@ -540,7 +544,7 @@ const PresupuestoProyecto = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {fase.items.map(item => {
+                          {fase.items?.map(item => {
                             const pendiente = item.cantidadPresupuestada - item.cantidadSolicitada
                             return (
                               <tr key={item.id}>
