@@ -16,11 +16,16 @@ export const obtenerPresupuestos = async () => {
                 'articuloNombre', ip.articulo_nombre,
                 'articuloCodigo', ip.articulo_codigo,
                 'articuloUnidad', ip.articulo_unidad,
+                'unidad', ip.articulo_unidad,
                 'cantidadPresupuestada', ip.cantidad_presupuestada,
                 'precioUnitario', ip.precio_unitario,
+                'precioUnitarioEstimado', ip.precio_unitario,
+                'subtotalEstimado', ip.cantidad_presupuestada * ip.precio_unitario,
                 'cantidadSolicitada', ip.cantidad_solicitada,
                 'cantidadRecibida', ip.cantidad_recibida,
-                'montoPagado', ip.monto_pagado
+                'cantidadPagada', ip.cantidad_recibida,
+                'montoPagado', ip.monto_pagado,
+                'gastoReal', ip.monto_pagado
               )
             )
             FROM items_presupuesto ip
@@ -53,11 +58,16 @@ export const obtenerPresupuesto = async (id) => {
                 'articuloNombre', ip.articulo_nombre,
                 'articuloCodigo', ip.articulo_codigo,
                 'articuloUnidad', ip.articulo_unidad,
+                'unidad', ip.articulo_unidad,
                 'cantidadPresupuestada', ip.cantidad_presupuestada,
                 'precioUnitario', ip.precio_unitario,
+                'precioUnitarioEstimado', ip.precio_unitario,
+                'subtotalEstimado', ip.cantidad_presupuestada * ip.precio_unitario,
                 'cantidadSolicitada', ip.cantidad_solicitada,
                 'cantidadRecibida', ip.cantidad_recibida,
-                'montoPagado', ip.monto_pagado
+                'cantidadPagada', ip.cantidad_recibida,
+                'montoPagado', ip.monto_pagado,
+                'gastoReal', ip.monto_pagado
               )
             )
             FROM items_presupuesto ip
@@ -90,11 +100,16 @@ export const obtenerPresupuestoPorProyecto = async (proyectoId) => {
                 'articuloNombre', ip.articulo_nombre,
                 'articuloCodigo', ip.articulo_codigo,
                 'articuloUnidad', ip.articulo_unidad,
+                'unidad', ip.articulo_unidad,
                 'cantidadPresupuestada', ip.cantidad_presupuestada,
                 'precioUnitario', ip.precio_unitario,
+                'precioUnitarioEstimado', ip.precio_unitario,
+                'subtotalEstimado', ip.cantidad_presupuestada * ip.precio_unitario,
                 'cantidadSolicitada', ip.cantidad_solicitada,
                 'cantidadRecibida', ip.cantidad_recibida,
-                'montoPagado', ip.monto_pagado
+                'cantidadPagada', ip.cantidad_recibida,
+                'montoPagado', ip.monto_pagado,
+                'gastoReal', ip.monto_pagado
               )
             )
             FROM items_presupuesto ip
