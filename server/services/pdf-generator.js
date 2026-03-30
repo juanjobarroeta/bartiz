@@ -69,8 +69,9 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
     doc.text('P. UNIT.', col4, tableTop)
     doc.text('SUBTOTAL', col5, tableTop)
     
-    // Draw line after moving down to avoid overlap
-    const lineY = doc.y + 5
+    // Move down first, then draw line to ensure proper spacing
+    doc.moveDown(0.3)
+    const lineY = doc.y
     doc.moveTo(col1, lineY).lineTo(560, lineY).stroke()
     doc.moveDown(0.5)
     
