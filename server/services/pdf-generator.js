@@ -130,6 +130,25 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
   doc.fontSize(16)
   doc.text(`$${totalGeneralStr}`, 450, totalY, { width: 110, align: 'right' })
   
+  // IVA and Grand Total with Tax
+  doc.moveDown(1)
+  const subtotalBeforeIVA = totalGeneral
+  const iva = totalGeneral * 0.16
+  const totalConIVA = totalGeneral + iva
+  
+  const ivaY = doc.y
+  doc.fontSize(12).font('Helvetica')
+  doc.text('Subtotal:', 380, ivaY)
+  doc.text(`$${subtotalBeforeIVA.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 450, ivaY, { width: 110, align: 'right' })
+  
+  doc.text('IVA (16%):', 380, ivaY + 20)
+  doc.text(`$${iva.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 450, ivaY + 20, { width: 110, align: 'right' })
+  
+  doc.fontSize(14).font('Helvetica-Bold')
+  doc.text('TOTAL CON IVA:', 320, ivaY + 45)
+  doc.fontSize(16)
+  doc.text(`$${totalConIVA.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 450, ivaY + 45, { width: 110, align: 'right' })
+  
   // Footer
   doc.moveDown(3)
   doc.fontSize(8).font('Helvetica').fillColor('#666666')
@@ -137,19 +156,6 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
   doc.text('Los precios están sujetos a cambios sin previo aviso.', { align: 'center' })
   doc.moveDown(0.5)
   doc.text('Para cualquier aclaración, favor de contactarnos.', { align: 'center' })
-  
-  // Page numbers
-  const pages = doc.bufferedPageRange()
-  for (let i = 0; i < pages.count; i++) {
-    doc.switchToPage(i)
-    doc.fontSize(8).font('Helvetica').fillColor('#999999')
-    doc.text(
-      `Página ${i + 1} de ${pages.count}`,
-      50,
-      doc.page.height - 50,
-      { align: 'center' }
-    )
-  }
   
   doc.end()
   
