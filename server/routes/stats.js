@@ -1,5 +1,5 @@
 import express from 'express'
-import { proyectos } from '../data/proyectos.js'
+import * as proyectosService from '../services/proyectos.js'
 import clientes from '../data/clientes.js'
 import empleados from '../data/empleados.js'
 import presupuestos from '../data/presupuestos.js'
@@ -10,10 +10,12 @@ import proveedores from '../data/proveedores.js'
 
 const router = express.Router()
 
-router.get('/', (req, res) => {
-  const proyectosActivos = proyectos.filter(p => 
-    ['Cotización', 'Proceso de Licitación', 'Planeación', 'En Progreso'].includes(p.estado)
-  ).length
+router.get('/', async (req, res) => {
+  try {
+    const proyectos = await proyectosService.obtenerProyectos()
+    const proyectosActivos = proyectos.filter(p => 
+      ['Cotización', 'Proceso de Licitación', 'Planeación', 'En Progreso'].includes(p.estado)
+    ).length
   
   const clientesActivos = clientes.length
   
@@ -40,21 +42,28 @@ router.get('/', (req, res) => {
   const proveedoresActivos = proveedores.filter(p => p.activo).length
   const saldoProveedores = proveedores.reduce((sum, p) => sum + (p.saldoPendiente || 0), 0)
 
-  res.json({
-    proyectosActivos,
-    clientesActivos,
-    empleados: totalEmpleados,
-    presupuestoTotal,
-    solicitudesPendientes,
-    pagosPendientes,
-    totalPagado,
-    totalIngresos,
-    totalEgresos,
-    balance,
-    totalProveedores,
-    proveedoresActivos,
-    saldoProveedores
-  })
+    res.json({
+      proyectosActivos,
+      clientesActivos,
+      empleados: totalEmpleados,
+      presupuestoTotal,
+      solicitudesPendientes,
+      pagosPendientes,
+      totalPagado,
+      totalIngresos,
+      totalEgresos,
+      balance,
+      totalProveedores,
+      proveedoresActivos,
+      saldoProveedores,
+      totalGastado: totalPagado,
+      progresoPromedio: proyectosActivos > 0 ? Math.round(proyectos.reduce((sum, p) => sum + (p.progreso || 0), 0) / proyectos.length) : 0,
+      proyectosCompletados: proyectos.filter(p => p.estado === 'Completado').length
+    })
+  } catch (error) {
+    console.error('Error getting stats:', error)
+    res.status(500).json({ error: 'Error al obtener estadísticas' })
+  }
 })
 
 export default router
