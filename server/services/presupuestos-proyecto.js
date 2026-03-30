@@ -262,6 +262,14 @@ export const actualizarItemPresupuesto = async (presupuestoId, faseId, itemId, d
       fields.push(`cantidad_presupuestada = $${paramCount++}`)
       values.push(datos.cantidadPresupuestada)
     }
+    if (datos.costoUnitario !== undefined) {
+      fields.push(`costo_unitario = $${paramCount++}`)
+      values.push(datos.costoUnitario)
+    }
+    if (datos.precioVentaUnitario !== undefined) {
+      fields.push(`precio_venta_unitario = $${paramCount++}`)
+      values.push(datos.precioVentaUnitario)
+    }
     if (datos.precioUnitario !== undefined || datos.precioUnitarioEstimado !== undefined) {
       fields.push(`precio_unitario = $${paramCount++}`)
       values.push(datos.precioUnitario || datos.precioUnitarioEstimado)
