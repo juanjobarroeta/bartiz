@@ -319,19 +319,17 @@ function mapPresupuesto(row) {
     items: fase.items || []
   }))
   
-  // Calculate totals from all items across all phases
-  let totalPresupuestado = 0
-  let totalGastoReal = 0
+  // Calculate cost totals only
+  let totalCosto = 0
   let totalPagado = 0
   
   fases.forEach(fase => {
     fase.items.forEach(item => {
       const cantidad = parseFloat(item.cantidadPresupuestada) || 0
-      const precio = parseFloat(item.precioUnitarioEstimado) || 0
+      const costo = parseFloat(item.costoUnitario) || 0
       const pagado = parseFloat(item.montoPagado) || 0
       
-      totalPresupuestado += cantidad * precio
-      totalGastoReal += pagado
+      totalCosto += cantidad * costo
       totalPagado += pagado
     })
   })
@@ -345,9 +343,9 @@ function mapPresupuesto(row) {
     fechaActualizacion: row.fecha_actualizacion ? new Date(row.fecha_actualizacion).toLocaleDateString('es-MX') : null,
     fases: fases,
     resumen: {
-      totalPresupuestado,
-      totalGastoReal,
-      totalPagado
+      totalCosto,
+      totalPagado,
+      totalPresupuestado: totalCosto
     }
   }
 }
