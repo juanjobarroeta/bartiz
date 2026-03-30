@@ -13,6 +13,16 @@ async function initDatabase() {
     const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf8')
     await pool.query(schema)
     
+    // Run migrations
+    try {
+      const migration = readFileSync(join(__dirname, 'migrations/001_increase_articulo_nombre.sql'), 'utf8')
+      await pool.query(migration)
+      console.log('✅ Migration: articulo_nombre increased to TEXT')
+    } catch (migrationError) {
+      // Migration might already be applied
+      console.log('ℹ️  Migration already applied or not needed')
+    }
+    
     console.log('✅ Database initialized successfully!')
   } catch (error) {
     console.error('❌ Error initializing database:', error)

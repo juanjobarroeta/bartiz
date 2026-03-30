@@ -23,24 +23,63 @@ export const categorias = [
 ]
 
 export const unidades = [
+  // Peso
   { id: 'ton', nombre: 'Tonelada', abrev: 'ton' },
   { id: 'kg', nombre: 'Kilogramo', abrev: 'kg' },
+  { id: 'g', nombre: 'Gramo', abrev: 'g' },
+  { id: 'mg', nombre: 'Miligramo', abrev: 'mg' },
+  { id: 'lb', nombre: 'Libra', abrev: 'lb' },
+  
+  // Volumen - Líquidos
+  { id: 'l', nombre: 'Litro', abrev: 'L' },
+  { id: 'ml', nombre: 'Mililitro', abrev: 'mL' },
+  { id: 'cl', nombre: 'Centilitro', abrev: 'cL' },
+  { id: 'gal', nombre: 'Galón', abrev: 'gal' },
+  { id: 'cubeta', nombre: 'Cubeta', abrev: 'cub' },
+  { id: 'tambo', nombre: 'Tambo', abrev: 'tambo' },
+  
+  // Longitud
+  { id: 'm', nombre: 'Metro lineal', abrev: 'm' },
+  { id: 'cm', nombre: 'Centímetro', abrev: 'cm' },
+  { id: 'mm', nombre: 'Milímetro', abrev: 'mm' },
+  { id: 'km', nombre: 'Kilómetro', abrev: 'km' },
+  { id: 'pulg', nombre: 'Pulgada', abrev: 'in' },
+  { id: 'pie', nombre: 'Pie', abrev: 'ft' },
+  
+  // Área
+  { id: 'm2', nombre: 'Metro cuadrado', abrev: 'm²' },
+  { id: 'cm2', nombre: 'Centímetro cuadrado', abrev: 'cm²' },
+  { id: 'ha', nombre: 'Hectárea', abrev: 'ha' },
+  
+  // Volumen - Sólidos
+  { id: 'm3', nombre: 'Metro cúbico', abrev: 'm³' },
+  { id: 'cm3', nombre: 'Centímetro cúbico', abrev: 'cm³' },
+  
+  // Unidades de empaque
   { id: 'pza', nombre: 'Pieza', abrev: 'pza' },
   { id: 'bulto', nombre: 'Bulto', abrev: 'bto' },
   { id: 'saco', nombre: 'Saco', abrev: 'saco' },
-  { id: 'm', nombre: 'Metro lineal', abrev: 'm' },
-  { id: 'm2', nombre: 'Metro cuadrado', abrev: 'm²' },
-  { id: 'm3', nombre: 'Metro cúbico', abrev: 'm³' },
-  { id: 'l', nombre: 'Litro', abrev: 'L' },
-  { id: 'gal', nombre: 'Galón', abrev: 'gal' },
-  { id: 'cubeta', nombre: 'Cubeta', abrev: 'cub' },
   { id: 'rollo', nombre: 'Rollo', abrev: 'rollo' },
   { id: 'caja', nombre: 'Caja', abrev: 'caja' },
+  { id: 'paquete', nombre: 'Paquete', abrev: 'paq' },
+  { id: 'costal', nombre: 'Costal', abrev: 'costal' },
+  { id: 'bote', nombre: 'Bote', abrev: 'bote' },
+  
+  // Conteo
   { id: 'millar', nombre: 'Millar', abrev: 'mill' },
+  { id: 'ciento', nombre: 'Ciento', abrev: 'cto' },
+  { id: 'docena', nombre: 'Docena', abrev: 'doz' },
   { id: 'juego', nombre: 'Juego', abrev: 'jgo' },
+  { id: 'par', nombre: 'Par', abrev: 'par' },
+  { id: 'lote', nombre: 'Lote', abrev: 'lote' },
+  
+  // Servicios y tiempo
   { id: 'viaje', nombre: 'Viaje', abrev: 'viaje' },
   { id: 'hr', nombre: 'Hora', abrev: 'hr' },
-  { id: 'dia', nombre: 'Día', abrev: 'día' }
+  { id: 'dia', nombre: 'Día', abrev: 'día' },
+  { id: 'semana', nombre: 'Semana', abrev: 'sem' },
+  { id: 'mes', nombre: 'Mes', abrev: 'mes' },
+  { id: 'servicio', nombre: 'Servicio', abrev: 'srv' }
 ]
 
 // Catálogo pre-poblado con artículos comunes de construcción

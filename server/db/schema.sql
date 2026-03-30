@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS items_presupuesto (
   id SERIAL PRIMARY KEY,
   fase_id INTEGER REFERENCES fases(id) ON DELETE CASCADE,
   articulo_id INTEGER,
-  articulo_nombre VARCHAR(255) NOT NULL,
+  articulo_nombre TEXT NOT NULL,
   articulo_codigo VARCHAR(100),
   articulo_unidad VARCHAR(50),
   cantidad_presupuestada DECIMAL(15, 4) DEFAULT 0,
