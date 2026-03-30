@@ -25,9 +25,17 @@ async function initDatabase() {
     try {
       const migration2 = readFileSync(join(__dirname, 'migrations/002_add_dual_pricing.sql'), 'utf8')
       await pool.query(migration2)
-      console.log('✅ Migration 2: Added dual pricing columns')
+      console.log('✅ Migration 2: Added cost tracking')
     } catch (e) {
       console.log('ℹ️  Migration 2 already applied')
+    }
+    
+    try {
+      const migration3 = readFileSync(join(__dirname, 'migrations/003_create_quotes_system.sql'), 'utf8')
+      await pool.query(migration3)
+      console.log('✅ Migration 3: Created quotes system')
+    } catch (e) {
+      console.log('ℹ️  Migration 3 already applied')
     }
     
     console.log('✅ Database initialized successfully!')

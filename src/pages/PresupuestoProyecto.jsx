@@ -122,7 +122,7 @@ const PresupuestoProyecto = () => {
   const [faseExpandida, setFaseExpandida] = useState(null)
   
   const [mostrarAgregarItem, setMostrarAgregarItem] = useState(null) // faseId
-  const [nuevoItem, setNuevoItem] = useState({ cantidad: 1, costo: 0, precioVenta: 0 })
+  const [nuevoItem, setNuevoItem] = useState({ cantidad: 1, costo: 0 })
   
   const [mostrarGenerarSolicitud, setMostrarGenerarSolicitud] = useState(false)
   const [solicitudConfig, setSolicitudConfig] = useState({ faseId: '', proveedorId: '', items: [] })
@@ -207,14 +207,13 @@ const PresupuestoProyecto = () => {
           unidad: articulo.unidad,
           cantidadPresupuestada: nuevoItem.cantidad,
           costoUnitario: nuevoItem.costo || 0,
-          precioVentaUnitario: nuevoItem.precioVenta || 0,
-          precioUnitarioEstimado: nuevoItem.precioVenta || 0
+          precioUnitarioEstimado: nuevoItem.costo || 0
         })
       })
 
       if (res.ok) {
         setMostrarAgregarItem(null)
-        setNuevoItem({ cantidad: 1, costo: 0, precioVenta: 0 })
+        setNuevoItem({ cantidad: 1, costo: 0 })
         cargarDatos()
       } else {
         const error = await res.json()
@@ -374,20 +373,17 @@ const PresupuestoProyecto = () => {
 
   const calcularTotalesFase = (fase) => {
     if (!fase.items || fase.items.length === 0) {
-      return { totalCosto: 0, totalVenta: 0, margen: 0 }
+      return { totalCosto: 0 }
     }
     
     return fase.items.reduce((acc, item) => {
       const cantidad = item.cantidadPresupuestada || 0
       const costo = item.costoUnitario || 0
-      const venta = item.precioVentaUnitario || item.precioUnitarioEstimado || 0
       
       return {
-        totalCosto: acc.totalCosto + (cantidad * costo),
-        totalVenta: acc.totalVenta + (cantidad * venta),
-        margen: acc.margen + ((cantidad * venta) - (cantidad * costo))
+        totalCosto: acc.totalCosto + (cantidad * costo)
       }
-    }, { totalCosto: 0, totalVenta: 0, margen: 0 })
+    }, { totalCosto: 0 })
   }
 
   if (loading) {
@@ -408,16 +404,11 @@ const PresupuestoProyecto = () => {
         </div>
         {presupuesto && (
           <div style={{ display: 'flex', gap: '10px' }}>
-            <a
-              href={api(`/api/presupuestos-proyecto/${presupuesto.id}/pdf`)}
-              download
-              className="btn btn-outline"
-              style={{ textDecoration: 'none' }}
-            >
-              📄 Descargar Cotización PDF
-            </a>
+            <button className="btn btn-outline" onClick={() => alert('Crear Cotización: Coming soon - selecciona margen y genera PDF')}>
+              💰 Crear Cotización para Cliente
+            </button>
             <button className="btn btn-primary" onClick={() => abrirGenerarSolicitud()}>
-              📤 Generar Solicitud de Pendientes
+              📤 Generar Solicitud de Compra
             </button>
           </div>
         )}
@@ -435,11 +426,11 @@ const PresupuestoProyecto = () => {
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
+          {/* Summary Cards - COSTS ONLY */}
           <div className="budget-summary">
             <div className="summary-card">
-              <span className="summary-label">Costo Total</span>
-              <span className="summary-value" style={{ color: '#ef4444' }}>
+              <span className="summary-label">Costo Total del Proyecto</span>
+              <span className="summary-value">
                 ${(presupuesto.fases || []).reduce((sum, f) => {
                   const totales = calcularTotalesFase(f)
                   return sum + totales.totalCosto
@@ -447,32 +438,21 @@ const PresupuestoProyecto = () => {
               </span>
             </div>
             <div className="summary-card">
-              <span className="summary-label">Venta Total</span>
-              <span className="summary-value" style={{ color: '#10b981' }}>
-                ${(presupuesto.fases || []).reduce((sum, f) => {
-                  const totales = calcularTotalesFase(f)
-                  return sum + totales.totalVenta
-                }, 0).toLocaleString()}
-              </span>
-            </div>
-            <div className="summary-card highlight">
-              <span className="summary-label">Utilidad</span>
+              <span className="summary-label">Items Totales</span>
               <span className="summary-value">
-                ${(presupuesto.fases || []).reduce((sum, f) => {
-                  const totales = calcularTotalesFase(f)
-                  return sum + totales.margen
-                }, 0).toLocaleString()}
+                {(presupuesto.fases || []).reduce((sum, f) => sum + (f.items?.length || 0), 0)}
               </span>
             </div>
             <div className="summary-card">
-              <span className="summary-label">Margen %</span>
+              <span className="summary-label">Fases</span>
               <span className="summary-value">
-                {(() => {
-                  const totalCosto = (presupuesto.fases || []).reduce((sum, f) => sum + calcularTotalesFase(f).totalCosto, 0)
-                  const totalVenta = (presupuesto.fases || []).reduce((sum, f) => sum + calcularTotalesFase(f).totalVenta, 0)
-                  return totalVenta > 0 ? (((totalVenta - totalCosto) / totalVenta) * 100).toFixed(1) : 0
-                })()}%
+                {presupuesto.fases?.length || 0}
               </span>
+            </div>
+            <div className="summary-card highlight">
+              <span className="summary-label">Cotizaciones</span>
+              <span className="summary-value">0</span>
+              <span style={{ fontSize: '11px', color: '#666' }}>generadas</span>
             </div>
           </div>
 
@@ -566,11 +546,11 @@ const PresupuestoProyecto = () => {
                           <tr>
                             <th>Artículo</th>
                             <th>Cantidad</th>
-                            <th>Costo Unit.</th>
-                            <th>Precio Venta</th>
-                            <th>Margen</th>
-                            <th>Subtotal Costo</th>
-                            <th>Subtotal Venta</th>
+                            <th>Costo Unitario</th>
+                            <th>Subtotal</th>
+                            <th>Solicitado</th>
+                            <th>Recibido</th>
+                            <th>Pagado</th>
                             <th></th>
                           </tr>
                         </thead>
@@ -578,11 +558,10 @@ const PresupuestoProyecto = () => {
                           {fase.items?.map(item => {
                             const cantidad = item.cantidadPresupuestada || 0
                             const costo = item.costoUnitario || 0
-                            const venta = item.precioVentaUnitario || item.precioUnitarioEstimado || 0
-                            const subtotalCosto = cantidad * costo
-                            const subtotalVenta = cantidad * venta
-                            const margen = venta - costo
-                            const margenPct = venta > 0 ? ((margen / venta) * 100).toFixed(1) : 0
+                            const subtotal = cantidad * costo
+                            const solicitado = item.cantidadSolicitada || 0
+                            const recibido = item.cantidadRecibida || 0
+                            const pagado = item.cantidadPagada || 0
                             
                             return (
                               <tr key={item.id}>
@@ -612,21 +591,10 @@ const PresupuestoProyecto = () => {
                                     step="0.01"
                                   />
                                 </td>
-                                <td>
-                                  <input
-                                    type="number"
-                                    value={venta}
-                                    onChange={(e) => actualizarItem(fase.id, item.id, 'precioVentaUnitario', parseFloat(e.target.value) || 0)}
-                                    className="price-input-sm"
-                                    placeholder="Precio"
-                                    step="0.01"
-                                  />
-                                </td>
-                                <td className={margen >= 0 ? 'margen-positive' : 'margen-negative'}>
-                                  {margenPct}%
-                                </td>
-                                <td className="subtotal-cost">${subtotalCosto.toLocaleString()}</td>
-                                <td className="subtotal-venta">${subtotalVenta.toLocaleString()}</td>
+                                <td className="subtotal">${subtotal.toLocaleString()}</td>
+                                <td className="status-solicitado">{solicitado.toFixed(2)} {item.unidad}</td>
+                                <td className="status-recibido">{recibido.toFixed(2)} {item.unidad}</td>
+                                <td className="status-pagado">{pagado.toFixed(2)} {item.unidad}</td>
                                 <td>
                                   <button className="btn-icon" onClick={() => eliminarItem(fase.id, item.id)}>🗑️</button>
                                 </td>
@@ -685,35 +653,22 @@ const PresupuestoProyecto = () => {
                                   </div>
                                 </div>
                                 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: '#555' }}>
-                                      Costo Unit. *
-                                    </label>
-                                    <input
-                                      type="number"
-                                      placeholder="Nos cuesta"
-                                      value={nuevoItem.costo}
-                                      onChange={(e) => setNuevoItem({...nuevoItem, costo: parseFloat(e.target.value) || 0})}
-                                      className="price-input-sm"
-                                      step="0.01"
-                                      style={{ width: '100%' }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: '#555' }}>
-                                      Precio Venta *
-                                    </label>
-                                    <input
-                                      type="number"
-                                      placeholder="Cobramos"
-                                      value={nuevoItem.precioVenta}
-                                      onChange={(e) => setNuevoItem({...nuevoItem, precioVenta: parseFloat(e.target.value) || 0})}
-                                      className="price-input-sm"
-                                      step="0.01"
-                                      style={{ width: '100%' }}
-                                    />
-                                  </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '5px', color: '#555' }}>
+                                    Costo Unitario * (Lo que nos cuesta)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    placeholder="Ej: 100.00"
+                                    value={nuevoItem.costo}
+                                    onChange={(e) => setNuevoItem({...nuevoItem, costo: parseFloat(e.target.value) || 0})}
+                                    className="input"
+                                    step="0.01"
+                                    style={{ width: '150px' }}
+                                  />
+                                  <small style={{ display: 'block', marginTop: '5px', color: '#666', fontSize: '11px' }}>
+                                    Precio de compra a proveedor o costo de producción
+                                  </small>
                                 </div>
                                 
                                 <div style={{ display: 'flex', gap: '8px', paddingTop: '20px' }}>
@@ -722,7 +677,7 @@ const PresupuestoProyecto = () => {
                                   </button>
                                   <button className="btn btn-sm" onClick={() => {
                                     setMostrarAgregarItem(null)
-                                    setNuevoItem({ cantidad: 1, costo: 0, precioVenta: 0 })
+                                    setNuevoItem({ cantidad: 1, costo: 0 })
                                   }}>
                                     Cancelar
                                   </button>

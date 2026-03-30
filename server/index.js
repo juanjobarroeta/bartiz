@@ -17,6 +17,7 @@ import solicitudesCompraRouter from './routes/solicitudes-compra.js'
 import presupuestosProyectoRouter from './routes/presupuestos-proyecto.js'
 import statsRouter from './routes/stats.js'
 import usuariosRouter from './routes/usuarios.js'
+import cotizacionesRouter from './routes/cotizaciones.js'
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -75,6 +76,7 @@ app.use('/api/solicitudes-compra', solicitudesCompraRouter)
 app.use('/api/presupuestos-proyecto', presupuestosProyectoRouter)
 app.use('/api/stats', statsRouter)
 app.use('/api/usuarios', usuariosRouter)
+app.use('/api/cotizaciones', cotizacionesRouter)
 
 // Ruta raíz
 app.get('/', (req, res) => {
