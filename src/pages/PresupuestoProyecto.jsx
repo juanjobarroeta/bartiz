@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import './PresupuestoProyecto.css'
 import { api } from '../config/api'
 
+// v1.0.1 - Fixed null safety for fase.items
+
 // Smart Search Component with Quick Add
 const ArticuloSearch = ({ onSelect, onQuickAdd }) => {
   const [query, setQuery] = useState('')
@@ -503,12 +505,12 @@ const PresupuestoProyecto = () => {
               </select>
             </div>
 
-            {presupuesto.fases.map(fase => {
+            {(presupuesto.fases || []).map(fase => {
               const totales = calcularTotalesFase(fase)
               const isExpanded = faseExpandida === fase.id
-              const pendientesCount = fase.items ? fase.items.filter(i => 
+              const pendientesCount = (fase.items || []).filter(i => 
                 (i.cantidadPresupuestada - i.cantidadSolicitada) > 0
-              ).length : 0
+              ).length
 
               return (
                 <div key={fase.id} className={`phase-card ${isExpanded ? 'expanded' : ''}`}>
@@ -699,7 +701,7 @@ const PresupuestoProyecto = () => {
               )
             })}
 
-            {presupuesto.fases.length === 0 && (
+            {(!presupuesto.fases || presupuesto.fases.length === 0) && (
               <div className="empty-phases">
                 <p>No hay fases definidas. Selecciona una fase para comenzar.</p>
               </div>
