@@ -392,9 +392,19 @@ const PresupuestoProyecto = () => {
           <p className="subtitle">Gestión de presupuesto y seguimiento de compras</p>
         </div>
         {presupuesto && (
-          <button className="btn btn-primary" onClick={() => abrirGenerarSolicitud()}>
-            📤 Generar Solicitud de Pendientes
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <a
+              href={api(`/api/presupuestos-proyecto/${presupuesto.id}/pdf`)}
+              download
+              className="btn btn-outline"
+              style={{ textDecoration: 'none' }}
+            >
+              📄 Descargar Cotización PDF
+            </a>
+            <button className="btn btn-primary" onClick={() => abrirGenerarSolicitud()}>
+              📤 Generar Solicitud de Pendientes
+            </button>
+          </div>
         )}
       </header>
 
