@@ -132,6 +132,7 @@ const PresupuestoProyecto = () => {
   const [mostrarQuickAdd, setMostrarQuickAdd] = useState(false)
   const [quickAddData, setQuickAddData] = useState({ nombre: '', codigo: '', categoria: 'otros', unidad: 'pza' })
   const [categorias, setCategorias] = useState([])
+  const [unidades, setUnidades] = useState([])
 
   useEffect(() => {
     cargarDatos()
@@ -140,12 +141,13 @@ const PresupuestoProyecto = () => {
   const cargarDatos = async () => {
     setLoading(true)
     try {
-      const [proyectoRes, presupuestoRes, fasesRes, proveedoresRes, categoriasRes] = await Promise.all([
+      const [proyectoRes, presupuestoRes, fasesRes, proveedoresRes, categoriasRes, unidadesRes] = await Promise.all([
         fetch(api(`/api/proyectos/${proyectoId}`)),
         fetch(api(`/api/presupuestos-proyecto/proyecto/${proyectoId}`)).catch(() => ({ ok: false })),
         fetch(api('/api/presupuestos-proyecto/fases')),
         fetch(api('/api/proveedores')),
-        fetch(api('/api/catalogo/categorias'))
+        fetch(api('/api/catalogo/categorias')),
+        fetch(api('/api/catalogo/unidades'))
       ])
       
       if (proyectoRes.ok) {
@@ -159,6 +161,7 @@ const PresupuestoProyecto = () => {
       setFasesDisponibles(await fasesRes.json())
       setProveedores(await proveedoresRes.json())
       setCategorias(await categoriasRes.json())
+      setUnidades(await unidadesRes.json())
     } catch (error) {
       console.error('Error cargando datos:', error)
     } finally {
@@ -820,19 +823,11 @@ const PresupuestoProyecto = () => {
                     value={quickAddData.unidad}
                     onChange={(e) => setQuickAddData({...quickAddData, unidad: e.target.value})}
                   >
-                    <option value="pza">Pieza</option>
-                    <option value="m">Metro</option>
-                    <option value="m2">Metro²</option>
-                    <option value="m3">Metro³</option>
-                    <option value="kg">Kilogramo</option>
-                    <option value="ton">Tonelada</option>
-                    <option value="lt">Litro</option>
-                    <option value="bulto">Bulto</option>
-                    <option value="rollo">Rollo</option>
-                    <option value="servicio">Servicio</option>
-                    <option value="viaje">Viaje</option>
-                    <option value="estudio">Estudio</option>
-                    <option value="global">Global</option>
+                    {unidades.map(unidad => (
+                      <option key={unidad.id} value={unidad.id}>
+                        {unidad.nombre} ({unidad.abrev})
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
