@@ -3,6 +3,8 @@ let presupuestosProyecto = []
 let presupuestoIdCounter = 1
 
 export const fases = [
+  { id: 'limpieza', nombre: 'Limpieza' },
+  { id: 'demoliciones', nombre: 'Demoliciones' },
   { id: 'preliminares', nombre: 'Preliminares' },
   { id: 'cimentacion', nombre: 'Cimentación' },
   { id: 'estructura', nombre: 'Estructura' },
