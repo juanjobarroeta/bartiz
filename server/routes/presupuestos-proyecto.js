@@ -58,29 +58,38 @@ router.get('/:id', async (req, res) => {
 // POST /api/presupuestos-proyecto - Crear presupuesto
 router.post('/', async (req, res) => {
   try {
-  const { proyectoId, proyectoNombre, fases } = req.body
-  
-  if (!proyectoId || !proyectoNombre) {
-    return res.status(400).json({ error: 'Proyecto es requerido' })
+    const { proyectoId, proyectoNombre, fases } = req.body
+    
+    if (!proyectoId || !proyectoNombre) {
+      return res.status(400).json({ error: 'Proyecto es requerido' })
+    }
+    
+    // Verificar que no exista presupuesto para el proyecto
+    const existente = await presupuestosService.obtenerPresupuestoPorProyecto(proyectoId)
+    if (existente) {
+      return res.status(400).json({ error: 'Ya existe un presupuesto para este proyecto' })
+    }
+    
+    const nuevo = await presupuestosService.crearPresupuesto({ proyectoId, proyectoNombre, fases })
+    res.status(201).json(nuevo)
+  } catch (error) {
+    console.error('Error creating budget:', error)
+    res.status(500).json({ error: 'Error al crear presupuesto' })
   }
-  
-  // Verificar que no exista presupuesto para el proyecto
-  const existente = obtenerPresupuestoPorProyecto(proyectoId)
-  if (existente) {
-    return res.status(400).json({ error: 'Ya existe un presupuesto para este proyecto' })
-  }
-  
-  const nuevo = crearPresupuesto({ proyectoId, proyectoNombre, fases })
-  res.status(201).json(nuevo)
 })
 
 // PUT /api/presupuestos-proyecto/:id - Actualizar presupuesto
-router.put('/:id', (req, res) => {
-  const presupuesto = actualizarPresupuesto(parseInt(req.params.id), req.body)
-  if (!presupuesto) {
-    return res.status(404).json({ error: 'Presupuesto no encontrado' })
+router.put('/:id', async (req, res) => {
+  try {
+    const presupuesto = await presupuestosService.actualizarPresupuesto(parseInt(req.params.id), req.body)
+    if (!presupuesto) {
+      return res.status(404).json({ error: 'Presupuesto no encontrado' })
+    }
+    res.json(presupuesto)
+  } catch (error) {
+    console.error('Error updating budget:', error)
+    res.status(500).json({ error: 'Error al actualizar presupuesto' })
   }
-  res.json(presupuesto)
 })
 
 // POST /api/presupuestos-proyecto/:id/fase/:faseId/item - Agregar item a fase
