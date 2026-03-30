@@ -1,16 +1,6 @@
 import { Router } from 'express'
-import { 
-  obtenerPresupuestos, 
-  obtenerPresupuesto, 
-  obtenerPresupuestoPorProyecto,
-  crearPresupuesto, 
-  actualizarPresupuesto,
-  agregarItemAFase,
-  actualizarItemPresupuesto,
-  eliminarItemPresupuesto,
-  obtenerItemsPendientes,
-  fases
-} from '../data/presupuestos-proyecto.js'
+import * as presupuestosService from '../services/presupuestos-proyecto.js'
+import { fases } from '../data/presupuestos-proyecto.js'
 
 const router = Router()
 
@@ -20,24 +10,28 @@ router.get('/fases', (req, res) => {
 })
 
 // GET /api/presupuestos-proyecto - Listar presupuestos
-router.get('/', (req, res) => {
-  const { proyectoId, estado } = req.query
-  
-  const filtros = {}
-  if (proyectoId) filtros.proyectoId = parseInt(proyectoId)
-  if (estado) filtros.estado = estado
-  
-  const presupuestos = obtenerPresupuestos(filtros)
-  res.json(presupuestos)
+router.get('/', async (req, res) => {
+  try {
+    const presupuestos = await presupuestosService.obtenerPresupuestos()
+    res.json(presupuestos)
+  } catch (error) {
+    console.error('Error getting budgets:', error)
+    res.status(500).json({ error: 'Error al obtener presupuestos' })
+  }
 })
 
 // GET /api/presupuestos-proyecto/proyecto/:proyectoId - Obtener presupuesto por proyecto
-router.get('/proyecto/:proyectoId', (req, res) => {
-  const presupuesto = obtenerPresupuestoPorProyecto(parseInt(req.params.proyectoId))
-  if (!presupuesto) {
-    return res.status(404).json({ error: 'No hay presupuesto para este proyecto' })
+router.get('/proyecto/:proyectoId', async (req, res) => {
+  try {
+    const presupuesto = await presupuestosService.obtenerPresupuestoPorProyecto(parseInt(req.params.proyectoId))
+    if (!presupuesto) {
+      return res.status(404).json({ error: 'No hay presupuesto para este proyecto' })
+    }
+    res.json(presupuesto)
+  } catch (error) {
+    console.error('Error getting budget by project:', error)
+    res.status(500).json({ error: 'Error al obtener presupuesto' })
   }
-  res.json(presupuesto)
 })
 
 // GET /api/presupuestos-proyecto/:id/pendientes - Items pendientes de solicitar
@@ -48,16 +42,22 @@ router.get('/:id/pendientes', (req, res) => {
 })
 
 // GET /api/presupuestos-proyecto/:id - Obtener presupuesto
-router.get('/:id', (req, res) => {
-  const presupuesto = obtenerPresupuesto(parseInt(req.params.id))
-  if (!presupuesto) {
-    return res.status(404).json({ error: 'Presupuesto no encontrado' })
+router.get('/:id', async (req, res) => {
+  try {
+    const presupuesto = await presupuestosService.obtenerPresupuesto(parseInt(req.params.id))
+    if (!presupuesto) {
+      return res.status(404).json({ error: 'Presupuesto no encontrado' })
+    }
+    res.json(presupuesto)
+  } catch (error) {
+    console.error('Error getting budget:', error)
+    res.status(500).json({ error: 'Error al obtener presupuesto' })
   }
-  res.json(presupuesto)
 })
 
 // POST /api/presupuestos-proyecto - Crear presupuesto
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
+  try {
   const { proyectoId, proyectoNombre, fases } = req.body
   
   if (!proyectoId || !proyectoNombre) {

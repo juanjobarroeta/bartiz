@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import initDatabase from './db/init.js'
 import proyectosRouter from './routes/proyectos.js'
 import clientesRouter from './routes/clientes.js'
 import empleadosRouter from './routes/empleados.js'
@@ -96,8 +97,15 @@ app.get('/', (req, res) => {
 })
 
 // Iniciar servidor
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`)
+  
+  // Initialize database
+  try {
+    await initDatabase()
+  } catch (error) {
+    console.error('Failed to initialize database:', error)
+  }
 })
 
 
