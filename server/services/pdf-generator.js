@@ -83,6 +83,15 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
       const subtotal = cantidad * precio
       totalFase += subtotal
       
+      // Check if we need a new page (leave room for item + phase total)
+      if (doc.y > 680) {
+        doc.addPage()
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#2563EB')
+        doc.text(`${fase.nombre} (continuación)`, 50, 50)
+        doc.fillColor('#000000')
+        doc.moveDown(1)
+      }
+      
       const itemY = doc.y
       
       // Format numbers without excessive decimals
@@ -90,27 +99,33 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
       const precioStr = precio.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       const subtotalStr = subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       
+      // Truncate very long names to avoid excessive wrapping
+      let itemName = item.articuloNombre
+      if (itemName.length > 120) {
+        itemName = itemName.substring(0, 117) + '...'
+      }
+      
       doc.fontSize(9).font('Helvetica')
       
-      // Write item name with text wrapping enabled and track height
-      const itemHeight = doc.heightOfString(`${itemIndex + 1}. ${item.articuloNombre}`, { 
-        width: 220,
-        align: 'left'
+      // Calculate height of wrapped text
+      const itemHeight = doc.heightOfString(`${itemIndex + 1}. ${itemName}`, { 
+        width: 220
       })
       
-      doc.text(`${itemIndex + 1}. ${item.articuloNombre}`, col1, itemY, { 
-        width: 220,
-        align: 'left'
-      })
+      // Save current Y position
+      const startY = doc.y
       
-      // Write other columns at the ORIGINAL Y position (top of the wrapped text)
+      // Write item name (this will advance doc.y)
+      doc.text(`${itemIndex + 1}. ${itemName}`, col1, itemY, { width: 220 })
+      
+      // Write other columns at the ORIGINAL Y position (reset doc.y temporarily)
       doc.text(cantidadStr, col2, itemY, { width: 60, align: 'right' })
       doc.text(item.unidad || 'pza', col3, itemY, { width: 40, align: 'left' })
       doc.text(`$${precioStr}`, col4, itemY, { width: 70, align: 'right' })
       doc.text(`$${subtotalStr}`, col5, itemY, { width: 80, align: 'right' })
       
-      // Move down based on the actual height of the tallest element (the wrapped text)
-      doc.y = itemY + itemHeight + 5
+      // Set Y position to after the tallest element
+      doc.y = startY + itemHeight + 8
     })
     
     // Phase subtotal
