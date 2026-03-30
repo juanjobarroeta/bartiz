@@ -82,20 +82,30 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
       
       const itemY = doc.y
       
+      // Format numbers without excessive decimals
+      const cantidadStr = cantidad % 1 === 0 ? cantidad.toString() : cantidad.toFixed(2)
+      const precioStr = precio.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      const subtotalStr = subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      
       doc.fontSize(9).font('Helvetica')
-      doc.text(`${itemIndex + 1}. ${item.articuloNombre}`, col1, itemY, { width: 220 })
-      doc.text(cantidad.toLocaleString('es-MX', { maximumFractionDigits: 2 }), col2, itemY)
-      doc.text(item.unidad || 'pza', col3, itemY)
-      doc.text(`$${precio.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, col4, itemY)
-      doc.text(`$${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, col5, itemY)
+      doc.text(`${itemIndex + 1}. ${item.articuloNombre}`, col1, itemY, { 
+        width: 220,
+        lineBreak: false,
+        continued: false
+      })
+      doc.text(cantidadStr, col2, itemY, { width: 60, align: 'right' })
+      doc.text(item.unidad || 'pza', col3, itemY, { width: 40 })
+      doc.text(`$${precioStr}`, col4, itemY, { width: 70, align: 'right' })
+      doc.text(`$${subtotalStr}`, col5, itemY, { width: 80, align: 'right' })
       
       doc.moveDown(0.8)
     })
     
     // Phase subtotal
+    const totalFaseStr = totalFase.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     doc.fontSize(10).font('Helvetica-Bold')
-    doc.text(`Subtotal ${fase.nombre}:`, col4, doc.y)
-    doc.text(`$${totalFase.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, col5, doc.y)
+    doc.text(`Subtotal ${fase.nombre}:`, col4, doc.y, { continued: false })
+    doc.text(`$${totalFaseStr}`, col5, doc.y, { width: 80, align: 'right' })
     doc.moveDown(1.5)
     
     totalGeneral += totalFase
@@ -106,10 +116,13 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
   doc.moveTo(50, doc.y).lineTo(560, doc.y).stroke()
   doc.moveDown(0.5)
   
+  const totalGeneralStr = totalGeneral.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const totalY = doc.y
+  
   doc.fontSize(14).font('Helvetica-Bold')
-  doc.text('TOTAL GENERAL:', 350, doc.y)
+  doc.text('TOTAL GENERAL:', 320, totalY, { continued: false })
   doc.fontSize(16)
-  doc.text(`$${totalGeneral.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, 480, doc.y)
+  doc.text(`$${totalGeneralStr}`, 450, totalY, { width: 110, align: 'right' })
   
   // Footer
   doc.moveDown(3)
