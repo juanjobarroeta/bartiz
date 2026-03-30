@@ -69,8 +69,10 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
     doc.text('P. UNIT.', col4, tableTop)
     doc.text('SUBTOTAL', col5, tableTop)
     
-    doc.moveTo(col1, doc.y + 5).lineTo(560, doc.y + 5).stroke()
-    doc.moveDown(0.3)
+    // Draw line after moving down to avoid overlap
+    const lineY = doc.y + 5
+    doc.moveTo(col1, lineY).lineTo(560, lineY).stroke()
+    doc.moveDown(0.5)
     
     // Items
     let totalFase = 0
@@ -88,13 +90,16 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
       const subtotalStr = subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       
       doc.fontSize(9).font('Helvetica')
+      
+      // Write item name
       doc.text(`${itemIndex + 1}. ${item.articuloNombre}`, col1, itemY, { 
         width: 220,
-        lineBreak: false,
-        continued: false
+        lineBreak: false
       })
+      
+      // Write other columns at the same Y position
       doc.text(cantidadStr, col2, itemY, { width: 60, align: 'right' })
-      doc.text(item.unidad || 'pza', col3, itemY, { width: 40 })
+      doc.text(item.unidad || 'pza', col3, itemY, { width: 40, align: 'left' })
       doc.text(`$${precioStr}`, col4, itemY, { width: 70, align: 'right' })
       doc.text(`$${subtotalStr}`, col5, itemY, { width: 80, align: 'right' })
       
