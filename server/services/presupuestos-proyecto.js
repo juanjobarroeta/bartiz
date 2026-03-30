@@ -19,16 +19,7 @@ export const obtenerPresupuestos = async () => {
                 'unidad', ip.articulo_unidad,
                 'cantidadPresupuestada', ip.cantidad_presupuestada,
                 'costoUnitario', ip.costo_unitario,
-                'precioVentaUnitario', ip.precio_venta_unitario,
-                'precioUnitario', ip.precio_unitario,
-                'precioUnitarioEstimado', COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'subtotalCosto', ip.cantidad_presupuestada * COALESCE(ip.costo_unitario, ip.precio_unitario),
-                'subtotalVenta', ip.cantidad_presupuestada * COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'subtotalEstimado', ip.cantidad_presupuestada * COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'margen', COALESCE(ip.precio_venta_unitario, ip.precio_unitario) - COALESCE(ip.costo_unitario, ip.precio_unitario),
-                'margenPorcentaje', CASE WHEN COALESCE(ip.precio_venta_unitario, ip.precio_unitario) > 0 
-                  THEN ((COALESCE(ip.precio_venta_unitario, ip.precio_unitario) - COALESCE(ip.costo_unitario, ip.precio_unitario)) / COALESCE(ip.precio_venta_unitario, ip.precio_unitario) * 100)
-                  ELSE 0 END,
+                'subtotalCosto', ip.cantidad_presupuestada * ip.costo_unitario,
                 'cantidadSolicitada', ip.cantidad_solicitada,
                 'cantidadRecibida', ip.cantidad_recibida,
                 'cantidadPagada', ip.cantidad_recibida,
@@ -69,16 +60,7 @@ export const obtenerPresupuesto = async (id) => {
                 'unidad', ip.articulo_unidad,
                 'cantidadPresupuestada', ip.cantidad_presupuestada,
                 'costoUnitario', ip.costo_unitario,
-                'precioVentaUnitario', ip.precio_venta_unitario,
-                'precioUnitario', ip.precio_unitario,
-                'precioUnitarioEstimado', COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'subtotalCosto', ip.cantidad_presupuestada * COALESCE(ip.costo_unitario, ip.precio_unitario),
-                'subtotalVenta', ip.cantidad_presupuestada * COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'subtotalEstimado', ip.cantidad_presupuestada * COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'margen', COALESCE(ip.precio_venta_unitario, ip.precio_unitario) - COALESCE(ip.costo_unitario, ip.precio_unitario),
-                'margenPorcentaje', CASE WHEN COALESCE(ip.precio_venta_unitario, ip.precio_unitario) > 0 
-                  THEN ((COALESCE(ip.precio_venta_unitario, ip.precio_unitario) - COALESCE(ip.costo_unitario, ip.precio_unitario)) / COALESCE(ip.precio_venta_unitario, ip.precio_unitario) * 100)
-                  ELSE 0 END,
+                'subtotalCosto', ip.cantidad_presupuestada * ip.costo_unitario,
                 'cantidadSolicitada', ip.cantidad_solicitada,
                 'cantidadRecibida', ip.cantidad_recibida,
                 'cantidadPagada', ip.cantidad_recibida,
@@ -119,16 +101,7 @@ export const obtenerPresupuestoPorProyecto = async (proyectoId) => {
                 'unidad', ip.articulo_unidad,
                 'cantidadPresupuestada', ip.cantidad_presupuestada,
                 'costoUnitario', ip.costo_unitario,
-                'precioVentaUnitario', ip.precio_venta_unitario,
-                'precioUnitario', ip.precio_unitario,
-                'precioUnitarioEstimado', COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'subtotalCosto', ip.cantidad_presupuestada * COALESCE(ip.costo_unitario, ip.precio_unitario),
-                'subtotalVenta', ip.cantidad_presupuestada * COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'subtotalEstimado', ip.cantidad_presupuestada * COALESCE(ip.precio_venta_unitario, ip.precio_unitario),
-                'margen', COALESCE(ip.precio_venta_unitario, ip.precio_unitario) - COALESCE(ip.costo_unitario, ip.precio_unitario),
-                'margenPorcentaje', CASE WHEN COALESCE(ip.precio_venta_unitario, ip.precio_unitario) > 0 
-                  THEN ((COALESCE(ip.precio_venta_unitario, ip.precio_unitario) - COALESCE(ip.costo_unitario, ip.precio_unitario)) / COALESCE(ip.precio_venta_unitario, ip.precio_unitario) * 100)
-                  ELSE 0 END,
+                'subtotalCosto', ip.cantidad_presupuestada * ip.costo_unitario,
                 'cantidadSolicitada', ip.cantidad_solicitada,
                 'cantidadRecibida', ip.cantidad_recibida,
                 'cantidadPagada', ip.cantidad_recibida,
@@ -230,8 +203,8 @@ export const agregarItemAFase = async (presupuestoId, faseId, item) => {
     await query(
       `INSERT INTO items_presupuesto 
        (fase_id, articulo_id, articulo_nombre, articulo_codigo, articulo_unidad, 
-        cantidad_presupuestada, costo_unitario, precio_venta_unitario, precio_unitario)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        cantidad_presupuestada, costo_unitario)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         faseDbId,
         item.articuloId,
@@ -239,9 +212,7 @@ export const agregarItemAFase = async (presupuestoId, faseId, item) => {
         item.articuloCodigo || null,
         item.unidad || 'pza',
         item.cantidadPresupuestada || 0,
-        item.costoUnitario || item.precioUnitarioEstimado || 0,
-        item.precioVentaUnitario || item.precioUnitarioEstimado || 0,
-        item.precioUnitarioEstimado || 0
+        item.costoUnitario || item.precioUnitarioEstimado || 0
       ]
     )
     
@@ -265,14 +236,6 @@ export const actualizarItemPresupuesto = async (presupuestoId, faseId, itemId, d
     if (datos.costoUnitario !== undefined) {
       fields.push(`costo_unitario = $${paramCount++}`)
       values.push(datos.costoUnitario)
-    }
-    if (datos.precioVentaUnitario !== undefined) {
-      fields.push(`precio_venta_unitario = $${paramCount++}`)
-      values.push(datos.precioVentaUnitario)
-    }
-    if (datos.precioUnitario !== undefined || datos.precioUnitarioEstimado !== undefined) {
-      fields.push(`precio_unitario = $${paramCount++}`)
-      values.push(datos.precioUnitario || datos.precioUnitarioEstimado)
     }
     if (datos.cantidadSolicitada !== undefined) {
       fields.push(`cantidad_solicitada = $${paramCount++}`)
