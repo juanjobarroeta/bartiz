@@ -126,8 +126,8 @@ const Presupuestos = () => {
       <div className="presupuestos-grid">
         {presupuestos.map(presupuesto => {
           const progreso = calcularProgreso(presupuesto)
-          const totalFases = presupuesto.fases.length
-          const totalItems = presupuesto.fases.reduce((sum, f) => sum + f.items.length, 0)
+          const totalFases = presupuesto.fases?.length || 0
+          const totalItems = (presupuesto.fases || []).reduce((sum, f) => sum + ((f.items?.length) || 0), 0)
           
           return (
             <Link 
