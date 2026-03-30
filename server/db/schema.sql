@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS items_presupuesto (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insertar proyecto de ejemplo
-INSERT INTO proyectos (nombre, cliente, ubicacion, presupuesto, fecha_inicio, estado, progreso, responsable, avatar)
-VALUES ('Proyecto de Prueba', 'Cliente Demo', 'Ciudad de México', 1000000, '2026-03-01', 'En Progreso', 25, 'Juan Pérez', 'JP')
-ON CONFLICT DO NOTHING;
+-- Insertar proyecto de ejemplo solo si no existe ningún proyecto
+INSERT INTO proyectos (id, nombre, cliente, ubicacion, presupuesto, fecha_inicio, estado, progreso, responsable, avatar)
+SELECT 1, 'Proyecto de Prueba', 'Cliente Demo', 'Ciudad de México', 1000000, '2026-03-01', 'En Progreso', 25, 'Juan Pérez', 'JP'
+WHERE NOT EXISTS (SELECT 1 FROM proyectos WHERE id = 1);

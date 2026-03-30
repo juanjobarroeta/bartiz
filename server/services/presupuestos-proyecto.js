@@ -317,7 +317,10 @@ export const obtenerItemsPendientes = async (presupuestoId, faseId = null) => {
 }
 
 function mapPresupuesto(row) {
-  const fases = row.fases || []
+  const fases = (row.fases || []).map(fase => ({
+    ...fase,
+    items: fase.items || []
+  }))
   
   // Calculate totals from all items across all phases
   let totalPresupuestado = 0
@@ -325,17 +328,15 @@ function mapPresupuesto(row) {
   let totalPagado = 0
   
   fases.forEach(fase => {
-    if (fase.items) {
-      fase.items.forEach(item => {
-        const cantidad = parseFloat(item.cantidadPresupuestada) || 0
-        const precio = parseFloat(item.precioUnitarioEstimado) || 0
-        const pagado = parseFloat(item.montoPagado) || 0
-        
-        totalPresupuestado += cantidad * precio
-        totalGastoReal += pagado
-        totalPagado += pagado
-      })
-    }
+    fase.items.forEach(item => {
+      const cantidad = parseFloat(item.cantidadPresupuestada) || 0
+      const precio = parseFloat(item.precioUnitarioEstimado) || 0
+      const pagado = parseFloat(item.montoPagado) || 0
+      
+      totalPresupuestado += cantidad * precio
+      totalGastoReal += pagado
+      totalPagado += pagado
+    })
   })
   
   return {
