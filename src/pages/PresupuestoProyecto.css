@@ -852,3 +852,37 @@
   font-size: 0.8125rem;
 }
 
+/* Dual Pricing Styles */
+.margen-positive {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.margen-negative {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.subtotal-cost {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.subtotal-venta {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.price-input-sm {
+  width: 90px;
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.price-input-sm:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
