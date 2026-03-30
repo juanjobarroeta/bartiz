@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import * as presupuestosService from '../services/presupuestos-proyecto.js'
+import * as proyectosService from '../services/proyectos.js'
 import { fases } from '../data/presupuestos-proyecto.js'
+import { generateBudgetQuotePDF } from '../services/pdf-generator.js'
 
 const router = Router()
 
@@ -210,6 +212,28 @@ router.post('/:id/generar-solicitud', async (req, res) => {
   } catch (error) {
     console.error('Error generating solicitud:', error)
     res.status(500).json({ error: 'Error al generar solicitud' })
+  }
+})
+
+// GET /api/presupuestos-proyecto/:id/pdf - Generate PDF quote
+router.get('/:id/pdf', async (req, res) => {
+  try {
+    const presupuesto = await presupuestosService.obtenerPresupuesto(parseInt(req.params.id))
+    if (!presupuesto) {
+      return res.status(404).json({ error: 'Presupuesto no encontrado' })
+    }
+    
+    const proyecto = await proyectosService.obtenerProyecto(presupuesto.proyectoId)
+    
+    // Set response headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="Cotizacion-${presupuesto.proyectoNombre.replace(/\s+/g, '-')}.pdf"`)
+    
+    // Generate PDF
+    generateBudgetQuotePDF(presupuesto, proyecto || {}, res)
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    res.status(500).json({ error: 'Error al generar PDF' })
   }
 })
 
