@@ -11,6 +11,8 @@ import Tesoreria from './pages/Tesoreria'
 import Contabilidad from './pages/Contabilidad'
 import Presupuestos from './pages/Presupuestos'
 import PresupuestoProyecto from './pages/PresupuestoProyecto'
+import Cotizaciones from './pages/Cotizaciones'
+import CotizacionDetalle from './pages/CotizacionDetalle'
 import Inventario from './pages/Inventario'
 import Catalogo from './pages/Catalogo'
 import Compras from './pages/Compras'
@@ -33,6 +35,8 @@ function App() {
           <Route path="/contabilidad" element={<Contabilidad />} />
           <Route path="/presupuestos" element={<Presupuestos />} />
           <Route path="/presupuesto/:proyectoId" element={<PresupuestoProyecto />} />
+          <Route path="/cotizaciones" element={<Cotizaciones />} />
+          <Route path="/cotizacion/:id" element={<CotizacionDetalle />} />
           <Route path="/inventario" element={<Inventario />} />
           <Route path="/catalogo" element={<Catalogo />} />
           <Route path="/compras" element={<Compras />} />

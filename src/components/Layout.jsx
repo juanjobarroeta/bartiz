@@ -8,6 +8,7 @@ const Layout = ({ children }) => {
     { path: '/', label: 'Dashboard', icon: '⊞' },
     { path: '/proyectos', label: 'Proyectos', icon: '📋' },
     { path: '/presupuestos', label: 'Presupuestos', icon: '💼' },
+    { path: '/cotizaciones', label: 'Cotizaciones', icon: '💰' },
     { path: '/catalogo', label: 'Catálogo', icon: '📚' },
     { path: '/solicitudes-compra', label: 'Solicitudes', icon: '📝' },
     { path: '/tesoreria', label: 'Tesorería', icon: '💰' },

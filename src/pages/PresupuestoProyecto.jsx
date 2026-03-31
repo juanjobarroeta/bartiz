@@ -404,7 +404,10 @@ const PresupuestoProyecto = () => {
         </div>
         {presupuesto && (
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button className="btn btn-outline" onClick={() => alert('Crear Cotización: Coming soon - selecciona margen y genera PDF')}>
+            <button 
+              className="btn btn-outline" 
+              onClick={() => navigate(`/cotizaciones?presupuesto=${presupuesto.id}`)}
+            >
               💰 Crear Cotización para Cliente
             </button>
             <button className="btn btn-primary" onClick={() => abrirGenerarSolicitud()}>
