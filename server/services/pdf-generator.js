@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit'
 
-export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
+export const generateBudgetQuotePDF = (presupuesto, proyecto, stream, incluirIva = true) => {
   const doc = new PDFDocument({ 
     size: 'LETTER',
     margins: { top: 50, bottom: 50, left: 50, right: 50 }
@@ -78,8 +78,8 @@ export const generateBudgetQuotePDF = (presupuesto, proyecto, stream) => {
     // Items
     let totalFase = 0
     fase.items.forEach((item, itemIndex) => {
-      const cantidad = parseFloat(item.cantidadPresupuestada) || 0
-      const precio = parseFloat(item.precioUnitarioEstimado) || 0
+      const cantidad = parseFloat(item.cantidadPresupuestada || item.cantidad) || 0
+      const precio = parseFloat(item.precioVentaUnitario || item.precioUnitarioEstimado) || 0
       const subtotal = cantidad * precio
       totalFase += subtotal
       
