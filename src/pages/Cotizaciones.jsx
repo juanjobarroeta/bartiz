@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import './Presupuestos.css'
 import { api } from '../config/api'
 
 const Cotizaciones = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [cotizaciones, setCotizaciones] = useState([])
   const [proyectos, setProyectos] = useState([])
   const [presupuestos, setPresupuestos] = useState([])
@@ -22,6 +23,15 @@ const Cotizaciones = () => {
   useEffect(() => {
     cargarDatos()
   }, [])
+
+  useEffect(() => {
+    // Check if we should auto-open the create modal
+    const presupuestoParam = searchParams.get('presupuesto')
+    if (presupuestoParam) {
+      setNuevaCotizacion({...nuevaCotizacion, presupuestoId: presupuestoParam})
+      setMostrarCrear(true)
+    }
+  }, [searchParams])
 
   const cargarDatos = async () => {
     try {
