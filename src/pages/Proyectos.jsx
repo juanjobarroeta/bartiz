@@ -1,264 +1,322 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import './Proyectos.css'
-import { api } from '../config/api'
+/**
+ * Proyectos — first page wired to contabilidad-os.
+ *
+ * Calls GET /api/construccion/proyectos?companyId=<active>
+ * Creates via POST /api/construccion/proyectos
+ *
+ * Every other page in this app still talks to the old Express server and
+ * will error when opened. This one is the proof that the cross-origin
+ * bearer-token flow works end to end.
+ */
 
-const Proyectos = () => {
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
+import { apiFetch } from '../config/api'
+import './Proyectos.css'
+
+const ESTADO_LABEL = {
+  PLANEACION: 'Planeación',
+  EN_EJECUCION: 'En ejecución',
+  SUSPENDIDO: 'Suspendido',
+  TERMINADO: 'Terminado',
+  CANCELADO: 'Cancelado',
+}
+
+const TIPO_LABEL = {
+  GOBIERNO: 'Gobierno',
+  PRIVADO: 'Privado',
+  MIXTO: 'Mixto',
+}
+
+const fmtMoney = (n) =>
+  n == null
+    ? '—'
+    : new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        maximumFractionDigits: 0,
+      }).format(Number(n))
+
+export default function Proyectos() {
   const navigate = useNavigate()
+  const { activeCompany, companies, selectCompany, user, logout } = useAuth()
+
   const [proyectos, setProyectos] = useState([])
-  const [presupuestos, setPresupuestos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
-  const [nuevoProyecto, setNuevoProyecto] = useState({
+  const [submitting, setSubmitting] = useState(false)
+  const [nuevo, setNuevo] = useState({
+    codigo: '',
     nombre: '',
-    cliente: '',
+    descripcion: '',
     ubicacion: '',
-    presupuesto: '',
-    fechaInicio: '',
-    estado: 'Cotización'
+    tipo: 'PRIVADO',
+    montoContratado: '',
   })
 
-  useEffect(() => {
-    cargarDatos()
-  }, [])
-
-  const cargarDatos = async () => {
-    try {
-      const [proyectosRes, presupuestosRes] = await Promise.all([
-        fetch(api('/api/proyectos')),
-        fetch(api('/api/presupuestos-proyecto'))
-      ])
-      
-      setProyectos(await proyectosRes.json())
-      setPresupuestos(await presupuestosRes.json())
-    } catch (error) {
-      console.error('Error:', error)
+  const cargar = useCallback(async () => {
+    if (!activeCompany?.id) {
+      setProyectos([])
+      setLoading(false)
+      return
     }
-  }
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await apiFetch(
+        `/api/construccion/proyectos?companyId=${encodeURIComponent(activeCompany.id)}`
+      )
+      setProyectos(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setError(err.message || 'Error al cargar proyectos')
+      setProyectos([])
+    } finally {
+      setLoading(false)
+    }
+  }, [activeCompany?.id])
 
-  const tienePresupuesto = (proyectoId) => {
-    return presupuestos.some(p => p.proyectoId === proyectoId)
-  }
+  useEffect(() => {
+    cargar()
+  }, [cargar])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    const proyecto = {
-      ...nuevoProyecto,
-      presupuesto: parseFloat(nuevoProyecto.presupuesto) || 0
-    }
-
+    if (!activeCompany?.id) return
+    setSubmitting(true)
+    setError(null)
     try {
-      const res = await fetch(api('/api/proyectos'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(proyecto)
-      })
-
-      if (res.ok) {
-        const nuevoProyectoCreado = await res.json()
-        setProyectos([...proyectos, nuevoProyectoCreado])
-        setNuevoProyecto({
-          nombre: '',
-          cliente: '',
-          ubicacion: '',
-          presupuesto: '',
-          fechaInicio: '',
-          estado: 'Cotización'
-        })
-        setMostrarFormulario(false)
-        
-        // Ask if user wants to create detailed budget
-        if (window.confirm('¿Deseas crear el presupuesto detallado ahora?')) {
-          navigate(`/presupuestos?crear=${nuevoProyectoCreado.id}`)
-        }
+      const body = {
+        companyId: activeCompany.id,
+        codigo: nuevo.codigo.trim(),
+        nombre: nuevo.nombre.trim(),
+        descripcion: nuevo.descripcion.trim() || undefined,
+        ubicacion: nuevo.ubicacion.trim() || undefined,
+        tipo: nuevo.tipo,
       }
-    } catch (error) {
-      console.error('Error:', error)
-      alert('Error al crear el proyecto')
+      if (nuevo.montoContratado) {
+        const parsed = parseFloat(nuevo.montoContratado)
+        if (parsed > 0) body.montoContratado = parsed
+      }
+      const created = await apiFetch('/api/construccion/proyectos', {
+        method: 'POST',
+        body,
+      })
+      setProyectos((prev) => [created, ...prev])
+      setNuevo({
+        codigo: '',
+        nombre: '',
+        descripcion: '',
+        ubicacion: '',
+        tipo: 'PRIVADO',
+        montoContratado: '',
+      })
+      setMostrarFormulario(false)
+    } catch (err) {
+      setError(err.message || 'Error al crear proyecto')
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const handleChange = (e) => {
-    setNuevoProyecto({
-      ...nuevoProyecto,
-      [e.target.name]: e.target.value
-    })
+  // ── Empty states ──────────────────────────────────────────────────────────
+  if (!companies.length) {
+    return (
+      <div className="proyectos-page">
+        <header className="proyectos-header">
+          <h1>Proyectos</h1>
+        </header>
+        <div className="empty-card">
+          <h2>No tienes empresas disponibles</h2>
+          <p>
+            Inicia sesión con una cuenta que pertenezca a al menos una empresa
+            en contabilidad-os.
+          </p>
+          <button onClick={logout}>Cerrar sesión</button>
+        </div>
+      </div>
+    )
+  }
+
+  const construccionCompanies = companies.filter((c) =>
+    c.modulos?.includes('CONSTRUCCION')
+  )
+  if (!construccionCompanies.length) {
+    return (
+      <div className="proyectos-page">
+        <header className="proyectos-header">
+          <h1>Proyectos</h1>
+        </header>
+        <div className="empty-card">
+          <h2>Módulo de Construcción no habilitado</h2>
+          <p>
+            Ninguna de tus empresas tiene el add-on de Construcción activo.
+            Contacta soporte para habilitarlo.
+          </p>
+          <p className="muted">Cuenta: {user?.email}</p>
+          <button onClick={logout}>Cerrar sesión</button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="proyectos">
-      <div className="page-header">
+    <div className="proyectos-page">
+      <header className="proyectos-header">
         <div>
           <h1>Proyectos</h1>
-          <div className="subtitle">Gestión de proyectos de construcción</div>
+          <p className="muted">
+            Conectado a contabilidad-os · {user?.email}
+          </p>
         </div>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setMostrarFormulario(!mostrarFormulario)}
-        >
-          {mostrarFormulario ? 'Cancelar' : '+ Nuevo Proyecto'}
-        </button>
-      </div>
+        <div className="header-actions">
+          <select
+            value={activeCompany?.id ?? ''}
+            onChange={(e) => selectCompany(e.target.value)}
+          >
+            {construccionCompanies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.razonSocial} ({c.rfc})
+              </option>
+            ))}
+          </select>
+          <button
+            className="primary"
+            onClick={() => setMostrarFormulario((v) => !v)}
+          >
+            {mostrarFormulario ? 'Cancelar' : '+ Nuevo proyecto'}
+          </button>
+          <button className="link" onClick={logout}>
+            Salir
+          </button>
+        </div>
+      </header>
+
+      {error && <div className="error-banner">{error}</div>}
 
       {mostrarFormulario && (
-        <div className="card form-card">
-          <h3>Crear Nuevo Proyecto</h3>
-          <form onSubmit={handleSubmit} className="form">
-            <div className="form-row">
-              <div className="form-group">
-                <label className="label">Nombre del Proyecto</label>
-                <input
-                  type="text"
-                  name="nombre"
-                  className="input"
-                  value={nuevoProyecto.nombre}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="label">Cliente</label>
-                <input
-                  type="text"
-                  name="cliente"
-                  className="input"
-                  value={nuevoProyecto.cliente}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="label">Ubicación</label>
-                <input
-                  type="text"
-                  name="ubicacion"
-                  className="input"
-                  value={nuevoProyecto.ubicacion}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="label">Presupuesto Estimado ($)</label>
-                <input
-                  type="number"
-                  name="presupuesto"
-                  className="input"
-                  value={nuevoProyecto.presupuesto}
-                  onChange={handleChange}
-                  placeholder="Opcional - valor estimado"
-                />
-                <small style={{ color: '#666', fontSize: '12px' }}>
-                  Podrás crear el presupuesto detallado después
-                </small>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="label">Fecha de Inicio (Opcional)</label>
-                <input
-                  type="date"
-                  name="fechaInicio"
-                  className="input"
-                  value={nuevoProyecto.fechaInicio}
-                  onChange={handleChange}
-                />
-                <small style={{ color: '#666', fontSize: '12px' }}>
-                  Deja vacío si aún no está definida
-                </small>
-              </div>
-              <div className="form-group">
-                <label className="label">Estado</label>
-                <select
-                  name="estado"
-                  className="input"
-                  value={nuevoProyecto.estado}
-                  onChange={handleChange}
-                >
-                  <option value="Cotización">Cotización</option>
-                  <option value="Proceso de Licitación">Proceso de Licitación</option>
-                  <option value="Planeación">Planeación</option>
-                  <option value="En Progreso">En Progreso</option>
-                  <option value="Pausado">Pausado</option>
-                  <option value="Completado">Completado</option>
-                </select>
-              </div>
-            </div>
-
-            <button type="submit" className="btn btn-primary">
-              Crear Proyecto
+        <form className="nuevo-proyecto" onSubmit={handleSubmit}>
+          <div className="row">
+            <label>
+              Código
+              <input
+                required
+                value={nuevo.codigo}
+                onChange={(e) => setNuevo({ ...nuevo, codigo: e.target.value })}
+                placeholder="OBR-2026-001"
+              />
+            </label>
+            <label>
+              Nombre
+              <input
+                required
+                value={nuevo.nombre}
+                onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
+                placeholder="Rehabilitación Av. Reforma"
+              />
+            </label>
+            <label>
+              Tipo
+              <select
+                value={nuevo.tipo}
+                onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })}
+              >
+                <option value="PRIVADO">Privado</option>
+                <option value="GOBIERNO">Gobierno</option>
+                <option value="MIXTO">Mixto</option>
+              </select>
+            </label>
+          </div>
+          <div className="row">
+            <label className="grow">
+              Ubicación
+              <input
+                value={nuevo.ubicacion}
+                onChange={(e) => setNuevo({ ...nuevo, ubicacion: e.target.value })}
+                placeholder="Puebla, Puebla"
+              />
+            </label>
+            <label>
+              Monto contratado
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={nuevo.montoContratado}
+                onChange={(e) =>
+                  setNuevo({ ...nuevo, montoContratado: e.target.value })
+                }
+                placeholder="0.00"
+              />
+            </label>
+          </div>
+          <label>
+            Descripción
+            <textarea
+              rows={2}
+              value={nuevo.descripcion}
+              onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })}
+            />
+          </label>
+          <div className="form-actions">
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Creando…' : 'Crear proyecto'}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
       )}
 
-      <div className="table-container">
-        <table className="table">
+      {loading ? (
+        <div className="state-card">Cargando proyectos…</div>
+      ) : proyectos.length === 0 ? (
+        <div className="state-card">
+          Aún no hay proyectos para esta empresa. Crea el primero.
+        </div>
+      ) : (
+        <table className="proyectos-table">
           <thead>
             <tr>
-              <th>Proyecto</th>
+              <th>Código</th>
+              <th>Nombre</th>
+              <th>Tipo</th>
               <th>Cliente</th>
-              <th>Ubicación</th>
-              <th>Presupuesto Est.</th>
-              <th>Fecha Inicio</th>
               <th>Estado</th>
-              <th>Acciones</th>
+              <th style={{ textAlign: 'right' }}>Contratado</th>
+              <th style={{ textAlign: 'right' }}>Presupuestos</th>
+              <th style={{ textAlign: 'right' }}>Estimaciones</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {proyectos.map(proyecto => (
-              <tr key={proyecto.id}>
-                <td 
-                  onClick={() => navigate(`/proyectos/${proyecto.id}`)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <strong>{proyecto.nombre}</strong>
-                </td>
-                <td>{proyecto.cliente}</td>
-                <td>{proyecto.ubicacion}</td>
-                <td>${proyecto.presupuesto?.toLocaleString('es-MX') || '0'}</td>
+            {proyectos.map((p) => (
+              <tr key={p.id}>
+                <td className="mono">{p.codigo}</td>
+                <td>{p.nombre}</td>
+                <td>{TIPO_LABEL[p.tipo] ?? p.tipo}</td>
+                <td>{p.customer?.razonSocial ?? '—'}</td>
                 <td>
-                  {proyecto.fechaInicio 
-                    ? new Date(proyecto.fechaInicio).toLocaleDateString('es-MX')
-                    : <span style={{ color: '#999', fontStyle: 'italic' }}>Por definir</span>
-                  }
+                  <span className={`badge estado-${p.estado?.toLowerCase()}`}>
+                    {ESTADO_LABEL[p.estado] ?? p.estado}
+                  </span>
                 </td>
+                <td style={{ textAlign: 'right' }}>{fmtMoney(p.montoContratado)}</td>
+                <td style={{ textAlign: 'right' }}>{p._count?.presupuestos ?? 0}</td>
+                <td style={{ textAlign: 'right' }}>{p._count?.estimaciones ?? 0}</td>
                 <td>
-                  <code className={`status-badge status-${proyecto.estado.toLowerCase().replace(' ', '-')}`}>
-                    {proyecto.estado}
-                  </code>
-                </td>
-                <td>
-                  {tienePresupuesto(proyecto.id) ? (
-                    <button 
-                      className="btn btn-sm"
-                      onClick={() => navigate(`/presupuesto/${proyecto.id}`)}
-                      style={{ fontSize: '13px' }}
-                    >
-                      📊 Ver Presupuesto
-                    </button>
-                  ) : (
-                    <button 
-                      className="btn btn-sm btn-primary"
-                      onClick={() => navigate(`/presupuestos?crear=${proyecto.id}`)}
-                      style={{ fontSize: '13px' }}
-                    >
-                      + Crear Presupuesto
-                    </button>
-                  )}
+                  <button
+                    className="link"
+                    onClick={() => navigate(`/proyectos/${p.id}`)}
+                  >
+                    Ver
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      )}
     </div>
   )
 }
-
-export default Proyectos
-
