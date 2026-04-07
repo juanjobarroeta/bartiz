@@ -139,11 +139,45 @@
 
 .logout-btn {
   color: #9CA3AF;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
 }
 
 .logout-btn:hover {
   color: #EF4444;
   background: #FEF2F2;
+}
+
+.user-block {
+  padding: 0.5rem 0.75rem 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-bottom: 1px dashed #F0F0F0;
+  margin-bottom: 0.35rem;
+}
+
+.user-email {
+  font-size: 0.72rem;
+  color: #94A3B8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-link.external {
+  font-size: 0.78rem;
+  padding: 0.35rem 0.5rem;
+  color: #64748B;
+  text-decoration: none;
+}
+.nav-link.external:hover {
+  color: #2563EB;
+  background: #EFF6FF;
 }
 
 /* Main Content */
