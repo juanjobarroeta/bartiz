@@ -1,406 +1,404 @@
-import { useEffect, useState } from 'react'
+/**
+ * Catálogo — two sub-tabs wired to contabilidad-os:
+ *
+ *   • Insumos: master list of materiales/mano de obra/equipo/herramienta/basicos
+ *   • Conceptos: APU-headed concepts (cada uno con su costo unitario calculado)
+ *
+ * GET/POST /api/construccion/insumos
+ * GET/POST /api/construccion/conceptos
+ *
+ * Clicking a concepto navigates to /apu/:conceptoId where the APU editor
+ * lives.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
+import { apiFetch } from '../config/api'
 import './Catalogo.css'
-import { api } from '../config/api'
 
-const Catalogo = () => {
-  const [articulos, setArticulos] = useState([])
-  const [categorias, setCategorias] = useState([])
-  const [unidades, setUnidades] = useState([])
-  const [filtroCategoria, setFiltroCategoria] = useState('')
-  const [busqueda, setBusqueda] = useState('')
-  const [mostrarModal, setMostrarModal] = useState(false)
-  const [articuloEditando, setArticuloEditando] = useState(null)
-  const [loading, setLoading] = useState(true)
+const TIPO_LABEL = {
+  MATERIAL: 'Material',
+  MANO_OBRA: 'Mano de obra',
+  EQUIPO: 'Equipo',
+  HERRAMIENTA: 'Herramienta',
+  BASICO: 'Básico',
+}
 
-  const [formData, setFormData] = useState({
-    nombre: '',
-    categoria: '',
-    unidad: '',
-    codigo: '',
-    aliases: '',
-    especificaciones: ''
-  })
+const TIPO_OPTIONS = [
+  { value: 'MATERIAL', label: 'Material' },
+  { value: 'MANO_OBRA', label: 'Mano de obra' },
+  { value: 'EQUIPO', label: 'Equipo' },
+  { value: 'HERRAMIENTA', label: 'Herramienta' },
+  { value: 'BASICO', label: 'Básico' },
+]
 
-  useEffect(() => {
-    cargarDatos()
-  }, [])
+const fmtMoney = (n) =>
+  n == null
+    ? '—'
+    : new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        maximumFractionDigits: 2,
+      }).format(Number(n))
 
-  useEffect(() => {
-    if (busqueda.length >= 2) {
-      buscarArticulos(busqueda)
-    } else if (busqueda.length === 0) {
-      cargarArticulos()
-    }
-  }, [busqueda, filtroCategoria])
+export default function Catalogo() {
+  const navigate = useNavigate()
+  const { activeCompany } = useAuth()
+  const [tab, setTab] = useState('conceptos')
 
-  const cargarDatos = async () => {
-    try {
-      const [articulosRes, categoriasRes, unidadesRes] = await Promise.all([
-        fetch(api('/api/catalogo')),
-        fetch(api('/api/catalogo/categorias')),
-        fetch(api('/api/catalogo/unidades'))
-      ])
-      
-      setArticulos(await articulosRes.json())
-      setCategorias(await categoriasRes.json())
-      setUnidades(await unidadesRes.json())
-    } catch (error) {
-      console.error('Error cargando datos:', error)
-      // Datos de fallback
-      setCategorias([
-        { id: 'acero', nombre: 'Acero', icon: '🔩' },
-        { id: 'cemento', nombre: 'Cemento y Mortero', icon: '🧱' },
-        { id: 'agregados', nombre: 'Agregados', icon: '�ite' },
-        { id: 'tuberias', nombre: 'Tuberías', icon: '🔧' },
-        { id: 'madera', nombre: 'Madera', icon: '🪵' },
-        { id: 'electrico', nombre: 'Eléctrico', icon: '⚡' },
-        { id: 'pintura', nombre: 'Pintura', icon: '🎨' },
-        { id: 'seguridad', nombre: 'Seguridad', icon: '🦺' }
-      ])
-      setUnidades([
-        { id: 'ton', nombre: 'Tonelada', abrev: 'ton' },
-        { id: 'kg', nombre: 'Kilogramo', abrev: 'kg' },
-        { id: 'pza', nombre: 'Pieza', abrev: 'pza' },
-        { id: 'bulto', nombre: 'Bulto', abrev: 'bto' },
-        { id: 'm', nombre: 'Metro', abrev: 'm' },
-        { id: 'm3', nombre: 'Metro cúbico', abrev: 'm³' }
-      ])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const cargarArticulos = async () => {
-    try {
-      const url = filtroCategoria 
-        ? api(`/api/catalogo?categoria=${filtroCategoria}`)
-        : api('/api/catalogo')
-      const res = await fetch(url)
-      setArticulos(await res.json())
-    } catch (error) {
-      console.error('Error cargando artículos:', error)
-    }
-  }
-
-  const buscarArticulos = async (query) => {
-    try {
-      const res = await fetch(api(`/api/catalogo/buscar?q=${encodeURIComponent(query)}`))
-      let resultados = await res.json()
-      
-      if (filtroCategoria) {
-        resultados = resultados.filter(a => a.categoria === filtroCategoria)
-      }
-      
-      setArticulos(resultados)
-    } catch (error) {
-      console.error('Error buscando:', error)
-    }
-  }
-
-  const abrirModal = (articulo = null) => {
-    if (articulo) {
-      setArticuloEditando(articulo)
-      setFormData({
-        nombre: articulo.nombre,
-        categoria: articulo.categoria,
-        unidad: articulo.unidad,
-        codigo: articulo.codigo,
-        aliases: articulo.aliases.join(', '),
-        especificaciones: JSON.stringify(articulo.especificaciones || {})
-      })
-    } else {
-      setArticuloEditando(null)
-      setFormData({
-        nombre: '',
-        categoria: '',
-        unidad: '',
-        codigo: '',
-        aliases: '',
-        especificaciones: ''
-      })
-    }
-    setMostrarModal(true)
-  }
-
-  const cerrarModal = () => {
-    setMostrarModal(false)
-    setArticuloEditando(null)
-  }
-
-  const guardarArticulo = async (e) => {
-    e.preventDefault()
-    
-    const datos = {
-      nombre: formData.nombre,
-      categoria: formData.categoria,
-      unidad: formData.unidad,
-      codigo: formData.codigo || undefined,
-      aliases: formData.aliases.split(',').map(a => a.trim()).filter(a => a),
-      especificaciones: formData.especificaciones ? JSON.parse(formData.especificaciones) : {}
-    }
-
-    try {
-      const url = articuloEditando 
-        ? api(`/api/catalogo/${articuloEditando.id}`)
-        : api('/api/catalogo')
-      
-      const res = await fetch(url, {
-        method: articuloEditando ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos)
-      })
-
-      if (res.ok) {
-        cerrarModal()
-        cargarArticulos()
-      }
-    } catch (error) {
-      console.error('Error guardando:', error)
-    }
-  }
-
-  const eliminarArticulo = async (id) => {
-    if (!confirm('¿Eliminar este artículo del catálogo?')) return
-
-    try {
-      const res = await fetch(api(`/api/catalogo/${id}`), { method: 'DELETE' })
-      if (res.ok) {
-        cargarArticulos()
-      }
-    } catch (error) {
-      console.error('Error eliminando:', error)
-    }
-  }
-
-  const getCategoriaNombre = (id) => {
-    const cat = categorias.find(c => c.id === id)
-    return cat ? cat.nombre : id
-  }
-
-  const getCategoriaIcon = (id) => {
-    const cat = categorias.find(c => c.id === id)
-    return cat ? cat.icon : '📦'
-  }
-
-  const getUnidadAbrev = (id) => {
-    const unidad = unidades.find(u => u.id === id)
-    return unidad ? unidad.abrev : id
-  }
-
-  if (loading) {
-    return <div className="loading">Cargando catálogo...</div>
+  if (!activeCompany?.id) {
+    return (
+      <div className="cat-page">
+        <div className="cat-empty">Selecciona una empresa para ver el catálogo.</div>
+      </div>
+    )
   }
 
   return (
-    <div className="catalogo-page">
-      {/* Header */}
-      <header className="page-header-bar">
-        <div>
-          <h1>Catálogo de Artículos</h1>
-          <p className="subtitle">Gestiona el catálogo maestro de materiales y productos</p>
+    <div className="cat-page">
+      <header className="cat-header">
+        <h1>Catálogo</h1>
+        <div className="cat-tabs">
+          <button
+            className={tab === 'conceptos' ? 'active' : ''}
+            onClick={() => setTab('conceptos')}
+          >
+            Conceptos ({'\u202F'}APUs{'\u202F'})
+          </button>
+          <button
+            className={tab === 'insumos' ? 'active' : ''}
+            onClick={() => setTab('insumos')}
+          >
+            Insumos
+          </button>
         </div>
-        <button className="btn btn-primary" onClick={() => abrirModal()}>
-          + Nuevo Artículo
-        </button>
       </header>
 
-      {/* Filters */}
-      <div className="filters-bar">
-        <div className="search-box-large">
-          <span className="search-icon">🔍</span>
-          <input
-            type="text"
-            placeholder="Buscar artículos (ej: varilla 3/8, cemento, tubo pvc...)"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="search-input"
-          />
-          {busqueda && (
-            <button className="clear-btn" onClick={() => setBusqueda('')}>✕</button>
-          )}
-        </div>
-        
-        <div className="category-filters">
-          <button 
-            className={`category-chip ${!filtroCategoria ? 'active' : ''}`}
-            onClick={() => setFiltroCategoria('')}
-          >
-            Todos
-          </button>
-          {categorias.slice(0, 6).map(cat => (
-            <button
-              key={cat.id}
-              className={`category-chip ${filtroCategoria === cat.id ? 'active' : ''}`}
-              onClick={() => setFiltroCategoria(cat.id)}
-            >
-              {cat.icon} {cat.nombre}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Results info */}
-      {busqueda && (
-        <div className="search-results-info">
-          {articulos.length} resultado{articulos.length !== 1 ? 's' : ''} para "{busqueda}"
-          {articulos.length > 0 && articulos[0].score && (
-            <span className="match-indicator"> • Ordenados por relevancia</span>
-          )}
-        </div>
-      )}
-
-      {/* Articles Grid */}
-      <div className="articles-grid">
-        {articulos.map(articulo => (
-          <div key={articulo.id} className="article-card">
-            <div className="article-header">
-              <span className="article-icon">{getCategoriaIcon(articulo.categoria)}</span>
-              <code className="article-code">{articulo.codigo}</code>
-              {articulo.score && (
-                <span className="match-score">{Math.round(articulo.score)}%</span>
-              )}
-            </div>
-            
-            <h3 className="article-name">{articulo.nombre}</h3>
-            
-            <div className="article-meta">
-              <span className="meta-tag category">{getCategoriaNombre(articulo.categoria)}</span>
-              <span className="meta-tag unit">{getUnidadAbrev(articulo.unidad)}</span>
-            </div>
-            
-            {articulo.aliases && articulo.aliases.length > 0 && (
-              <div className="article-aliases">
-                <span className="aliases-label">También:</span>
-                <span className="aliases-list">{articulo.aliases.slice(0, 3).join(', ')}</span>
-              </div>
-            )}
-            
-            <div className="article-actions">
-              <button className="action-btn edit" onClick={() => abrirModal(articulo)}>
-                ✏️ Editar
-              </button>
-              <button className="action-btn delete" onClick={() => eliminarArticulo(articulo.id)}>
-                🗑️
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {articulos.length === 0 && (
-        <div className="empty-state">
-          <div className="empty-icon">📦</div>
-          <h3>No se encontraron artículos</h3>
-          <p>
-            {busqueda 
-              ? `No hay resultados para "${busqueda}". ¿Deseas crear un nuevo artículo?`
-              : 'Comienza agregando artículos al catálogo'
-            }
-          </p>
-          <button className="btn btn-primary" onClick={() => abrirModal()}>
-            + Crear Artículo
-          </button>
-        </div>
-      )}
-
-      {/* Modal */}
-      {mostrarModal && (
-        <div className="modal-overlay" onClick={cerrarModal}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{articuloEditando ? 'Editar Artículo' : 'Nuevo Artículo'}</h2>
-              <button className="modal-close" onClick={cerrarModal}>✕</button>
-            </div>
-            
-            <form onSubmit={guardarArticulo} className="modal-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="label">Nombre *</label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={formData.nombre}
-                    onChange={e => setFormData({...formData, nombre: e.target.value})}
-                    placeholder="Ej: Varilla Corrugada 3/8&quot;"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="label">Código</label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={formData.codigo}
-                    onChange={e => setFormData({...formData, codigo: e.target.value})}
-                    placeholder="Auto-generado si vacío"
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="label">Categoría *</label>
-                  <select
-                    className="input"
-                    value={formData.categoria}
-                    onChange={e => setFormData({...formData, categoria: e.target.value})}
-                    required
-                  >
-                    <option value="">Seleccionar...</option>
-                    {categorias.map(cat => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="label">Unidad *</label>
-                  <select
-                    className="input"
-                    value={formData.unidad}
-                    onChange={e => setFormData({...formData, unidad: e.target.value})}
-                    required
-                  >
-                    <option value="">Seleccionar...</option>
-                    {unidades.map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.nombre} ({u.abrev})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="label">Aliases (separados por coma)</label>
-                <input
-                  type="text"
-                  className="input"
-                  value={formData.aliases}
-                  onChange={e => setFormData({...formData, aliases: e.target.value})}
-                  placeholder="varilla 3/8, fierro 3/8, barilla 3/8"
-                />
-                <span className="form-hint">
-                  Incluye variaciones comunes y errores de escritura para mejorar la búsqueda
-                </span>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn" onClick={cerrarModal}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {articuloEditando ? 'Guardar Cambios' : 'Crear Artículo'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {tab === 'conceptos' ? (
+        <ConceptosTab companyId={activeCompany.id} onOpen={(id) => navigate(`/apu/${id}`)} />
+      ) : (
+        <InsumosTab companyId={activeCompany.id} />
       )}
     </div>
   )
 }
 
-export default Catalogo
+// ─── Insumos ────────────────────────────────────────────────────────────────
 
+function InsumosTab({ companyId }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [q, setQ] = useState('')
+  const [tipoFilter, setTipoFilter] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [form, setForm] = useState({
+    codigo: '',
+    descripcion: '',
+    tipo: 'MATERIAL',
+    unidad: '',
+    costoActual: '',
+  })
+
+  const cargar = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const qs = new URLSearchParams({ companyId })
+      if (q) qs.set('q', q)
+      if (tipoFilter) qs.set('tipo', tipoFilter)
+      const data = await apiFetch(`/api/construccion/insumos?${qs.toString()}`)
+      setItems(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setError(err.message || 'Error al cargar insumos')
+    } finally {
+      setLoading(false)
+    }
+  }, [companyId, q, tipoFilter])
+
+  useEffect(() => {
+    const t = setTimeout(cargar, 200)
+    return () => clearTimeout(t)
+  }, [cargar])
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      const body = {
+        companyId,
+        codigo: form.codigo.trim(),
+        descripcion: form.descripcion.trim(),
+        tipo: form.tipo,
+        unidad: form.unidad.trim(),
+        costoActual: parseFloat(form.costoActual) || 0,
+      }
+      const created = await apiFetch('/api/construccion/insumos', { method: 'POST', body })
+      setItems((prev) => [created, ...prev])
+      setForm({ codigo: '', descripcion: '', tipo: 'MATERIAL', unidad: '', costoActual: '' })
+      setShowForm(false)
+    } catch (err) {
+      setError(err.message || 'Error al crear insumo')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <section>
+      <div className="cat-toolbar">
+        <input
+          type="search"
+          placeholder="Buscar código o descripción…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <select value={tipoFilter} onChange={(e) => setTipoFilter(e.target.value)}>
+          <option value="">Todos los tipos</option>
+          {TIPO_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <button className="primary" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? 'Cancelar' : '+ Nuevo insumo'}
+        </button>
+      </div>
+
+      {error && <div className="cat-error">{error}</div>}
+
+      {showForm && (
+        <form className="cat-form" onSubmit={handleCreate}>
+          <div className="row">
+            <label>
+              Código
+              <input required value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value })} placeholder="MAT-001" />
+            </label>
+            <label className="grow">
+              Descripción
+              <input required value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder="Cemento gris Portland CPC 30R saco 50kg" />
+            </label>
+            <label>
+              Tipo
+              <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
+                {TIPO_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Unidad
+              <input required value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })} placeholder="saco" />
+            </label>
+            <label>
+              Costo actual
+              <input type="number" min="0" step="0.01" required value={form.costoActual} onChange={(e) => setForm({ ...form, costoActual: e.target.value })} placeholder="0.00" />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Guardando…' : 'Guardar insumo'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div className="cat-state">Cargando insumos…</div>
+      ) : items.length === 0 ? (
+        <div className="cat-state">No hay insumos. Agrega el primero.</div>
+      ) : (
+        <table className="cat-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Tipo</th>
+              <th>Unidad</th>
+              <th style={{ textAlign: 'right' }}>Costo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((i) => (
+              <tr key={i.id}>
+                <td className="mono">{i.codigo}</td>
+                <td>{i.descripcion}</td>
+                <td>{TIPO_LABEL[i.tipo] ?? i.tipo}</td>
+                <td>{i.unidad}</td>
+                <td style={{ textAlign: 'right' }}>{fmtMoney(i.costoActual)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  )
+}
+
+// ─── Conceptos ──────────────────────────────────────────────────────────────
+
+function ConceptosTab({ companyId, onOpen }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [q, setQ] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [form, setForm] = useState({
+    codigo: '',
+    descripcion: '',
+    unidad: '',
+    categoria: '',
+  })
+
+  const cargar = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const qs = new URLSearchParams({ companyId })
+      if (q) qs.set('q', q)
+      const data = await apiFetch(`/api/construccion/conceptos?${qs.toString()}`)
+      setItems(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setError(err.message || 'Error al cargar conceptos')
+    } finally {
+      setLoading(false)
+    }
+  }, [companyId, q])
+
+  useEffect(() => {
+    const t = setTimeout(cargar, 200)
+    return () => clearTimeout(t)
+  }, [cargar])
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      const body = {
+        companyId,
+        codigo: form.codigo.trim(),
+        descripcion: form.descripcion.trim(),
+        unidad: form.unidad.trim(),
+        categoria: form.categoria.trim() || undefined,
+      }
+      const created = await apiFetch('/api/construccion/conceptos', { method: 'POST', body })
+      setItems((prev) => [created, ...prev])
+      setForm({ codigo: '', descripcion: '', unidad: '', categoria: '' })
+      setShowForm(false)
+    } catch (err) {
+      setError(err.message || 'Error al crear concepto')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const grouped = useMemo(() => {
+    const map = new Map()
+    for (const c of items) {
+      const key = c.categoria || 'Sin categoría'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(c)
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
+  }, [items])
+
+  return (
+    <section>
+      <div className="cat-toolbar">
+        <input
+          type="search"
+          placeholder="Buscar código o descripción…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button className="primary" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? 'Cancelar' : '+ Nuevo concepto'}
+        </button>
+      </div>
+
+      {error && <div className="cat-error">{error}</div>}
+
+      {showForm && (
+        <form className="cat-form" onSubmit={handleCreate}>
+          <div className="row">
+            <label>
+              Código
+              <input required value={form.codigo} onChange={(e) => setForm({ ...form, codigo: e.target.value })} placeholder="EXC-001" />
+            </label>
+            <label className="grow">
+              Descripción
+              <input required value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder="Excavación a cielo abierto en material tipo II" />
+            </label>
+            <label>
+              Unidad
+              <input required value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })} placeholder="m3" />
+            </label>
+            <label>
+              Categoría
+              <input value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} placeholder="Preliminares" />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Guardando…' : 'Guardar concepto'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div className="cat-state">Cargando conceptos…</div>
+      ) : items.length === 0 ? (
+        <div className="cat-state">
+          Aún no hay conceptos. Crea el primero para empezar a armar APUs.
+        </div>
+      ) : (
+        grouped.map(([categoria, group]) => (
+          <div key={categoria} className="cat-group">
+            <h3>{categoria}</h3>
+            <table className="cat-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Descripción</th>
+                  <th>Unidad</th>
+                  <th style={{ textAlign: 'right' }}>Insumos</th>
+                  <th style={{ textAlign: 'right' }}>Costo directo</th>
+                  <th style={{ textAlign: 'right' }}>P.U.</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.map((c) => (
+                  <tr key={c.id}>
+                    <td className="mono">{c.codigo}</td>
+                    <td>{c.descripcion}</td>
+                    <td>{c.unidad}</td>
+                    <td style={{ textAlign: 'right' }}>{c.apuActual?._count?.insumos ?? 0}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtMoney(c.apuActual?.costoDirecto)}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <strong>{fmtMoney(c.apuActual?.precioUnitario)}</strong>
+                    </td>
+                    <td>
+                      <button className="link" onClick={() => onOpen(c.id)}>
+                        Editar APU →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))
+      )}
+    </section>
+  )
+}

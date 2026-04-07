@@ -1,0 +1,395 @@
+/* APU editor */
+
+.apu-page {
+  padding: 1.5rem 2rem;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.apu-back {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+
+.apu-header {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.3rem 1.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.apu-codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #64748b;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.apu-header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.4rem;
+  color: #0f172a;
+}
+
+.apu-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+}
+
+.apu-pu {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  text-align: right;
+  min-width: 200px;
+}
+
+.apu-pu .label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
+.apu-pu .value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.apu-pu .sub {
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+.apu-body {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1rem;
+}
+
+@media (max-width: 1100px) {
+  .apu-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.apu-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.2rem;
+}
+
+.apu-card h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.apu-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.apu-card-head h2 {
+  margin: 0;
+}
+
+.apu-add {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  max-width: 420px;
+}
+
+.apu-add input {
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.apu-add input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.apu-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+  max-height: 340px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.apu-picker-empty {
+  padding: 1rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.apu-picker-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 70px 50px 80px;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.82rem;
+  width: 100%;
+}
+
+.apu-picker-row:hover {
+  background: #eff6ff;
+}
+
+.apu-picker-row .desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #0f172a;
+}
+
+.apu-picker-row .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #334155;
+}
+
+.apu-picker-close {
+  width: 100%;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  color: #64748b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.apu-empty {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 1.2rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.apu-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.apu-table th,
+.apu-table td {
+  padding: 0.5rem 0.55rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.apu-table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.apu-table input[type='number'] {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  text-align: right;
+}
+
+.apu-table input[type='number']:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.apu-table .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.apu-total-row td {
+  border-top: 2px solid #e2e8f0;
+  border-bottom: none;
+  padding-top: 0.8rem;
+  font-size: 0.92rem;
+}
+
+.link-danger {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 700;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+
+.link-danger:hover {
+  background: #fef2f2;
+}
+
+.apu-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.apu-side .apu-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 0.75rem;
+}
+
+.apu-side .apu-card input {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.apu-side .apu-card input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.apu-summary .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed #f1f5f9;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.apu-summary .row:last-child {
+  border-bottom: none;
+}
+
+.apu-summary .row.total {
+  color: #0f172a;
+  font-size: 1rem;
+  padding-top: 0.7rem;
+  margin-top: 0.4rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+.apu-save-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.apu-save-block .primary {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 0.8rem 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.apu-save-block .primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.apu-save-block .primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.apu-ok {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #166534;
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.apu-state {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  color: #475569;
+}
+
+.apu-error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.muted {
+  color: #94a3b8;
+}

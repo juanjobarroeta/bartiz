@@ -17,9 +17,9 @@ import './Layout.css'
 const ALL_NAV_ITEMS = [
   { path: '/',                    label: 'Dashboard',     icon: '⊞',  ported: false, note: 'pending port' },
   { path: '/proyectos',           label: 'Proyectos',     icon: '📋', ported: true },
+  { path: '/catalogo',            label: 'Catálogo',      icon: '📚', ported: true },
   { path: '/presupuestos',        label: 'Presupuestos',  icon: '💼', ported: false, note: 'pending port' },
   { path: '/cotizaciones',        label: 'Cotizaciones',  icon: '💰', ported: false, note: 'pending port' },
-  { path: '/catalogo',            label: 'Catálogo',      icon: '📚', ported: false, note: 'pending port' },
   { path: '/solicitudes-compra',  label: 'Solicitudes',   icon: '📝', ported: false, note: 'pending port' },
   { path: '/compras',             label: 'Compras',       icon: '📈', ported: false, note: 'pending port' },
   { path: '/inventario',          label: 'Inventario',    icon: '📦', ported: false, note: 'pending port' },
