@@ -157,6 +157,21 @@
   font-size: 0.88rem;
 }
 
+.pd-list-clickable {
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.pd-list-clickable:hover {
+  background: #eff6ff;
+}
+
+.pd-list .estado-borrador     { background: #fef3c7; color: #92400e; }
+.pd-list .estado-aprobado     { background: #dcfce7; color: #166534; }
+.pd-list .estado-en_ejecucion { background: #dbeafe; color: #1e40af; }
+.pd-list .estado-cerrado      { background: #e0e7ff; color: #3730a3; }
+.pd-list .estado-rechazado    { background: #fee2e2; color: #991b1b; }
+
 .pd-list-right {
   display: flex;
   gap: 0.6rem;

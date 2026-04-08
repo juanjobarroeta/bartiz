@@ -1,0 +1,268 @@
+/* PresupuestoDetalle — grouped table matching the partner's PDF layout */
+
+.pres-page {
+  padding: 1.5rem 2rem;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.pres-back {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+
+.pres-header {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.3rem 1.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pres-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.pres-header h1 {
+  margin: 0 0 0.6rem;
+  font-size: 1.6rem;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.pres-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.pres-estado {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.estado-borrador     { background: #fef3c7; color: #92400e; }
+.estado-aprobado     { background: #dcfce7; color: #166534; }
+.estado-en_ejecucion { background: #dbeafe; color: #1e40af; }
+.estado-cerrado      { background: #e0e7ff; color: #3730a3; }
+.estado-rechazado    { background: #fee2e2; color: #991b1b; }
+
+.pres-totals-card,
+.pres-footer-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  min-width: 280px;
+}
+
+.pres-totals-card .row,
+.pres-footer-card .row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+.pres-totals-card .row.total,
+.pres-footer-card .row.total {
+  border-top: 2px solid #cbd5e1;
+  margin-top: 0.35rem;
+  padding-top: 0.6rem;
+  font-size: 1.05rem;
+  color: #0f172a;
+}
+
+.pres-totals-card .row strong,
+.pres-footer-card .row strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.pres-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.pres-actions button {
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.pres-actions button.primary {
+  background: #16a34a;
+  color: white;
+}
+.pres-actions button.primary:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.pres-actions button.danger {
+  background: #ef4444;
+  color: white;
+}
+.pres-actions button.danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.pres-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pres-zona {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.pres-zona-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.pres-zona-total {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88rem;
+}
+
+.pres-zona-total .muted {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.pres-grupo {
+  padding: 0.25rem 1.25rem 1rem;
+}
+
+.pres-grupo-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f1f5f9;
+  padding: 0.55rem 0.85rem;
+  border-radius: 6px;
+  margin: 0.85rem 0 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.pres-grupo-head .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.pres-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.pres-table thead th {
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.pres-table tbody td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+
+.pres-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.pres-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.pres-table .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.pres-table .desc {
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.pres-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.pres-footer-card {
+  background: white;
+  border: 2px solid #0f172a;
+  min-width: 320px;
+}
+
+.muted {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.pres-state {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  color: #475569;
+}
+
+.pres-error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}

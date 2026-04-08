@@ -193,13 +193,19 @@ export default function ProyectoDetalle() {
           {proyecto.presupuestos?.length ? (
             <ul className="pd-list">
               {proyecto.presupuestos.map((p) => (
-                <li key={p.id}>
+                <li
+                  key={p.id}
+                  className="pd-list-clickable"
+                  onClick={() => navigate(`/presupuesto/${p.id}`)}
+                >
                   <div>
-                    <strong>v{p.version}</strong>
-                    <span className="muted"> · {p._count?.partidas ?? 0} partidas</span>
+                    <strong>{p.nombre ?? `Presupuesto v${p.version}`}</strong>
+                    <span className="muted"> · v{p.version} · {p._count?.partidas ?? 0} partidas</span>
                   </div>
                   <div className="pd-list-right">
-                    <span className="badge">{PRESUPUESTO_ESTADO[p.estado] ?? p.estado}</span>
+                    <span className={`badge estado-${p.estado?.toLowerCase()}`}>
+                      {PRESUPUESTO_ESTADO[p.estado] ?? p.estado}
+                    </span>
                     <span className="mono">{fmtMoney(p.montoTotal)}</span>
                   </div>
                 </li>
@@ -207,8 +213,7 @@ export default function ProyectoDetalle() {
             </ul>
           ) : (
             <div className="pd-empty">
-              Aún no hay presupuestos. Crea uno cuando portemos la página
-              de Presupuestos.
+              Aún no hay presupuestos para este proyecto.
             </div>
           )}
         </section>

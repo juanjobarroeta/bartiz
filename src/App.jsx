@@ -21,6 +21,7 @@ import CotizacionDetalle from './pages/CotizacionDetalle'
 import Inventario from './pages/Inventario'
 import Catalogo from './pages/Catalogo'
 import APU from './pages/APU'
+import PresupuestoDetalle from './pages/PresupuestoDetalle'
 import Compras from './pages/Compras'
 import SolicitudesCompra from './pages/SolicitudesCompra'
 import Usuarios from './pages/Usuarios'
@@ -65,6 +66,7 @@ function App() {
                     <Route path="/inventario" element={<Inventario />} />
                     <Route path="/catalogo" element={<Catalogo />} />
                     <Route path="/apu/:conceptoId" element={<APU />} />
+                    <Route path="/presupuesto/:id" element={<PresupuestoDetalle />} />
                     <Route path="/compras" element={<Compras />} />
                     <Route path="/solicitudes-compra" element={<SolicitudesCompra />} />
                     <Route path="/usuarios" element={<Usuarios />} />
