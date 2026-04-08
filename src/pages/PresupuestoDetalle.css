@@ -266,3 +266,322 @@
   border-color: #fecaca;
   color: #b91c1c;
 }
+
+/* ── Edit mode ───────────────────────────────────────────────────────── */
+
+.pres-actions button.secondary {
+  background: #e0e7ff;
+  color: #1e40af;
+}
+.pres-actions button.secondary:hover:not(:disabled) {
+  background: #c7d2fe;
+}
+
+.pres-qty-input {
+  width: 100%;
+  max-width: 110px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  background: #fffbeb;
+  font-family: inherit;
+}
+.pres-qty-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+  background: white;
+}
+
+.pres-delete-btn {
+  background: transparent;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.pres-delete-btn:hover {
+  background: #fee2e2;
+}
+
+.pres-add-row {
+  width: calc(100% - 2.5rem);
+  margin: 0.75rem 1.25rem;
+  padding: 0.65rem;
+  background: #f0fdf4;
+  border: 1px dashed #86efac;
+  color: #166534;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.pres-add-row:hover {
+  background: #dcfce7;
+}
+.pres-add-partida {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+.pres-add-partida:hover {
+  background: #dbeafe;
+}
+.pres-add-zone-wrap {
+  margin-top: 1rem;
+}
+.pres-add-zona {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+  margin: 0;
+  width: 100%;
+}
+.pres-add-zona:hover {
+  background: #fde68a;
+}
+
+/* ── Concepto picker modal ───────────────────────────────────────────── */
+
+.pres-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.pres-picker {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.3);
+}
+
+.pres-picker header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  position: relative;
+}
+.pres-picker header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #0f172a;
+}
+.pres-picker header .muted {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+.pres-picker-close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.9rem;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+.pres-picker-close:hover {
+  background: #f1f5f9;
+}
+
+.pres-picker > input[type='search'] {
+  margin: 1rem 1.25rem 0;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+.pres-picker > input[type='search']:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.pres-picker-results {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0.75rem 0;
+  max-height: 40vh;
+}
+
+.pres-picker-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 60px 100px;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.6rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.pres-picker-row:hover {
+  background: #eff6ff;
+}
+.pres-picker-row .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #334155;
+  font-size: 0.78rem;
+}
+.pres-picker-row .desc {
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pres-picker-row .muted {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.pres-picker-new {
+  margin: 0 1.25rem 1.25rem;
+  padding: 0.75rem;
+  background: #fefce8;
+  border: 1px dashed #fcd34d;
+  color: #92400e;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+.pres-picker-new:hover {
+  background: #fef3c7;
+}
+
+.pres-picker-confirm {
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.pres-picker-confirm .summary {
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.pres-picker-confirm .summary .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #475569;
+  font-size: 0.78rem;
+}
+.pres-picker-confirm label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: #475569;
+  font-weight: 500;
+}
+.pres-picker-confirm label input {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+.pres-picker-confirm .row {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+.pres-picker-confirm .row button {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+.pres-picker-confirm .row button.primary {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.pres-picker-new-form {
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.pres-picker-new-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: #475569;
+  font-weight: 500;
+}
+.pres-picker-new-form input,
+.pres-picker-new-form textarea {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: inherit;
+}
+.pres-picker-new-form textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+.pres-picker-new-form .two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.pres-picker-new-form .row {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+.pres-picker-new-form .row button {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+.pres-picker-new-form .row button.primary {
+  background: #16a34a;
+  color: white;
+  border-color: #16a34a;
+}
+.pres-picker-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}

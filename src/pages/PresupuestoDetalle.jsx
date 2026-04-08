@@ -1,16 +1,30 @@
 /**
- * PresupuestoDetalle — renders a presupuesto with the same hierarchical
- * layout as the partner's PDF: HACIENDA → ZONA → PARTIDA → conceptos.
+ * PresupuestoDetalle — PDF-style grouped view with BORRADOR edit mode.
  *
  * Route: /presupuesto/:id
  *
- * Read-only in v1. The only mutation exposed is the state transition
- * (Aprobar / Rechazar) so Juan can flip the chosen one immediately after
- * the customer meeting. Editing partidas will come later.
+ * Two modes controlled by a toggle button (only visible on BORRADOR):
+ *
+ *   VIEW mode (default):
+ *     Renders the presupuesto exactly like your partner's PDF: ZONA
+ *     headers, PARTIDA groups, concept rows with cantidad/PU/importe/%.
+ *     Shows Aprobar/Rechazar + Clonar-para-editar actions.
+ *
+ *   EDIT mode (only if estado === BORRADOR):
+ *     Every cantidad input becomes editable. Delete × per row.
+ *     "+ Agregar partida" button per group opens a picker modal that
+ *     searches the concepto catalog and also offers "Crear concepto
+ *     nuevo" inline for anything the customer asks for on the fly.
+ *     All mutations auto-save. Totals refresh from the server response
+ *     so the client never lies about montoTotal.
+ *
+ * Approving uses the cascade API (cascade: true) so a single click
+ * marks siblings RECHAZADO and sets Proyecto.montoContratado.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import './PresupuestoDetalle.css'
 
@@ -20,6 +34,14 @@ const ESTADO_LABEL = {
   EN_EJECUCION: 'En ejecución',
   CERRADO: 'Cerrado',
   RECHAZADO: 'Rechazado',
+}
+
+const TIPO_LABEL_CONCEPTO = {
+  MATERIAL: 'Material',
+  MANO_OBRA: 'M.O.',
+  EQUIPO: 'Equipo',
+  HERRAMIENTA: 'Herram.',
+  BASICO: 'Básico',
 }
 
 const fmtMoney = (n) =>
@@ -35,15 +57,6 @@ const fmtQty = (n) =>
     maximumFractionDigits: 4,
   }).format(Number(n) || 0)
 
-/**
- * Groups flat partidas[] into a nested structure:
- *   [
- *     { zona, subtotal, grupos: [
- *       { partida, subtotal, rows: [partida...] }
- *     ]}
- *   ]
- * Preserves insertion order (partidas are already sorted server-side).
- */
 function groupPartidas(partidas) {
   const totalImporte = partidas.reduce((a, p) => a + (p.importe || 0), 0) || 1
   const zonaMap = new Map()
@@ -85,17 +98,22 @@ function groupPartidas(partidas) {
 export default function PresupuestoDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { activeCompany } = useAuth()
 
   const [presupuesto, setPresupuesto] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [actioning, setActioning] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(null) // { zona, partida } | null
 
   const cargar = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await apiFetch(`/api/construccion/presupuestos/${encodeURIComponent(id)}`)
+      const data = await apiFetch(
+        `/api/construccion/presupuestos/${encodeURIComponent(id)}`
+      )
       setPresupuesto(data)
     } catch (err) {
       setError(err.message || 'Error al cargar presupuesto')
@@ -109,28 +127,156 @@ export default function PresupuestoDetalle() {
     cargar()
   }, [cargar])
 
-  const transitionState = async (nuevoEstado) => {
-    if (!presupuesto) return
-    const confirmMsg = {
-      APROBADO: '¿Marcar este presupuesto como APROBADO? El cliente lo está eligiendo.',
-      RECHAZADO: '¿Marcar este presupuesto como RECHAZADO? El cliente eligió la otra opción.',
-    }[nuevoEstado]
-    if (confirmMsg && !window.confirm(confirmMsg)) return
+  const canEdit = presupuesto?.estado === 'BORRADOR'
+  const isEditing = canEdit && editMode
 
+  // ── State transitions ───────────────────────────────────────────────────
+  const aprobar = async () => {
+    if (!presupuesto) return
+    const ok = window.confirm(
+      `¿Aprobar "${presupuesto.nombre}"?\n\nEsto:\n` +
+        `• Marca este presupuesto como APROBADO\n` +
+        `• Marca los otros presupuestos BORRADOR del proyecto como RECHAZADO\n` +
+        `• Establece monto contratado del proyecto en ${fmtMoney(
+          presupuesto.montoTotal
+        )}`
+    )
+    if (!ok) return
     setActioning(true)
     try {
-      const updated = await apiFetch(`/api/construccion/presupuestos/${presupuesto.id}`, {
-        method: 'PATCH',
-        body: { estado: nuevoEstado },
-      })
-      setPresupuesto((p) => (p ? { ...p, estado: updated.estado } : p))
+      const res = await apiFetch(
+        `/api/construccion/presupuestos/${presupuesto.id}`,
+        {
+          method: 'PATCH',
+          body: { estado: 'APROBADO', cascade: true },
+        }
+      )
+      setPresupuesto((p) =>
+        p ? { ...p, estado: res.presupuesto?.estado ?? 'APROBADO' } : p
+      )
+      setEditMode(false)
+      window.alert(
+        `✓ Aprobado. ${res.siblingsRechazados ?? 0} presupuesto(s) marcado(s) como rechazado(s). Monto contratado fijado.`
+      )
     } catch (err) {
-      window.alert(err.message || 'Error en la transición')
+      window.alert(err.message || 'Error al aprobar')
     } finally {
       setActioning(false)
     }
   }
 
+  const rechazar = async () => {
+    if (!presupuesto) return
+    if (!window.confirm(`¿Marcar "${presupuesto.nombre}" como RECHAZADO?`)) return
+    setActioning(true)
+    try {
+      await apiFetch(`/api/construccion/presupuestos/${presupuesto.id}`, {
+        method: 'PATCH',
+        body: { estado: 'RECHAZADO' },
+      })
+      setPresupuesto((p) => (p ? { ...p, estado: 'RECHAZADO' } : p))
+      setEditMode(false)
+    } catch (err) {
+      window.alert(err.message || 'Error al rechazar')
+    } finally {
+      setActioning(false)
+    }
+  }
+
+  const clonar = async () => {
+    if (!presupuesto) return
+    const nombre = window.prompt(
+      'Nombre para el presupuesto clonado:',
+      `${presupuesto.nombre ?? 'Presupuesto'} (Editado)`
+    )
+    if (!nombre) return
+    setActioning(true)
+    try {
+      const clone = await apiFetch(
+        `/api/construccion/presupuestos/${presupuesto.id}/clone`,
+        { method: 'POST', body: { nombre } }
+      )
+      navigate(`/presupuesto/${clone.id}`)
+    } catch (err) {
+      window.alert(err.message || 'Error al clonar')
+    } finally {
+      setActioning(false)
+    }
+  }
+
+  // ── Partida mutations (auto-save) ──────────────────────────────────────
+  const updateCantidad = async (partidaId, newCantidad) => {
+    if (!(newCantidad > 0)) return
+    try {
+      const res = await apiFetch(
+        `/api/construccion/presupuestos/${presupuesto.id}/partidas/${partidaId}`,
+        {
+          method: 'PATCH',
+          body: { cantidad: newCantidad },
+        }
+      )
+      setPresupuesto((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          montoTotal: res.presupuesto.montoTotal,
+          partidas: prev.partidas.map((p) =>
+            p.id === partidaId
+              ? { ...p, cantidad: res.partida.cantidad, importe: res.partida.importe }
+              : p
+          ),
+        }
+      })
+    } catch (err) {
+      window.alert(err.message || 'Error al guardar cantidad')
+      cargar()
+    }
+  }
+
+  const deletePartida = async (partidaId, descripcion) => {
+    if (!window.confirm(`¿Eliminar esta partida?\n${descripcion}`)) return
+    try {
+      const res = await apiFetch(
+        `/api/construccion/presupuestos/${presupuesto.id}/partidas/${partidaId}`,
+        { method: 'DELETE' }
+      )
+      setPresupuesto((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          montoTotal: res.presupuesto.montoTotal,
+          partidas: prev.partidas.filter((p) => p.id !== partidaId),
+        }
+      })
+    } catch (err) {
+      window.alert(err.message || 'Error al eliminar partida')
+    }
+  }
+
+  const addPartida = async ({ conceptoId, cantidad, zona, partida }) => {
+    try {
+      const res = await apiFetch(
+        `/api/construccion/presupuestos/${presupuesto.id}/partidas`,
+        {
+          method: 'POST',
+          body: { conceptoId, cantidad, zona, partida },
+        }
+      )
+      setPresupuesto((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          montoTotal: res.presupuesto.montoTotal,
+          partidas: [...prev.partidas, res.partida],
+        }
+      })
+      setPickerOpen(null)
+    } catch (err) {
+      window.alert(err.message || 'Error al agregar partida')
+    }
+  }
+
+  // ── Derived grouped view ────────────────────────────────────────────────
   const grouped = useMemo(
     () => (presupuesto ? groupPartidas(presupuesto.partidas) : []),
     [presupuesto]
@@ -150,7 +296,9 @@ export default function PresupuestoDetalle() {
         <button className="pres-back" onClick={() => navigate(-1)}>
           ← Regresar
         </button>
-        <div className="pres-state pres-error">{error ?? 'Presupuesto no encontrado'}</div>
+        <div className="pres-state pres-error">
+          {error ?? 'Presupuesto no encontrado'}
+        </div>
       </div>
     )
   }
@@ -161,7 +309,10 @@ export default function PresupuestoDetalle() {
 
   return (
     <div className="pres-page">
-      <button className="pres-back" onClick={() => navigate(`/proyectos/${presupuesto.proyecto.id}`)}>
+      <button
+        className="pres-back"
+        onClick={() => navigate(`/proyectos/${presupuesto.proyecto.id}`)}
+      >
         ← {presupuesto.proyecto.codigo} — {presupuesto.proyecto.nombre}
       </button>
 
@@ -195,31 +346,46 @@ export default function PresupuestoDetalle() {
         </div>
       </header>
 
-      {presupuesto.estado === 'BORRADOR' && (
-        <div className="pres-actions">
-          <button
-            className="primary"
-            disabled={actioning}
-            onClick={() => transitionState('APROBADO')}
-          >
-            ✓ Aprobar (cliente eligió este)
+      <div className="pres-actions">
+        {canEdit && !isEditing && (
+          <button className="secondary" onClick={() => setEditMode(true)}>
+            ✎ Editar partidas
           </button>
-          <button
-            className="danger"
-            disabled={actioning}
-            onClick={() => transitionState('RECHAZADO')}
-          >
-            ✕ Rechazar (cliente eligió el otro)
+        )}
+        {canEdit && isEditing && (
+          <button className="secondary" onClick={() => setEditMode(false)}>
+            ✓ Listo editando
           </button>
-        </div>
-      )}
+        )}
+        {presupuesto.estado !== 'APROBADO' && (
+          <button
+            className="secondary"
+            disabled={actioning}
+            onClick={clonar}
+            title="Crear una copia editable para negociación"
+          >
+            ⎘ Clonar para editar
+          </button>
+        )}
+        {canEdit && !isEditing && (
+          <>
+            <button className="primary" disabled={actioning} onClick={aprobar}>
+              ✓ Aprobar (cliente eligió este)
+            </button>
+            <button className="danger" disabled={actioning} onClick={rechazar}>
+              ✕ Rechazar
+            </button>
+          </>
+        )}
+      </div>
 
       {grouped.map((z) => (
         <section key={z.zona} className="pres-zona">
           <h2 className="pres-zona-head">
             <span>{z.zona}</span>
             <span className="pres-zona-total">
-              {fmtMoney(z.subtotal)} <span className="muted">({z.porc.toFixed(2)}%)</span>
+              {fmtMoney(z.subtotal)}{' '}
+              <span className="muted">({z.porc.toFixed(2)}%)</span>
             </span>
           </h2>
 
@@ -237,10 +403,11 @@ export default function PresupuestoDetalle() {
                   <col style={{ width: '9%' }} />
                   <col />
                   <col style={{ width: '6%' }} />
-                  <col style={{ width: '9%' }} />
+                  <col style={{ width: isEditing ? '11%' : '9%' }} />
                   <col style={{ width: '11%' }} />
                   <col style={{ width: '12%' }} />
-                  <col style={{ width: '6%' }} />
+                  <col style={{ width: isEditing ? '5%' : '6%' }} />
+                  {isEditing && <col style={{ width: '5%' }} />}
                 </colgroup>
                 <thead>
                   <tr>
@@ -251,28 +418,74 @@ export default function PresupuestoDetalle() {
                     <th style={{ textAlign: 'right' }}>P. Unitario</th>
                     <th style={{ textAlign: 'right' }}>Importe</th>
                     <th style={{ textAlign: 'right' }}>%</th>
+                    {isEditing && <th></th>}
                   </tr>
                 </thead>
                 <tbody>
                   {g.rows.map((p) => (
-                    <tr key={p.id}>
-                      <td className="mono">{p.concepto?.codigo ?? '—'}</td>
-                      <td className="desc">{p.concepto?.descripcion ?? '—'}</td>
-                      <td>{p.concepto?.unidad ?? '—'}</td>
-                      <td style={{ textAlign: 'right' }}>{fmtQty(p.cantidad)}</td>
-                      <td style={{ textAlign: 'right' }}>{fmtMoney(p.precioUnitario)}</td>
-                      <td style={{ textAlign: 'right' }}>
-                        <strong>{fmtMoney(p.importe)}</strong>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>{p.porc.toFixed(2)}%</td>
-                    </tr>
+                    <PartidaRow
+                      key={p.id}
+                      partida={p}
+                      isEditing={isEditing}
+                      onCantidad={(v) => updateCantidad(p.id, v)}
+                      onDelete={() =>
+                        deletePartida(p.id, p.concepto?.descripcion ?? '')
+                      }
+                    />
                   ))}
                 </tbody>
               </table>
+
+              {isEditing && (
+                <button
+                  className="pres-add-row"
+                  onClick={() =>
+                    setPickerOpen({ zona: z.zona, partida: g.partida })
+                  }
+                >
+                  + Agregar concepto a {g.partida}
+                </button>
+              )}
             </div>
           ))}
+
+          {isEditing && (
+            <button
+              className="pres-add-row pres-add-partida"
+              onClick={() => {
+                const nombre = window.prompt(
+                  `Nombre de la nueva partida en ${z.zona}:`,
+                  ''
+                )
+                if (!nombre) return
+                setPickerOpen({ zona: z.zona, partida: nombre })
+              }}
+            >
+              + Agregar partida nueva a {z.zona}
+            </button>
+          )}
         </section>
       ))}
+
+      {isEditing && (
+        <div className="pres-add-zone-wrap">
+          <button
+            className="pres-add-row pres-add-zona"
+            onClick={() => {
+              const zonaNombre = window.prompt('Nombre de la nueva zona:', '')
+              if (!zonaNombre) return
+              const partidaNombre = window.prompt(
+                `Nombre de la primera partida dentro de ${zonaNombre}:`,
+                ''
+              )
+              if (!partidaNombre) return
+              setPickerOpen({ zona: zonaNombre, partida: partidaNombre })
+            }}
+          >
+            + Agregar zona nueva
+          </button>
+        </div>
+      )}
 
       <footer className="pres-footer">
         <div className="pres-footer-card">
@@ -290,6 +503,352 @@ export default function PresupuestoDetalle() {
           </div>
         </div>
       </footer>
+
+      {pickerOpen && activeCompany?.id && (
+        <ConceptoPicker
+          companyId={activeCompany.id}
+          zona={pickerOpen.zona}
+          partida={pickerOpen.partida}
+          onClose={() => setPickerOpen(null)}
+          onPick={addPartida}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Partida row (edit-aware) ────────────────────────────────────────────────
+
+function PartidaRow({ partida, isEditing, onCantidad, onDelete }) {
+  const [local, setLocal] = useState(partida.cantidad)
+  const debounceRef = useRef()
+
+  useEffect(() => {
+    setLocal(partida.cantidad)
+  }, [partida.cantidad])
+
+  const handleChange = (e) => {
+    const v = parseFloat(e.target.value) || 0
+    setLocal(v)
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      if (v > 0 && v !== partida.cantidad) onCantidad(v)
+    }, 500)
+  }
+
+  const handleBlur = () => {
+    clearTimeout(debounceRef.current)
+    if (local > 0 && local !== partida.cantidad) onCantidad(local)
+  }
+
+  return (
+    <tr>
+      <td className="mono">{partida.concepto?.codigo ?? '—'}</td>
+      <td className="desc">{partida.concepto?.descripcion ?? '—'}</td>
+      <td>{partida.concepto?.unidad ?? '—'}</td>
+      <td style={{ textAlign: 'right' }}>
+        {isEditing ? (
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={local}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className="pres-qty-input"
+          />
+        ) : (
+          fmtQty(partida.cantidad)
+        )}
+      </td>
+      <td style={{ textAlign: 'right' }}>{fmtMoney(partida.precioUnitario)}</td>
+      <td style={{ textAlign: 'right' }}>
+        <strong>{fmtMoney(partida.importe)}</strong>
+      </td>
+      <td style={{ textAlign: 'right' }}>{partida.porc.toFixed(2)}%</td>
+      {isEditing && (
+        <td style={{ textAlign: 'center' }}>
+          <button className="pres-delete-btn" onClick={onDelete} title="Eliminar">
+            ×
+          </button>
+        </td>
+      )}
+    </tr>
+  )
+}
+
+// ── Concepto picker modal ───────────────────────────────────────────────────
+// Search the catalog + offer inline "crear concepto nuevo". On pick,
+// asks for cantidad, then calls onPick({ conceptoId, cantidad, zona, partida }).
+
+function ConceptoPicker({ companyId, zona, partida, onClose, onPick }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState([])
+  const [picked, setPicked] = useState(null)
+  const [cantidad, setCantidad] = useState('1')
+  const [creating, setCreating] = useState(false)
+  const [newForm, setNewForm] = useState({
+    codigo: '',
+    descripcion: '',
+    unidad: '',
+    categoria: '',
+    precio: '',
+  })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const search = useCallback(async () => {
+    try {
+      const qs = new URLSearchParams({ companyId })
+      if (q.trim()) qs.set('q', q.trim())
+      const data = await apiFetch(`/api/construccion/conceptos?${qs.toString()}`)
+      setResults(Array.isArray(data) ? data.slice(0, 30) : [])
+    } catch {
+      setResults([])
+    }
+  }, [companyId, q])
+
+  useEffect(() => {
+    const t = setTimeout(search, 200)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const confirmPick = async () => {
+    const qty = parseFloat(cantidad) || 0
+    if (!picked || qty <= 0) return
+    setBusy(true)
+    await onPick({
+      conceptoId: picked.id,
+      cantidad: qty,
+      zona,
+      partida,
+    })
+    setBusy(false)
+  }
+
+  const createConceptoAndPick = async (e) => {
+    e.preventDefault()
+    setErr(null)
+    setBusy(true)
+    try {
+      // 1) Create the concepto
+      const created = await apiFetch('/api/construccion/conceptos', {
+        method: 'POST',
+        body: {
+          companyId,
+          codigo: newForm.codigo.trim(),
+          descripcion: newForm.descripcion.trim(),
+          unidad: newForm.unidad.trim(),
+          categoria: newForm.categoria.trim() || undefined,
+        },
+      })
+      // 2) If user entered a precio, set it on the new APU via direct PATCH
+      //    — the POST already created a v1 APU with precio 0. We need to
+      //    set the precio, which requires the PUT /api/construccion/apus/:id/insumos
+      //    endpoint. For v1 we'll just warn the user to set the PU in the APU
+      //    editor if they need a real price. If they entered a precio, we'll
+      //    overwrite precioUnitario directly via a synthetic PUT with empty
+      //    lines + a pseudo manual PU.
+      //    Actually: simpler path: since apus/:id/insumos PUT recomputes from
+      //    overhead × costoDirecto / rendimiento, and we can't inject a manual
+      //    PU through that, we'll rely on the existing precioUnitario=0 and
+      //    let the user set it later. The partida will be added with PU=0.
+      //    Juan can edit the PU via the APU editor page in another tab if
+      //    urgent. Alternative: ask him to enter PU in the APU editor BEFORE
+      //    using the concept. For now: trade-off noted.
+      //
+      // Use the created concepto with its current PU (0). Warn if user
+      // supplied a price — tell them to set it in the APU editor.
+      if (newForm.precio && parseFloat(newForm.precio) > 0) {
+        window.alert(
+          `Concepto creado. Nota: el precio unitario quedó en $0 porque la edición directa del PU aún no está disponible en este modal. Ábrelo en Catálogo → APU editor para fijarlo en $${parseFloat(
+            newForm.precio
+          ).toFixed(2)}.`
+        )
+      }
+      const qty = parseFloat(cantidad) || 1
+      await onPick({
+        conceptoId: created.id,
+        cantidad: qty,
+        zona,
+        partida,
+      })
+    } catch (error) {
+      setErr(error.message || 'Error al crear concepto')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="pres-picker-overlay" onClick={onClose}>
+      <div className="pres-picker" onClick={(e) => e.stopPropagation()}>
+        <header>
+          <h3>Agregar concepto</h3>
+          <div className="muted">
+            {zona} → {partida}
+          </div>
+          <button className="pres-picker-close" onClick={onClose}>
+            ×
+          </button>
+        </header>
+
+        {!creating && !picked && (
+          <>
+            <input
+              type="search"
+              placeholder="Buscar código o descripción del concepto…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              autoFocus
+            />
+            <div className="pres-picker-results">
+              {results.length === 0 ? (
+                <div className="muted" style={{ padding: '1rem' }}>
+                  {q ? 'Sin resultados.' : 'Escribe para buscar conceptos…'}
+                </div>
+              ) : (
+                results.map((c) => (
+                  <button
+                    key={c.id}
+                    className="pres-picker-row"
+                    onClick={() => setPicked(c)}
+                  >
+                    <span className="mono">{c.codigo}</span>
+                    <span className="desc">{c.descripcion}</span>
+                    <span className="muted">{c.unidad}</span>
+                    <span className="mono">
+                      {fmtMoney(c.apuActual?.precioUnitario ?? 0)}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+            <button
+              className="pres-picker-new"
+              onClick={() => setCreating(true)}
+            >
+              + Crear concepto nuevo (sobre la marcha)
+            </button>
+          </>
+        )}
+
+        {picked && (
+          <div className="pres-picker-confirm">
+            <div className="summary">
+              <div className="mono">{picked.codigo}</div>
+              <div>{picked.descripcion}</div>
+              <div className="muted">
+                Unidad: {picked.unidad} · PU actual:{' '}
+                {fmtMoney(picked.apuActual?.precioUnitario ?? 0)}
+              </div>
+            </div>
+            <label>
+              Cantidad
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={cantidad}
+                onChange={(e) => setCantidad(e.target.value)}
+                autoFocus
+              />
+            </label>
+            <div className="summary">
+              <strong>
+                Importe:{' '}
+                {fmtMoney(
+                  (parseFloat(cantidad) || 0) *
+                    (picked.apuActual?.precioUnitario ?? 0)
+                )}
+              </strong>
+            </div>
+            <div className="row">
+              <button onClick={() => setPicked(null)}>← Regresar</button>
+              <button className="primary" disabled={busy} onClick={confirmPick}>
+                {busy ? 'Agregando…' : 'Agregar a partida'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {creating && (
+          <form
+            className="pres-picker-new-form"
+            onSubmit={createConceptoAndPick}
+          >
+            {err && <div className="pres-picker-error">{err}</div>}
+            <label>
+              Código
+              <input
+                required
+                value={newForm.codigo}
+                onChange={(e) =>
+                  setNewForm({ ...newForm, codigo: e.target.value })
+                }
+                placeholder="NUEVO-001"
+              />
+            </label>
+            <label>
+              Descripción
+              <textarea
+                required
+                rows={3}
+                value={newForm.descripcion}
+                onChange={(e) =>
+                  setNewForm({ ...newForm, descripcion: e.target.value })
+                }
+                placeholder="Suministro y colocación de…"
+              />
+            </label>
+            <div className="two-col">
+              <label>
+                Unidad
+                <input
+                  required
+                  value={newForm.unidad}
+                  onChange={(e) =>
+                    setNewForm({ ...newForm, unidad: e.target.value })
+                  }
+                  placeholder="m2"
+                />
+              </label>
+              <label>
+                Categoría
+                <input
+                  value={newForm.categoria}
+                  onChange={(e) =>
+                    setNewForm({ ...newForm, categoria: e.target.value })
+                  }
+                  placeholder="Muros"
+                />
+              </label>
+            </div>
+            <label>
+              Cantidad inicial
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={cantidad}
+                onChange={(e) => setCantidad(e.target.value)}
+              />
+            </label>
+            <div className="muted" style={{ fontSize: '0.78rem' }}>
+              El precio unitario del concepto nuevo queda en $0. Ábrelo después
+              en el Catálogo → APU editor para fijar el PU real.
+            </div>
+            <div className="row">
+              <button type="button" onClick={() => setCreating(false)}>
+                ← Regresar
+              </button>
+              <button type="submit" className="primary" disabled={busy}>
+                {busy ? 'Creando…' : 'Crear y agregar'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   )
 }
