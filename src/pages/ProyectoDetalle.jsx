@@ -246,7 +246,12 @@ export default function ProyectoDetalle() {
         </section>
 
         <section className="pd-card">
-          <h2>Estimaciones ({proyecto.estimaciones?.length ?? 0})</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2>Estimaciones ({proyecto.estimaciones?.length ?? 0})</h2>
+            <button className="link" style={{ fontSize: '0.85rem' }} onClick={() => navigate(`/estimaciones/${proyecto.id}`)}>
+              Ver todas →
+            </button>
+          </div>
           {proyecto.estimaciones?.length ? (
             <table className="pd-table">
               <thead>
