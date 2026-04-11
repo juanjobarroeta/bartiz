@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import './ProyectoDetalle.css'
 
@@ -69,6 +70,7 @@ const fmtDate = (d) =>
 export default function ProyectoDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { activeCompany } = useAuth()
 
   const [proyecto, setProyecto] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -156,12 +158,34 @@ export default function ProyectoDetalle() {
           <div className="pd-kpi-value">{fmtMoney(solicitudesTotal)}</div>
         </div>
         <div className="pd-kpi">
+          <div className="pd-kpi-label">Anticipo</div>
+          <div className="pd-kpi-value">
+            {proyecto.anticipoMonto != null
+              ? fmtMoney(proyecto.anticipoMonto)
+              : '—'}
+          </div>
+          {proyecto.anticipoMonto != null && proyecto.anticipoAmortizado > 0 && (
+            <div className="pd-kpi-sub">
+              Amortizado: {fmtMoney(proyecto.anticipoAmortizado)}
+            </div>
+          )}
+        </div>
+        <div className="pd-kpi">
           <div className="pd-kpi-label">Inicio → Fin plan</div>
           <div className="pd-kpi-value small">
             {fmtDate(proyecto.fechaInicio)} → {fmtDate(proyecto.fechaFinPlan)}
           </div>
         </div>
       </div>
+
+      {/* Anticipo registration (only if not already recorded) */}
+      {proyecto.anticipoMonto == null && (
+        <AnticipoForm
+          proyecto={proyecto}
+          companyId={activeCompany?.id}
+          onRegistered={cargar}
+        />
+      )}
 
       <div className="pd-grid">
         <section className="pd-card">
@@ -295,5 +319,125 @@ export default function ProyectoDetalle() {
         </section>
       </div>
     </div>
+  )
+}
+
+// ── Anticipo form (inline in ProyectoDetalle) ───────────────────────────────
+
+function AnticipoForm({ proyecto, companyId, onRegistered }) {
+  const [open, setOpen] = useState(false)
+  const [bankAccounts, setBankAccounts] = useState([])
+  const [form, setForm] = useState({
+    bankAccountId: '',
+    monto: proyecto.montoContratado
+      ? (proyecto.montoContratado * (proyecto.anticipoPorc || 30) / 100).toFixed(2)
+      : '',
+    referencia: '',
+  })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!open || !companyId) return
+    apiFetch(`/api/construccion/bank-accounts?companyId=${companyId}`)
+      .then((data) => {
+        setBankAccounts(Array.isArray(data) ? data : [])
+        if (data.length === 1) setForm((f) => ({ ...f, bankAccountId: data[0].id }))
+      })
+      .catch(() => setBankAccounts([]))
+  }, [open, companyId])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.bankAccountId || !form.monto) return
+    setBusy(true)
+    setError(null)
+    try {
+      await apiFetch(`/api/construccion/proyectos/${proyecto.id}/anticipo`, {
+        method: 'POST',
+        body: {
+          bankAccountId: form.bankAccountId,
+          monto: parseFloat(form.monto),
+          referencia: form.referencia || undefined,
+        },
+      })
+      setOpen(false)
+      onRegistered?.()
+    } catch (err) {
+      setError(err.message || 'Error al registrar anticipo')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="pd-anticipo-prompt">
+        <button className="primary" onClick={() => setOpen(true)}>
+          💰 Registrar anticipo recibido
+        </button>
+        <span className="muted">
+          {proyecto.anticipoPorc
+            ? `${proyecto.anticipoPorc}% del monto contratado`
+            : 'El cliente ya depositó el anticipo'}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <form className="pd-anticipo-form" onSubmit={handleSubmit}>
+      <h3>Registrar anticipo</h3>
+      {error && <div className="pd-error">{error}</div>}
+      <div className="pd-anticipo-fields">
+        <label>
+          Cuenta bancaria
+          <select
+            required
+            value={form.bankAccountId}
+            onChange={(e) => setForm({ ...form, bankAccountId: e.target.value })}
+          >
+            <option value="">Seleccionar…</option>
+            {bankAccounts.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.banco} — {b.nombre} ({b.numeroCuenta})
+              </option>
+            ))}
+          </select>
+          {bankAccounts.length === 0 && (
+            <span className="muted" style={{ fontSize: '0.78rem' }}>
+              No hay cuentas bancarias registradas. Crea una en contabilidad-os primero.
+            </span>
+          )}
+        </label>
+        <label>
+          Monto recibido (sin IVA)
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            required
+            value={form.monto}
+            onChange={(e) => setForm({ ...form, monto: e.target.value })}
+          />
+        </label>
+        <label>
+          Referencia bancaria
+          <input
+            value={form.referencia}
+            onChange={(e) => setForm({ ...form, referencia: e.target.value })}
+            placeholder="Nº de transferencia (opcional)"
+          />
+        </label>
+      </div>
+      <div className="pd-anticipo-actions">
+        <button type="button" onClick={() => setOpen(false)}>
+          Cancelar
+        </button>
+        <button type="submit" className="primary" disabled={busy}>
+          {busy ? 'Registrando…' : 'Registrar anticipo'}
+        </button>
+      </div>
+    </form>
   )
 }
