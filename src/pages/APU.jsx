@@ -132,15 +132,16 @@ export default function APU() {
     [lines]
   )
 
-  const overheadFactor =
-    1 +
-    (Number(indirectosPorc) || 0) +
-    (Number(financierosPorc) || 0) +
-    (Number(utilidadPorc) || 0) +
-    (Number(cargosAdicPorc) || 0)
-
+  // Cascading overhead formula matching Mexican construction standard:
+  //   subtotal1 = CD × (1 + indirectos)
+  //   subtotal2 = subtotal1 × (1 + financieros)
+  //   PU = subtotal2 × (1 + utilidad + cargosAdic) / rendimiento
   const rend = Number(rendimiento) > 0 ? Number(rendimiento) : 1
-  const precioUnitario = round2((costoDirecto * overheadFactor) / rend)
+  const subtotal1 = costoDirecto * (1 + (Number(indirectosPorc) || 0))
+  const subtotal2 = subtotal1 * (1 + (Number(financierosPorc) || 0))
+  const precioUnitario = round2(
+    (subtotal2 * (1 + (Number(utilidadPorc) || 0) + (Number(cargosAdicPorc) || 0))) / rend
+  )
 
   // ── Mutators ─────────────────────────────────────────────────────────────
   const addLine = (insumo) => {
@@ -435,13 +436,29 @@ export default function APU() {
               <strong>{fmtMoney(costoDirecto)}</strong>
             </div>
             <div className="row">
-              <span>Factor de sobrecostos</span>
-              <strong>×{overheadFactor.toFixed(4)}</strong>
+              <span>+ Indirectos ({((Number(indirectosPorc) || 0) * 100).toFixed(1)}%)</span>
+              <strong>{fmtMoney(subtotal1 - costoDirecto)}</strong>
             </div>
             <div className="row">
-              <span>÷ Rendimiento</span>
-              <strong>÷{rend}</strong>
+              <span>+ Financiamiento ({((Number(financierosPorc) || 0) * 100).toFixed(1)}%)</span>
+              <strong>{fmtMoney(subtotal2 - subtotal1)}</strong>
             </div>
+            <div className="row">
+              <span>+ Utilidad ({((Number(utilidadPorc) || 0) * 100).toFixed(1)}%)</span>
+              <strong>{fmtMoney(subtotal2 * (Number(utilidadPorc) || 0))}</strong>
+            </div>
+            {(Number(cargosAdicPorc) || 0) > 0 && (
+              <div className="row">
+                <span>+ Cargos adic. ({((Number(cargosAdicPorc) || 0) * 100).toFixed(1)}%)</span>
+                <strong>{fmtMoney(subtotal2 * (Number(cargosAdicPorc) || 0))}</strong>
+              </div>
+            )}
+            {rend !== 1 && (
+              <div className="row">
+                <span>÷ Rendimiento</span>
+                <strong>÷{rend}</strong>
+              </div>
+            )}
             <div className="row total">
               <span>Precio unitario</span>
               <strong>{fmtMoney(precioUnitario)}</strong>
