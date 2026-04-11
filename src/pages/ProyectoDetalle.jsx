@@ -187,6 +187,9 @@ export default function ProyectoDetalle() {
         />
       )}
 
+      {/* Control Financiero — profit visibility */}
+      <ControlFinanciero proyecto={proyecto} />
+
       <div className="pd-grid">
         <section className="pd-card">
           <h2>Cliente / Contrato</h2>
@@ -319,6 +322,158 @@ export default function ProyectoDetalle() {
         </section>
       </div>
     </div>
+  )
+}
+
+// ── Control Financiero ──────────────────────────────────────────────────────
+
+function ControlFinanciero({ proyecto }) {
+  // Find the approved presupuesto (or first EN_EJECUCION one)
+  const pres = (proyecto.presupuestos ?? []).find(
+    (p) => p.estado === 'APROBADO' || p.estado === 'EN_EJECUCION'
+  )
+
+  if (!pres || !pres.partidas?.length) {
+    return null // no approved presupuesto yet — nothing to show
+  }
+
+  // Compute costs from APU data
+  let totalCD = 0
+  let totalPU = 0
+  const byPartida = new Map() // partida string → { presupuestado, costoDirecto }
+
+  for (const part of pres.partidas) {
+    const cd = part.concepto?.apuActual?.costoDirecto ?? 0
+    const costoPart = part.cantidad * cd
+    totalCD += costoPart
+    totalPU += part.importe
+
+    const key = part.partida ?? 'Sin partida'
+    if (!byPartida.has(key)) {
+      byPartida.set(key, { zona: part.zona, partida: key, presupuestado: 0, costoDirecto: 0 })
+    }
+    const entry = byPartida.get(key)
+    entry.presupuestado += part.importe
+    entry.costoDirecto += costoPart
+  }
+
+  const indirectos = totalCD * 0.10
+  const subtotal1 = totalCD + indirectos
+  const utilidadPresupuestada = subtotal1 * 0.10
+  const margenPresupuestado = totalPU > 0 ? ((totalPU - totalCD) / totalPU) * 100 : 0
+
+  // Actual spend from paid solicitudes
+  const solicitudesPagadas = (proyecto.solicitudesCompra ?? [])
+    .filter((s) => s.estado === 'PAGADA')
+    .reduce((acc, s) => acc + (Number(s.total) || 0), 0)
+
+  // Actual revenue from timbrada estimaciones
+  const estimacionesTimbradas = (proyecto.estimaciones ?? [])
+    .filter((e) => e.estado === 'TIMBRADA' || e.estado === 'PAGADA')
+    .reduce((acc, e) => acc + (Number(e.subtotal) || 0), 0)
+
+  const anticipoRecibido = proyecto.anticipoMonto ?? 0
+  const anticipoAmortizado = proyecto.anticipoAmortizado ?? 0
+  const porFacturar = totalPU - estimacionesTimbradas
+
+  const utilidadReal = estimacionesTimbradas + anticipoRecibido - solicitudesPagadas
+  const margenReal = (estimacionesTimbradas + anticipoRecibido) > 0
+    ? (utilidadReal / (estimacionesTimbradas + anticipoRecibido)) * 100
+    : 0
+
+  const partidaRows = [...byPartida.values()].sort((a, b) =>
+    (a.zona ?? '').localeCompare(b.zona ?? '') || a.partida.localeCompare(b.partida)
+  )
+
+  return (
+    <section className="pd-financiero">
+      <h2>Control Financiero</h2>
+      <div className="pd-fin-grid">
+        <div className="pd-fin-card">
+          <h3>Ingresos</h3>
+          <dl>
+            <dt>Monto contratado</dt>
+            <dd>{fmtMoney(proyecto.montoContratado)}</dd>
+            <dt>Anticipo recibido</dt>
+            <dd>{fmtMoney(anticipoRecibido)}</dd>
+            <dt>Estimaciones timbradas</dt>
+            <dd>{fmtMoney(estimacionesTimbradas)}</dd>
+            <dt>Por facturar</dt>
+            <dd className="muted">{fmtMoney(porFacturar)}</dd>
+          </dl>
+        </div>
+
+        <div className="pd-fin-card">
+          <h3>Costos</h3>
+          <dl>
+            <dt>Costo directo presupuestado</dt>
+            <dd>{fmtMoney(totalCD)}</dd>
+            <dt>Indirectos (10%)</dt>
+            <dd>{fmtMoney(indirectos)}</dd>
+            <dt>Compras ejecutadas</dt>
+            <dd>{solicitudesPagadas > 0 ? fmtMoney(solicitudesPagadas) : '—'}</dd>
+          </dl>
+        </div>
+
+        <div className="pd-fin-card pd-fin-margin">
+          <h3>Margen</h3>
+          <dl>
+            <dt>Utilidad presupuestada</dt>
+            <dd><strong>{fmtMoney(utilidadPresupuestada)}</strong></dd>
+            <dt>Margen presupuestado</dt>
+            <dd><strong>{margenPresupuestado.toFixed(1)}%</strong></dd>
+            {solicitudesPagadas > 0 && (
+              <>
+                <dt>Utilidad real (a la fecha)</dt>
+                <dd>{fmtMoney(utilidadReal)}</dd>
+                <dt>Margen real</dt>
+                <dd>{margenReal.toFixed(1)}%</dd>
+              </>
+            )}
+          </dl>
+        </div>
+      </div>
+
+      <details className="pd-fin-partidas">
+        <summary>Desglose por partida ({partidaRows.length})</summary>
+        <table className="pd-table">
+          <thead>
+            <tr>
+              <th>Partida</th>
+              <th style={{ textAlign: 'right' }}>Presupuestado (PU)</th>
+              <th style={{ textAlign: 'right' }}>Costo directo</th>
+              <th style={{ textAlign: 'right' }}>Margen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {partidaRows.map((r) => {
+              const margen = r.presupuestado > 0
+                ? ((r.presupuestado - r.costoDirecto) / r.presupuestado) * 100
+                : 0
+              return (
+                <tr key={r.partida}>
+                  <td>
+                    <span className="muted" style={{ fontSize: '0.72rem' }}>{r.zona} → </span>
+                    {r.partida}
+                  </td>
+                  <td style={{ textAlign: 'right' }}>{fmtMoney(r.presupuestado)}</td>
+                  <td style={{ textAlign: 'right' }}>{fmtMoney(r.costoDirecto)}</td>
+                  <td style={{ textAlign: 'right' }}>{margen.toFixed(1)}%</td>
+                </tr>
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td><strong>Total</strong></td>
+              <td style={{ textAlign: 'right' }}><strong>{fmtMoney(totalPU)}</strong></td>
+              <td style={{ textAlign: 'right' }}><strong>{fmtMoney(totalCD)}</strong></td>
+              <td style={{ textAlign: 'right' }}><strong>{margenPresupuestado.toFixed(1)}%</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </details>
+    </section>
   )
 }
 
