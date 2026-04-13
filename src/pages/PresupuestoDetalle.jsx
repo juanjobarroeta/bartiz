@@ -106,6 +106,7 @@ export default function PresupuestoDetalle() {
   const [actioning, setActioning] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(null) // { zona, partida } | null
+  const [explosion, setExplosion] = useState(null) // null = hidden, object = loaded
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -357,6 +358,17 @@ export default function PresupuestoDetalle() {
             ✓ Listo editando
           </button>
         )}
+        <button
+          className="secondary"
+          onClick={async () => {
+            try {
+              const data = await apiFetch(`/api/construccion/presupuestos/${presupuesto.id}/explosion`)
+              setExplosion(data)
+            } catch (err) { window.alert(err.message) }
+          }}
+        >
+          📦 Explosión de insumos
+        </button>
         {presupuesto.estado !== 'APROBADO' && (
           <button
             className="secondary"
@@ -503,6 +515,62 @@ export default function PresupuestoDetalle() {
           </div>
         </div>
       </footer>
+
+      {explosion && (
+        <div className="pres-picker-overlay" onClick={() => setExplosion(null)}>
+          <div className="pres-picker" style={{ maxWidth: 900, maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+            <header>
+              <h3>Explosión de Insumos — {explosion.presupuestoNombre}</h3>
+              <div className="muted">
+                {explosion.resumen?.insumoCount} insumos · Costo directo total: {fmtMoney(explosion.resumen?.totalCostoDirecto)}
+              </div>
+              <button className="pres-picker-close" onClick={() => setExplosion(null)}>×</button>
+            </header>
+            <div style={{ padding: '1rem 1.25rem', overflow: 'auto', flex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ background: '#f0fdf4', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Materiales</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#166534' }}>{fmtMoney(explosion.resumen?.totalMateriales)}</div>
+                </div>
+                <div style={{ background: '#eff6ff', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Mano de obra</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e40af' }}>{fmtMoney(explosion.resumen?.totalManoObra)}</div>
+                </div>
+                <div style={{ background: '#fefce8', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Equipo</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#92400e' }}>{fmtMoney(explosion.resumen?.totalEquipo)}</div>
+                </div>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Código</th>
+                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Descripción</th>
+                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Tipo</th>
+                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Unidad</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Cantidad total</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Costo unit.</th>
+                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Importe total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(explosion.explosion ?? []).map((e, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '0.45rem 0.5rem', fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem' }}>{e.codigo}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.descripcion}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', color: '#64748b' }}>{e.tipo}</td>
+                      <td style={{ padding: '0.45rem 0.5rem' }}>{e.unidad}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{e.cantidadTotal.toLocaleString('es-MX', { maximumFractionDigits: 2 })}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right' }}>{fmtMoney(e.costoUnitario)}</td>
+                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right', fontWeight: 600 }}>{fmtMoney(e.importeTotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {pickerOpen && activeCompany?.id && (
         <ConceptoPicker
