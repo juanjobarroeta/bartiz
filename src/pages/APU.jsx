@@ -104,6 +104,8 @@ export default function APU() {
 
   // ── Live search for the insumo picker ────────────────────────────────────
   const pickerTimerRef = useRef()
+  const [pickerConceptos, setPickerConceptos] = useState([])
+
   useEffect(() => {
     if (!activeCompany?.id || !pickerOpen) return
     clearTimeout(pickerTimerRef.current)
@@ -111,14 +113,24 @@ export default function APU() {
       try {
         const qs = new URLSearchParams({ companyId: activeCompany.id })
         if (pickerQ.trim()) qs.set('q', pickerQ.trim())
-        const data = await apiFetch(`/api/construccion/insumos?${qs.toString()}`)
-        setPickerResults(Array.isArray(data) ? data.slice(0, 25) : [])
+        const [insumos, conceptos] = await Promise.all([
+          apiFetch(`/api/construccion/insumos?${qs.toString()}`),
+          apiFetch(`/api/construccion/conceptos?${qs.toString()}`),
+        ])
+        setPickerResults(Array.isArray(insumos) ? insumos.slice(0, 20) : [])
+        // Exclude the current concepto from sub-APU candidates to prevent circular refs
+        setPickerConceptos(
+          (Array.isArray(conceptos) ? conceptos : [])
+            .filter((c) => c.id !== concepto?.id)
+            .slice(0, 10)
+        )
       } catch {
         setPickerResults([])
+        setPickerConceptos([])
       }
     }, 200)
     return () => clearTimeout(pickerTimerRef.current)
-  }, [pickerQ, pickerOpen, activeCompany?.id])
+  }, [pickerQ, pickerOpen, activeCompany?.id, concepto?.id])
 
   // ── Computed totals (mirror the server formula) ──────────────────────────
   const costoDirecto = useMemo(
@@ -144,23 +156,38 @@ export default function APU() {
   )
 
   // ── Mutators ─────────────────────────────────────────────────────────────
-  const addLine = (insumo) => {
-    if (lines.some((l) => l.insumoId === insumo.id)) {
-      // bump cantidad by 1 instead of dupe
+  // addLine supports both raw insumos and concepto sub-APUs
+  const addLine = (item, isConceptoRef = false) => {
+    const key = isConceptoRef ? item.id : item.id
+    const matchField = isConceptoRef ? 'conceptoRefId' : 'insumoId'
+    const existing = lines.findIndex((l) => l[matchField] === key)
+
+    if (existing >= 0) {
       setLines((prev) =>
-        prev.map((l) =>
-          l.insumoId === insumo.id ? { ...l, cantidad: (Number(l.cantidad) || 0) + 1 } : l
+        prev.map((l, i) =>
+          i === existing ? { ...l, cantidad: (Number(l.cantidad) || 0) + 1 } : l
         )
       )
+    } else if (isConceptoRef) {
+      setLines((prev) => [
+        ...prev,
+        {
+          conceptoRefId: item.id,
+          cantidad: 1,
+          costoUnitario: item.apuActual?.precioUnitario ?? 0,
+          orden: prev.length,
+          conceptoRef: item,
+        },
+      ])
     } else {
       setLines((prev) => [
         ...prev,
         {
-          insumoId: insumo.id,
+          insumoId: item.id,
           cantidad: 1,
-          costoUnitario: insumo.costoActual,
+          costoUnitario: item.costoActual,
           orden: prev.length,
-          insumo,
+          insumo: item,
         },
       ])
     }
@@ -184,7 +211,8 @@ export default function APU() {
     try {
       const body = {
         lines: lines.map((l, idx) => ({
-          insumoId: l.insumoId,
+          ...(l.insumoId ? { insumoId: l.insumoId } : {}),
+          ...(l.conceptoRefId ? { conceptoRefId: l.conceptoRefId } : {}),
           cantidad: Number(l.cantidad) || 0,
           costoUnitario: Number(l.costoUnitario) || 0,
           orden: idx,
@@ -277,19 +305,42 @@ export default function APU() {
                       {pickerQ ? 'Sin resultados.' : 'Escribe para buscar…'}
                     </div>
                   ) : (
-                    pickerResults.map((ins) => (
-                      <button
-                        key={ins.id}
-                        className="apu-picker-row"
-                        onClick={() => addLine(ins)}
-                      >
-                        <span className="mono">{ins.codigo}</span>
-                        <span className="desc">{ins.descripcion}</span>
-                        <span className="muted">{TIPO_LABEL[ins.tipo] ?? ins.tipo}</span>
-                        <span className="muted">{ins.unidad}</span>
-                        <span className="mono">{fmtMoney(ins.costoActual)}</span>
-                      </button>
-                    ))
+                    <>
+                      {pickerResults.map((ins) => (
+                        <button
+                          key={`ins-${ins.id}`}
+                          className="apu-picker-row"
+                          onClick={() => addLine(ins, false)}
+                        >
+                          <span className="mono">{ins.codigo}</span>
+                          <span className="desc">{ins.descripcion}</span>
+                          <span className="muted">{TIPO_LABEL[ins.tipo] ?? ins.tipo}</span>
+                          <span className="muted">{ins.unidad}</span>
+                          <span className="mono">{fmtMoney(ins.costoActual)}</span>
+                        </button>
+                      ))}
+                      {pickerConceptos.length > 0 && (
+                        <>
+                          <div style={{ padding: '0.5rem 1rem', fontSize: '0.72rem', color: '#2563eb', fontWeight: 700, textTransform: 'uppercase', borderTop: '1px solid #e2e8f0', background: '#eff6ff' }}>
+                            Sub-APUs (conceptos compuestos)
+                          </div>
+                          {pickerConceptos.map((c) => (
+                            <button
+                              key={`ref-${c.id}`}
+                              className="apu-picker-row"
+                              onClick={() => addLine(c, true)}
+                              style={{ background: '#fafbff' }}
+                            >
+                              <span className="mono" style={{ color: '#2563eb' }}>[{c.codigo}]</span>
+                              <span className="desc">{c.descripcion}</span>
+                              <span className="muted">Sub-APU</span>
+                              <span className="muted">{c.unidad}</span>
+                              <span className="mono">{fmtMoney(c.apuActual?.precioUnitario ?? 0)}</span>
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </>
                   )}
                   <button
                     className="apu-picker-close"
@@ -325,13 +376,23 @@ export default function APU() {
                   const importe =
                     (Number(l.cantidad) || 0) * (Number(l.costoUnitario) || 0)
                   return (
-                    <tr key={`${l.insumoId}-${idx}`}>
-                      <td className="mono">{l.insumo?.codigo ?? l.insumoId}</td>
-                      <td>{l.insumo?.descripcion ?? '—'}</td>
-                      <td>
-                        {l.insumo?.tipo ? TIPO_LABEL[l.insumo.tipo] : '—'}
+                    <tr key={`${l.insumoId || l.conceptoRefId}-${idx}`}>
+                      <td className="mono">
+                        {l.conceptoRef
+                          ? `[${l.conceptoRef.codigo}]`
+                          : l.insumo?.codigo ?? l.insumoId ?? '—'}
                       </td>
-                      <td>{l.insumo?.unidad ?? '—'}</td>
+                      <td>
+                        {l.conceptoRef
+                          ? <><span style={{color:'#2563eb',fontWeight:600}}>Sub-APU:</span> {l.conceptoRef.descripcion}</>
+                          : l.insumo?.descripcion ?? '—'}
+                      </td>
+                      <td>
+                        {l.conceptoRef
+                          ? 'Sub-APU'
+                          : l.insumo?.tipo ? TIPO_LABEL[l.insumo.tipo] : '—'}
+                      </td>
+                      <td>{l.conceptoRef?.unidad ?? l.insumo?.unidad ?? '—'}</td>
                       <td>
                         <input
                           type="number"
