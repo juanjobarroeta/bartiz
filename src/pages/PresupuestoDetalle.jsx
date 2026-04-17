@@ -128,7 +128,7 @@ export default function PresupuestoDetalle() {
     cargar()
   }, [cargar])
 
-  const canEdit = presupuesto?.estado === 'BORRADOR'
+  const canEdit = presupuesto?.estado === 'BORRADOR' || presupuesto?.estado === 'EN_EJECUCION'
   const isEditing = canEdit && editMode
 
   // ── State transitions ───────────────────────────────────────────────────

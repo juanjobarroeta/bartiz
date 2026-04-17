@@ -1,71 +1,49 @@
 /**
- * ProyectoDetalle — wired to contabilidad-os.
+ * ProyectoDetalle — tabbed project dashboard.
  *
- * GET /api/construccion/proyectos/:id returns the proyecto with customer,
- * presupuestos, estimaciones, and last 20 solicitudes de compra. Module-
- * gated behind CONSTRUCCION. Tenant check uses the proyecto's own companyId.
+ * Tabs: Resumen | Presupuestos | Estimaciones | Compras | Pagos | Bitácora
+ *
+ * The header + KPI bar are always visible. Each tab renders a focused section.
+ * No transactional actions in the header area — everything lives in its tab.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import './ProyectoDetalle.css'
 
 const ESTADO_LABEL = {
-  PLANEACION: 'Planeación',
-  EN_EJECUCION: 'En ejecución',
-  SUSPENDIDO: 'Suspendido',
-  TERMINADO: 'Terminado',
-  CANCELADO: 'Cancelado',
+  PLANEACION: 'Planeación', EN_EJECUCION: 'En ejecución',
+  SUSPENDIDO: 'Suspendido', TERMINADO: 'Terminado', CANCELADO: 'Cancelado',
 }
-
-const TIPO_LABEL = {
-  GOBIERNO: 'Gobierno',
-  PRIVADO: 'Privado',
-  MIXTO: 'Mixto',
+const TIPO_LABEL = { GOBIERNO: 'Gobierno', PRIVADO: 'Privado', MIXTO: 'Mixto' }
+const PRES_ESTADO = {
+  BORRADOR: 'Borrador', APROBADO: 'Aprobado', EN_EJECUCION: 'En ejecución',
+  CERRADO: 'Cerrado', RECHAZADO: 'Rechazado',
 }
-
-const PRESUPUESTO_ESTADO = {
-  BORRADOR: 'Borrador',
-  APROBADO: 'Aprobado',
-  EN_EJECUCION: 'En ejecución',
-  CERRADO: 'Cerrado',
+const EST_ESTADO = {
+  BORRADOR: 'Borrador', APROBADA: 'Aprobada', TIMBRADA: 'Timbrada',
+  PAGADA: 'Pagada', CANCELADA: 'Cancelada',
 }
-
-const ESTIMACION_ESTADO = {
-  BORRADOR: 'Borrador',
-  APROBADA: 'Aprobada',
-  TIMBRADA: 'Timbrada',
-  PAGADA: 'Pagada',
-  CANCELADA: 'Cancelada',
+const SOL_ESTADO = {
+  PENDIENTE: 'Pendiente', APROBADA: 'Aprobada', RECHAZADA: 'Rechazada',
+  PAGADA: 'Pagada', CANCELADA: 'Cancelada',
 }
+const PAGO_TIPO = { ANTICIPO: 'Anticipo', ESTIMACION: 'Estimación', RETENCION_LIBERADA: 'Retención liberada' }
+const BIT_TIPO = { NOTA: 'Nota', DECISION: 'Decisión', PROBLEMA: 'Problema', CLIMA: 'Clima', FOTO: 'Foto' }
 
-const SOLICITUD_ESTADO = {
-  PENDIENTE: 'Pendiente',
-  APROBADA: 'Aprobada',
-  RECHAZADA: 'Rechazada',
-  PAGADA: 'Pagada',
-  CANCELADA: 'Cancelada',
-}
+const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n))
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
 
-const fmtMoney = (n) =>
-  n == null
-    ? '—'
-    : new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN',
-        maximumFractionDigits: 0,
-      }).format(Number(n))
-
-const fmtDate = (d) =>
-  d
-    ? new Date(d).toLocaleDateString('es-MX', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    : '—'
+const TABS = [
+  { id: 'resumen', label: 'Resumen' },
+  { id: 'presupuestos', label: 'Presupuestos' },
+  { id: 'estimaciones', label: 'Estimaciones' },
+  { id: 'compras', label: 'Compras' },
+  { id: 'pagos', label: 'Pagos' },
+  { id: 'bitacora', label: 'Bitácora' },
+]
 
 export default function ProyectoDetalle() {
   const { id } = useParams()
@@ -75,6 +53,7 @@ export default function ProyectoDetalle() {
   const [proyecto, setProyecto] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [tab, setTab] = useState('resumen')
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -83,62 +62,47 @@ export default function ProyectoDetalle() {
       const data = await apiFetch(`/api/construccion/proyectos/${encodeURIComponent(id)}`)
       setProyecto(data)
     } catch (err) {
-      setError(err.message || 'Error al cargar el proyecto')
-      setProyecto(null)
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }, [id])
 
-  useEffect(() => {
-    cargar()
-  }, [cargar])
+  useEffect(() => { cargar() }, [cargar])
 
-  if (loading) {
-    return (
-      <div className="pd-page">
-        <div className="pd-state">Cargando proyecto…</div>
-      </div>
-    )
-  }
-
-  if (error || !proyecto) {
-    return (
-      <div className="pd-page">
-        <button className="pd-back" onClick={() => navigate('/proyectos')}>
-          ← Proyectos
-        </button>
-        <div className="pd-state pd-error">
-          {error ?? 'Proyecto no encontrado'}
-        </div>
-      </div>
-    )
-  }
-
-  const solicitudesTotal = (proyecto.solicitudesCompra ?? []).reduce(
-    (acc, s) => acc + (Number(s.total) || 0),
-    0
+  const contrato = useMemo(() =>
+    (proyecto?.presupuestos ?? []).find(p => p.tipoPresupuesto === 'CONTRATO' && (p.estado === 'APROBADO' || p.estado === 'EN_EJECUCION')),
+    [proyecto]
   )
-  const estimacionesTotal = (proyecto.estimaciones ?? []).reduce(
-    (acc, e) => acc + (Number(e.total) || 0),
-    0
+  const ejecutado = useMemo(() =>
+    (proyecto?.presupuestos ?? []).find(p => p.tipoPresupuesto === 'EJECUTADO'),
+    [proyecto]
   )
+
+  if (loading) return <div className="pd-page"><div className="pd-state">Cargando proyecto…</div></div>
+  if (error || !proyecto) return (
+    <div className="pd-page">
+      <button className="pd-back" onClick={() => navigate('/proyectos')}>← Proyectos</button>
+      <div className="pd-state pd-error">{error ?? 'Proyecto no encontrado'}</div>
+    </div>
+  )
+
+  const totalPagos = (proyecto.pagos ?? []).reduce((a, p) => a + (Number(p.monto) || 0), 0)
+  const solicitudesPagadas = (proyecto.solicitudesCompra ?? []).filter(s => s.estado === 'PAGADA').reduce((a, s) => a + (Number(s.total) || 0), 0)
+  const estimacionesTimbradas = (proyecto.estimaciones ?? []).filter(e => e.estado === 'TIMBRADA' || e.estado === 'PAGADA').reduce((a, e) => a + (Number(e.subtotal) || 0), 0)
 
   return (
     <div className="pd-page">
-      <button className="pd-back" onClick={() => navigate('/proyectos')}>
-        ← Proyectos
-      </button>
+      <button className="pd-back" onClick={() => navigate('/proyectos')}>← Proyectos</button>
 
       <header className="pd-header">
         <div>
           <div className="pd-codigo">{proyecto.codigo}</div>
           <h1>{proyecto.nombre}</h1>
           <div className="pd-meta">
-            <span className={`badge estado-${proyecto.estado?.toLowerCase()}`}>
-              {ESTADO_LABEL[proyecto.estado] ?? proyecto.estado}
-            </span>
+            <span className={`badge estado-${proyecto.estado?.toLowerCase()}`}>{ESTADO_LABEL[proyecto.estado] ?? proyecto.estado}</span>
             <span className="badge">{TIPO_LABEL[proyecto.tipo] ?? proyecto.tipo}</span>
+            {proyecto.customer && <span className="pd-meta-item">{proyecto.customer.razonSocial}</span>}
             {proyecto.ubicacion && <span className="pd-meta-item">📍 {proyecto.ubicacion}</span>}
           </div>
         </div>
@@ -150,454 +114,420 @@ export default function ProyectoDetalle() {
           <div className="pd-kpi-value">{fmtMoney(proyecto.montoContratado)}</div>
         </div>
         <div className="pd-kpi">
-          <div className="pd-kpi-label">Facturado (estimaciones)</div>
-          <div className="pd-kpi-value">{fmtMoney(estimacionesTotal)}</div>
-        </div>
-        <div className="pd-kpi">
-          <div className="pd-kpi-label">Comprometido (solicitudes)</div>
-          <div className="pd-kpi-value">{fmtMoney(solicitudesTotal)}</div>
-        </div>
-        <div className="pd-kpi">
-          <div className="pd-kpi-label">Anticipo</div>
-          <div className="pd-kpi-value">
-            {proyecto.anticipoMonto != null
-              ? fmtMoney(proyecto.anticipoMonto)
-              : '—'}
-          </div>
-          {proyecto.anticipoMonto != null && proyecto.anticipoAmortizado > 0 && (
-            <div className="pd-kpi-sub">
-              Amortizado: {fmtMoney(proyecto.anticipoAmortizado)}
+          <div className="pd-kpi-label">Costo ejecutado</div>
+          <div className="pd-kpi-value">{ejecutado ? fmtMoney(ejecutado.montoTotal) : '—'}</div>
+          {ejecutado && contrato && ejecutado.montoTotal !== contrato.montoTotal && (
+            <div className="pd-kpi-sub" style={{ color: ejecutado.montoTotal > contrato.montoTotal ? '#dc2626' : '#16a34a' }}>
+              {ejecutado.montoTotal > contrato.montoTotal ? '▲' : '▼'} {fmtMoney(Math.abs(ejecutado.montoTotal - contrato.montoTotal))} vs contrato
             </div>
           )}
         </div>
         <div className="pd-kpi">
-          <div className="pd-kpi-label">Inicio → Fin plan</div>
-          <div className="pd-kpi-value small">
-            {fmtDate(proyecto.fechaInicio)} → {fmtDate(proyecto.fechaFinPlan)}
-          </div>
+          <div className="pd-kpi-label">Facturado</div>
+          <div className="pd-kpi-value">{fmtMoney(estimacionesTimbradas)}</div>
+        </div>
+        <div className="pd-kpi">
+          <div className="pd-kpi-label">Gastado</div>
+          <div className="pd-kpi-value">{fmtMoney(solicitudesPagadas)}</div>
+        </div>
+        <div className="pd-kpi">
+          <div className="pd-kpi-label">Pagos recibidos</div>
+          <div className="pd-kpi-value">{fmtMoney(totalPagos)}</div>
         </div>
       </div>
 
-      {/* Anticipo registration (only if not already recorded) */}
-      {proyecto.anticipoMonto == null && (
-        <AnticipoForm
-          proyecto={proyecto}
-          companyId={activeCompany?.id}
-          onRegistered={cargar}
-        />
-      )}
+      <nav className="pd-tabs">
+        {TABS.map(t => (
+          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
+            {t.label}
+            {t.id === 'bitacora' && (proyecto.bitacora?.length > 0) && <span className="tab-count">{proyecto.bitacora.length}</span>}
+            {t.id === 'pagos' && (proyecto.pagos?.length > 0) && <span className="tab-count">{proyecto.pagos.length}</span>}
+          </button>
+        ))}
+      </nav>
 
-      {/* Control Financiero — profit visibility */}
-      <ControlFinanciero proyecto={proyecto} />
-
-      <div className="pd-grid">
-        <section className="pd-card">
-          <h2>Cliente / Contrato</h2>
-          <dl className="pd-dl">
-            <dt>Cliente</dt>
-            <dd>
-              {proyecto.customer
-                ? `${proyecto.customer.razonSocial} (${proyecto.customer.rfc})`
-                : '—'}
-            </dd>
-            <dt>Dependencia</dt>
-            <dd>{proyecto.dependenciaCliente ?? '—'}</dd>
-            <dt>Nº contrato</dt>
-            <dd>{proyecto.numeroContrato ?? '—'}</dd>
-            <dt>Nº licitación</dt>
-            <dd>{proyecto.numeroLicitacion ?? '—'}</dd>
-            <dt>Modalidad</dt>
-            <dd>{proyecto.modalidadContrato ?? '—'}</dd>
-            <dt>Anticipo</dt>
-            <dd>{proyecto.anticipoPorc != null ? `${proyecto.anticipoPorc}%` : '—'}</dd>
-            <dt>Retención</dt>
-            <dd>{proyecto.retencionPorc != null ? `${proyecto.retencionPorc}%` : '—'}</dd>
-          </dl>
-        </section>
-
-        <section className="pd-card">
-          <h2>Presupuestos ({proyecto.presupuestos?.length ?? 0})</h2>
-          {proyecto.presupuestos?.length ? (
-            <ul className="pd-list">
-              {proyecto.presupuestos.map((p) => (
-                <li
-                  key={p.id}
-                  className="pd-list-clickable"
-                  onClick={() => navigate(`/presupuesto/${p.id}`)}
-                >
-                  <div>
-                    <strong>{p.nombre ?? `Presupuesto v${p.version}`}</strong>
-                    <span className="muted"> · v{p.version} · {p._count?.partidas ?? 0} partidas</span>
-                  </div>
-                  <div className="pd-list-right">
-                    <span className={`badge estado-${p.estado?.toLowerCase()}`}>
-                      {PRESUPUESTO_ESTADO[p.estado] ?? p.estado}
-                    </span>
-                    <span className="mono">{fmtMoney(p.montoTotal)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="pd-empty">
-              Aún no hay presupuestos para este proyecto.
-            </div>
-          )}
-        </section>
-
-        <section className="pd-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>Estimaciones ({proyecto.estimaciones?.length ?? 0})</h2>
-            <button className="link" style={{ fontSize: '0.85rem' }} onClick={() => navigate(`/estimaciones/${proyecto.id}`)}>
-              Ver todas →
-            </button>
-          </div>
-          {proyecto.estimaciones?.length ? (
-            <table className="pd-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Período</th>
-                  <th>Estado</th>
-                  <th style={{ textAlign: 'right' }}>Subtotal</th>
-                  <th style={{ textAlign: 'right' }}>Total</th>
-                  <th>CFDI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {proyecto.estimaciones.map((e) => (
-                  <tr key={e.id}>
-                    <td>{e.numero}</td>
-                    <td className="small">
-                      {fmtDate(e.periodoInicio)} → {fmtDate(e.periodoFin)}
-                    </td>
-                    <td>
-                      <span className="badge">
-                        {ESTIMACION_ESTADO[e.estado] ?? e.estado}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>{fmtMoney(e.subtotal)}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtMoney(e.total)}</td>
-                    <td>{e.invoiceId ? '✓ Timbrada' : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="pd-empty">
-              Aún no hay estimaciones para este proyecto.
-            </div>
-          )}
-        </section>
-
-        <section className="pd-card pd-wide">
-          <h2>Solicitudes de compra (últimas 20)</h2>
-          {proyecto.solicitudesCompra?.length ? (
-            <table className="pd-table">
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Proveedor</th>
-                  <th>Fecha</th>
-                  <th>Estado</th>
-                  <th style={{ textAlign: 'right' }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {proyecto.solicitudesCompra.map((s) => (
-                  <tr key={s.id}>
-                    <td className="mono">{s.folio}</td>
-                    <td>{s.supplier?.razonSocial ?? '—'}</td>
-                    <td className="small">{fmtDate(s.createdAt)}</td>
-                    <td>
-                      <span className={`badge solicitud-${s.estado?.toLowerCase()}`}>
-                        {SOLICITUD_ESTADO[s.estado] ?? s.estado}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>{fmtMoney(s.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="pd-empty">
-              No hay solicitudes de compra ligadas a este proyecto todavía.
-            </div>
-          )}
-        </section>
+      <div className="pd-tab-content">
+        {tab === 'resumen' && <ResumenTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} />}
+        {tab === 'presupuestos' && <PresupuestosTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} navigate={navigate} onRefresh={cargar} />}
+        {tab === 'estimaciones' && <EstimacionesTab proyecto={proyecto} navigate={navigate} />}
+        {tab === 'compras' && <ComprasTab proyecto={proyecto} />}
+        {tab === 'pagos' && <PagosTab proyecto={proyecto} companyId={activeCompany?.id} onRefresh={cargar} />}
+        {tab === 'bitacora' && <BitacoraTab proyecto={proyecto} ejecutado={ejecutado} onRefresh={cargar} />}
       </div>
     </div>
   )
 }
 
-// ── Control Financiero ──────────────────────────────────────────────────────
+// ── Resumen Tab ─────────────────────────────────────────────────────────────
 
-function ControlFinanciero({ proyecto }) {
-  // Find the approved presupuesto (or first EN_EJECUCION one)
-  const pres = (proyecto.presupuestos ?? []).find(
-    (p) => p.estado === 'APROBADO' || p.estado === 'EN_EJECUCION'
-  )
-
-  if (!pres || !pres.partidas?.length) {
-    return null // no approved presupuesto yet — nothing to show
+function ResumenTab({ proyecto, contrato, ejecutado }) {
+  if (!contrato) {
+    return <div className="pd-empty">Aprueba un presupuesto contrato para ver el resumen financiero.</div>
   }
 
-  // Compute costs from APU data
-  let totalCD = 0
-  let totalPU = 0
-  const byPartida = new Map() // partida string → { presupuestado, costoDirecto }
+  // Compute from contrato partidas
+  let contratoCD = 0, contratoTotal = 0
+  for (const p of contrato.partidas ?? []) {
+    contratoCD += p.cantidad * (p.concepto?.apuActual?.costoDirecto ?? 0)
+    contratoTotal += p.importe
+  }
 
-  for (const part of pres.partidas) {
-    const cd = part.concepto?.apuActual?.costoDirecto ?? 0
-    const costoPart = part.cantidad * cd
-    totalCD += costoPart
-    totalPU += part.importe
-
-    const key = part.partida ?? 'Sin partida'
-    if (!byPartida.has(key)) {
-      byPartida.set(key, { zona: part.zona, partida: key, presupuestado: 0, costoDirecto: 0 })
+  // Compute from ejecutado partidas (if exists)
+  let ejecutadoCD = 0, ejecutadoTotal = 0
+  if (ejecutado) {
+    for (const p of ejecutado.partidas ?? []) {
+      ejecutadoCD += p.cantidad * (p.concepto?.apuActual?.costoDirecto ?? 0)
+      ejecutadoTotal += p.importe
     }
-    const entry = byPartida.get(key)
-    entry.presupuestado += part.importe
-    entry.costoDirecto += costoPart
   }
 
-  const indirectos = totalCD * 0.10
-  const subtotal1 = totalCD + indirectos
-  const utilidadPresupuestada = subtotal1 * 0.10
-  const margenPresupuestado = totalPU > 0 ? ((totalPU - totalCD) / totalPU) * 100 : 0
-
-  // Actual spend from paid solicitudes
-  const solicitudesPagadas = (proyecto.solicitudesCompra ?? [])
-    .filter((s) => s.estado === 'PAGADA')
-    .reduce((acc, s) => acc + (Number(s.total) || 0), 0)
-
-  // Actual revenue from timbrada estimaciones
-  const estimacionesTimbradas = (proyecto.estimaciones ?? [])
-    .filter((e) => e.estado === 'TIMBRADA' || e.estado === 'PAGADA')
-    .reduce((acc, e) => acc + (Number(e.subtotal) || 0), 0)
-
-  const anticipoRecibido = proyecto.anticipoMonto ?? 0
-  const anticipoAmortizado = proyecto.anticipoAmortizado ?? 0
-  const porFacturar = totalPU - estimacionesTimbradas
-
-  const utilidadReal = estimacionesTimbradas + anticipoRecibido - solicitudesPagadas
-  const margenReal = (estimacionesTimbradas + anticipoRecibido) > 0
-    ? (utilidadReal / (estimacionesTimbradas + anticipoRecibido)) * 100
-    : 0
-
-  const partidaRows = [...byPartida.values()].sort((a, b) =>
-    (a.zona ?? '').localeCompare(b.zona ?? '') || a.partida.localeCompare(b.partida)
-  )
+  const solicitudesPagadas = (proyecto.solicitudesCompra ?? []).filter(s => s.estado === 'PAGADA').reduce((a, s) => a + (Number(s.total) || 0), 0)
+  const margenContrato = contratoTotal > 0 ? ((contratoTotal - contratoCD) / contratoTotal * 100) : 0
 
   return (
-    <section className="pd-financiero">
-      <h2>Control Financiero</h2>
-      <div className="pd-fin-grid">
-        <div className="pd-fin-card">
-          <h3>Ingresos</h3>
-          <dl>
-            <dt>Monto contratado</dt>
-            <dd>{fmtMoney(proyecto.montoContratado)}</dd>
-            <dt>Anticipo recibido</dt>
-            <dd>{fmtMoney(anticipoRecibido)}</dd>
-            <dt>Estimaciones timbradas</dt>
-            <dd>{fmtMoney(estimacionesTimbradas)}</dd>
-            <dt>Por facturar</dt>
-            <dd className="muted">{fmtMoney(porFacturar)}</dd>
-          </dl>
-        </div>
-
-        <div className="pd-fin-card">
-          <h3>Costos</h3>
-          <dl>
-            <dt>Costo directo presupuestado</dt>
-            <dd>{fmtMoney(totalCD)}</dd>
-            <dt>Indirectos (10%)</dt>
-            <dd>{fmtMoney(indirectos)}</dd>
-            <dt>Compras ejecutadas</dt>
-            <dd>{solicitudesPagadas > 0 ? fmtMoney(solicitudesPagadas) : '—'}</dd>
-          </dl>
-        </div>
-
-        <div className="pd-fin-card pd-fin-margin">
-          <h3>Margen</h3>
-          <dl>
-            <dt>Utilidad presupuestada</dt>
-            <dd><strong>{fmtMoney(utilidadPresupuestada)}</strong></dd>
-            <dt>Margen presupuestado</dt>
-            <dd><strong>{margenPresupuestado.toFixed(1)}%</strong></dd>
-            {solicitudesPagadas > 0 && (
-              <>
-                <dt>Utilidad real (a la fecha)</dt>
-                <dd>{fmtMoney(utilidadReal)}</dd>
-                <dt>Margen real</dt>
-                <dd>{margenReal.toFixed(1)}%</dd>
-              </>
-            )}
-          </dl>
-        </div>
+    <div className="pd-fin-grid">
+      <div className="pd-fin-card">
+        <h3>Contrato (cliente paga)</h3>
+        <dl>
+          <dt>Monto contratado</dt><dd>{fmtMoney(contratoTotal)}</dd>
+          <dt>Costo directo</dt><dd>{fmtMoney(contratoCD)}</dd>
+          <dt>Margen presupuestado</dt><dd><strong>{margenContrato.toFixed(1)}%</strong></dd>
+        </dl>
       </div>
-
-      <details className="pd-fin-partidas">
-        <summary>Desglose por partida ({partidaRows.length})</summary>
-        <table className="pd-table">
-          <thead>
-            <tr>
-              <th>Partida</th>
-              <th style={{ textAlign: 'right' }}>Presupuestado (PU)</th>
-              <th style={{ textAlign: 'right' }}>Costo directo</th>
-              <th style={{ textAlign: 'right' }}>Margen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {partidaRows.map((r) => {
-              const margen = r.presupuestado > 0
-                ? ((r.presupuestado - r.costoDirecto) / r.presupuestado) * 100
-                : 0
-              return (
-                <tr key={r.partida}>
-                  <td>
-                    <span className="muted" style={{ fontSize: '0.72rem' }}>{r.zona} → </span>
-                    {r.partida}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>{fmtMoney(r.presupuestado)}</td>
-                  <td style={{ textAlign: 'right' }}>{fmtMoney(r.costoDirecto)}</td>
-                  <td style={{ textAlign: 'right' }}>{margen.toFixed(1)}%</td>
-                </tr>
-              )
-            })}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td><strong>Total</strong></td>
-              <td style={{ textAlign: 'right' }}><strong>{fmtMoney(totalPU)}</strong></td>
-              <td style={{ textAlign: 'right' }}><strong>{fmtMoney(totalCD)}</strong></td>
-              <td style={{ textAlign: 'right' }}><strong>{margenPresupuestado.toFixed(1)}%</strong></td>
-            </tr>
-          </tfoot>
-        </table>
-      </details>
-    </section>
+      <div className="pd-fin-card">
+        <h3>Ejecutado (costo real estimado)</h3>
+        {ejecutado ? (
+          <dl>
+            <dt>Monto ejecutado</dt><dd>{fmtMoney(ejecutadoTotal)}</dd>
+            <dt>Costo directo</dt><dd>{fmtMoney(ejecutadoCD)}</dd>
+            <dt>Desviación vs contrato</dt>
+            <dd style={{ color: ejecutadoTotal > contratoTotal ? '#dc2626' : '#16a34a' }}>
+              <strong>{fmtMoney(ejecutadoTotal - contratoTotal)}</strong>
+            </dd>
+          </dl>
+        ) : (
+          <div className="pd-empty-mini">Crea el ejecutado en la pestaña Presupuestos.</div>
+        )}
+      </div>
+      <div className="pd-fin-card pd-fin-margin">
+        <h3>Gastado real</h3>
+        <dl>
+          <dt>Compras pagadas</dt><dd>{fmtMoney(solicitudesPagadas)}</dd>
+          <dt>% del costo ejecutado</dt>
+          <dd>{ejecutadoCD > 0 ? (solicitudesPagadas / ejecutadoCD * 100).toFixed(1) + '%' : '—'}</dd>
+          <dt>Por gastar</dt>
+          <dd>{ejecutado ? fmtMoney(ejecutadoTotal - solicitudesPagadas) : '—'}</dd>
+        </dl>
+      </div>
+    </div>
   )
 }
 
-// ── Anticipo form (inline in ProyectoDetalle) ───────────────────────────────
+// ── Presupuestos Tab ────────────────────────────────────────────────────────
 
-function AnticipoForm({ proyecto, companyId, onRegistered }) {
-  const [open, setOpen] = useState(false)
-  const [bankAccounts, setBankAccounts] = useState([])
-  const [form, setForm] = useState({
-    bankAccountId: '',
-    monto: proyecto.montoContratado
-      ? (proyecto.montoContratado * (proyecto.anticipoPorc || 30) / 100).toFixed(2)
-      : '',
-    referencia: '',
-  })
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
+function PresupuestosTab({ proyecto, contrato, ejecutado, navigate, onRefresh }) {
+  const [creating, setCreating] = useState(false)
 
-  useEffect(() => {
-    if (!open || !companyId) return
-    apiFetch(`/api/construccion/bank-accounts?companyId=${companyId}`)
-      .then((data) => {
-        setBankAccounts(Array.isArray(data) ? data : [])
-        if (data.length === 1) setForm((f) => ({ ...f, bankAccountId: data[0].id }))
-      })
-      .catch(() => setBankAccounts([]))
-  }, [open, companyId])
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!form.bankAccountId || !form.monto) return
-    setBusy(true)
-    setError(null)
+  const crearEjecutado = async () => {
+    if (!contrato) { window.alert('Aprueba un contrato primero.'); return }
+    setCreating(true)
     try {
-      await apiFetch(`/api/construccion/proyectos/${proyecto.id}/anticipo`, {
-        method: 'POST',
-        body: {
-          bankAccountId: form.bankAccountId,
-          monto: parseFloat(form.monto),
-          referencia: form.referencia || undefined,
-        },
-      })
-      setOpen(false)
-      onRegistered?.()
-    } catch (err) {
-      setError(err.message || 'Error al registrar anticipo')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  if (!open) {
-    return (
-      <div className="pd-anticipo-prompt">
-        <button className="primary" onClick={() => setOpen(true)}>
-          💰 Registrar anticipo recibido
-        </button>
-        <span className="muted">
-          {proyecto.anticipoPorc
-            ? `${proyecto.anticipoPorc}% del monto contratado`
-            : 'El cliente ya depositó el anticipo'}
-        </span>
-      </div>
-    )
+      const res = await apiFetch(`/api/construccion/presupuestos/${contrato.id}/crear-ejecutado`, { method: 'POST' })
+      window.alert('✓ Ejecutado creado. Ahora puedes editarlo para reflejar la realidad de la obra.')
+      onRefresh()
+    } catch (err) { window.alert(err.message) }
+    finally { setCreating(false) }
   }
 
   return (
-    <form className="pd-anticipo-form" onSubmit={handleSubmit}>
-      <h3>Registrar anticipo</h3>
-      {error && <div className="pd-error">{error}</div>}
-      <div className="pd-anticipo-fields">
-        <label>
-          Cuenta bancaria
-          <select
-            required
-            value={form.bankAccountId}
-            onChange={(e) => setForm({ ...form, bankAccountId: e.target.value })}
-          >
-            <option value="">Seleccionar…</option>
-            {bankAccounts.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.banco} — {b.nombre} ({b.numeroCuenta})
-              </option>
+    <div>
+      <div className="pd-pres-list">
+        {(proyecto.presupuestos ?? []).map(p => (
+          <div key={p.id} className={`pd-pres-card ${p.tipoPresupuesto === 'EJECUTADO' ? 'ejecutado' : ''}`}>
+            <div className="pd-pres-card-head">
+              <div>
+                <span className={`badge tipo-${p.tipoPresupuesto?.toLowerCase()}`}>
+                  {p.tipoPresupuesto === 'EJECUTADO' ? '📐 Ejecutado' : '📄 Contrato'}
+                </span>
+                <strong> {p.nombre ?? `Presupuesto v${p.version}`}</strong>
+                <span className="muted"> · v{p.version} · {p._count?.partidas ?? 0} partidas</span>
+              </div>
+              <div className="pd-pres-card-right">
+                <span className={`badge estado-${p.estado?.toLowerCase()}`}>{PRES_ESTADO[p.estado] ?? p.estado}</span>
+                <span className="mono">{fmtMoney(p.montoTotal)}</span>
+              </div>
+            </div>
+            <div className="pd-pres-card-actions">
+              <button className="link" onClick={() => navigate(`/presupuesto/${p.id}`)}>
+                {p.tipoPresupuesto === 'EJECUTADO' ? 'Editar →' : 'Ver →'}
+              </button>
+              {p.versiones?.length > 0 && (
+                <span className="muted" style={{ fontSize: '0.78rem' }}>
+                  {p.versiones.length} versión(es) · última: {p.versiones[0]?.descripcion}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {contrato && !ejecutado && (
+        <button className="pd-create-ejecutado" onClick={crearEjecutado} disabled={creating}>
+          {creating ? 'Creando…' : '📐 Crear presupuesto ejecutado (copia del contrato para editar)'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Estimaciones Tab ────────────────────────────────────────────────────────
+
+function EstimacionesTab({ proyecto, navigate }) {
+  return (
+    <div>
+      {(proyecto.estimaciones ?? []).length === 0 ? (
+        <div className="pd-empty">No hay estimaciones aún.</div>
+      ) : (
+        <table className="pd-table">
+          <thead><tr><th>#</th><th>Período</th><th>Estado</th><th style={{textAlign:'right'}}>Subtotal</th><th style={{textAlign:'right'}}>Total</th></tr></thead>
+          <tbody>
+            {(proyecto.estimaciones ?? []).map(e => (
+              <tr key={e.id}>
+                <td>{e.numero}</td>
+                <td className="small">{fmtDate(e.periodoInicio)} → {fmtDate(e.periodoFin)}</td>
+                <td><span className={`badge estado-${e.estado?.toLowerCase()}`}>{EST_ESTADO[e.estado] ?? e.estado}</span></td>
+                <td style={{textAlign:'right'}}>{fmtMoney(e.subtotal)}</td>
+                <td style={{textAlign:'right'}}>{fmtMoney(e.total)}</td>
+              </tr>
             ))}
-          </select>
-          {bankAccounts.length === 0 && (
-            <span className="muted" style={{ fontSize: '0.78rem' }}>
-              No hay cuentas bancarias registradas. Crea una en contabilidad-os primero.
-            </span>
-          )}
-        </label>
-        <label>
-          Monto recibido (sin IVA)
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            required
-            value={form.monto}
-            onChange={(e) => setForm({ ...form, monto: e.target.value })}
-          />
-        </label>
-        <label>
-          Referencia bancaria
-          <input
-            value={form.referencia}
-            onChange={(e) => setForm({ ...form, referencia: e.target.value })}
-            placeholder="Nº de transferencia (opcional)"
-          />
-        </label>
-      </div>
-      <div className="pd-anticipo-actions">
-        <button type="button" onClick={() => setOpen(false)}>
-          Cancelar
+          </tbody>
+        </table>
+      )}
+      <button className="link" style={{ marginTop: '1rem' }} onClick={() => navigate(`/estimaciones/${proyecto.id}`)}>
+        Ver todas las estimaciones →
+      </button>
+    </div>
+  )
+}
+
+// ── Compras Tab ─────────────────────────────────────────────────────────────
+
+function ComprasTab({ proyecto }) {
+  return (
+    <div>
+      {(proyecto.solicitudesCompra ?? []).length === 0 ? (
+        <div className="pd-empty">No hay solicitudes de compra para este proyecto.</div>
+      ) : (
+        <table className="pd-table">
+          <thead><tr><th>Folio</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th style={{textAlign:'right'}}>Total</th></tr></thead>
+          <tbody>
+            {(proyecto.solicitudesCompra ?? []).map(s => (
+              <tr key={s.id}>
+                <td className="mono">{s.folio}</td>
+                <td>{s.supplier?.razonSocial ?? '—'}</td>
+                <td className="small">{fmtDate(s.createdAt)}</td>
+                <td><span className={`badge solicitud-${s.estado?.toLowerCase()}`}>{SOL_ESTADO[s.estado] ?? s.estado}</span></td>
+                <td style={{textAlign:'right'}}>{fmtMoney(s.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
+// ── Pagos Tab ───────────────────────────────────────────────────────────────
+
+function PagosTab({ proyecto, companyId, onRefresh }) {
+  const [showForm, setShowForm] = useState(false)
+  const [bankAccounts, setBankAccounts] = useState([])
+  const [form, setForm] = useState({ tipo: 'ANTICIPO', monto: '', referencia: '', bankAccountId: '' })
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!companyId || !showForm) return
+    apiFetch(`/api/construccion/bank-accounts?companyId=${companyId}`)
+      .then(d => setBankAccounts(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }, [companyId, showForm])
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.monto) return
+    setBusy(true)
+    try {
+      await apiFetch('/api/construccion/pagos', {
+        method: 'POST',
+        body: {
+          proyectoId: proyecto.id,
+          tipo: form.tipo,
+          monto: parseFloat(form.monto),
+          referencia: form.referencia || undefined,
+          bankAccountId: form.bankAccountId || undefined,
+        },
+      })
+      setShowForm(false)
+      setForm({ tipo: 'ANTICIPO', monto: '', referencia: '', bankAccountId: '' })
+      onRefresh()
+    } catch (err) { window.alert(err.message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3 style={{ margin: 0 }}>Pagos del proyecto</h3>
+        <button className="primary" onClick={() => setShowForm(v => !v)}>
+          {showForm ? 'Cancelar' : '+ Registrar pago'}
         </button>
-        <button type="submit" className="primary" disabled={busy}>
-          {busy ? 'Registrando…' : 'Registrar anticipo'}
+      </div>
+
+      {showForm && (
+        <form className="pd-pago-form" onSubmit={handleSubmit}>
+          <div className="pd-pago-fields">
+            <label>Tipo
+              <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})}>
+                <option value="ANTICIPO">Anticipo</option>
+                <option value="ESTIMACION">Pago de estimación</option>
+                <option value="RETENCION_LIBERADA">Retención liberada</option>
+              </select>
+            </label>
+            <label>Monto
+              <input type="number" min="0" step="0.01" required value={form.monto} onChange={e => setForm({...form, monto: e.target.value})} placeholder="0.00" />
+            </label>
+            <label>Cuenta bancaria
+              <select value={form.bankAccountId} onChange={e => setForm({...form, bankAccountId: e.target.value})}>
+                <option value="">Sin cuenta</option>
+                {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.banco} — {b.nombre}</option>)}
+              </select>
+            </label>
+            <label>Referencia
+              <input value={form.referencia} onChange={e => setForm({...form, referencia: e.target.value})} placeholder="Nº transferencia" />
+            </label>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+            <button type="submit" className="primary" disabled={busy}>{busy ? 'Registrando…' : 'Registrar'}</button>
+          </div>
+        </form>
+      )}
+
+      {(proyecto.pagos ?? []).length === 0 ? (
+        <div className="pd-empty">No hay pagos registrados.</div>
+      ) : (
+        <table className="pd-table">
+          <thead><tr><th>Fecha</th><th>Tipo</th><th style={{textAlign:'right'}}>Monto</th><th>Referencia</th></tr></thead>
+          <tbody>
+            {(proyecto.pagos ?? []).map(p => (
+              <tr key={p.id}>
+                <td className="small">{fmtDate(p.fecha)}</td>
+                <td><span className={`badge pago-${p.tipo?.toLowerCase()}`}>{PAGO_TIPO[p.tipo] ?? p.tipo}</span></td>
+                <td style={{textAlign:'right'}}><strong>{fmtMoney(p.monto)}</strong></td>
+                <td className="muted">{p.referencia ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
+// ── Bitácora Tab ────────────────────────────────────────────────────────────
+
+function BitacoraTab({ proyecto, ejecutado, onRefresh }) {
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ texto: '', tipo: 'NOTA', presupuestoPartidaId: '' })
+  const [busy, setBusy] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.texto.trim()) return
+    setBusy(true)
+    try {
+      await apiFetch('/api/construccion/bitacora', {
+        method: 'POST',
+        body: {
+          proyectoId: proyecto.id,
+          texto: form.texto.trim(),
+          tipo: form.tipo,
+          presupuestoPartidaId: form.presupuestoPartidaId || undefined,
+        },
+      })
+      setShowForm(false)
+      setForm({ texto: '', tipo: 'NOTA', presupuestoPartidaId: '' })
+      onRefresh()
+    } catch (err) { window.alert(err.message) }
+    finally { setBusy(false) }
+  }
+
+  const partidasEjecutado = ejecutado?.partidas ?? []
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3 style={{ margin: 0 }}>Bitácora de obra</h3>
+        <button className="primary" onClick={() => setShowForm(v => !v)}>
+          {showForm ? 'Cancelar' : '+ Nueva entrada'}
         </button>
       </div>
-    </form>
+
+      {showForm && (
+        <form className="pd-bitacora-form" onSubmit={handleSubmit}>
+          <div className="pd-bitacora-fields">
+            <label>Tipo
+              <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})}>
+                {Object.entries(BIT_TIPO).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </label>
+            <label>Partida (opcional)
+              <select value={form.presupuestoPartidaId} onChange={e => setForm({...form, presupuestoPartidaId: e.target.value})}>
+                <option value="">General</option>
+                {partidasEjecutado.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.zona} → {p.partida} → {p.concepto?.codigo}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.82rem', fontWeight: 500, color: '#334155' }}>
+            Nota
+            <textarea rows={4} required value={form.texto} onChange={e => setForm({...form, texto: e.target.value})} placeholder="Observaciones, descubrimientos, decisiones tomadas en obra…" style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: '0.9rem', fontFamily: 'inherit', resize: 'vertical' }} />
+          </label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+            <button type="submit" className="primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar entrada'}</button>
+          </div>
+        </form>
+      )}
+
+      {(proyecto.bitacora ?? []).length === 0 ? (
+        <div className="pd-empty">No hay entradas en la bitácora.</div>
+      ) : (
+        <div className="pd-bitacora-list">
+          {(proyecto.bitacora ?? []).map(entry => (
+            <div key={entry.id} className="pd-bitacora-entry">
+              <div className="pd-bitacora-head">
+                <span className="small">{fmtDate(entry.fecha)}</span>
+                <span className={`badge bit-${entry.tipo?.toLowerCase()}`}>{BIT_TIPO[entry.tipo] ?? entry.tipo}</span>
+                {entry.presupuestoPartida && (
+                  <span className="muted" style={{ fontSize: '0.78rem' }}>
+                    {entry.presupuestoPartida.zona} → {entry.presupuestoPartida.partida} → {entry.presupuestoPartida.concepto?.codigo}
+                  </span>
+                )}
+              </div>
+              <p className="pd-bitacora-texto">{entry.texto}</p>
+              {entry.fotos?.length > 0 && (
+                <div className="pd-bitacora-fotos">
+                  {entry.fotos.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noreferrer" className="pd-bitacora-foto">📷</a>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
