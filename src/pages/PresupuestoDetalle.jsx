@@ -235,23 +235,19 @@ export default function PresupuestoDetalle() {
   }
 
   const updateNotas = async (partidaId, notas) => {
-    try {
-      await apiFetch(
-        `/api/construccion/presupuestos/${presupuesto.id}/partidas/${partidaId}`,
-        { method: 'PATCH', body: { notas } }
-      )
-      setPresupuesto((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          partidas: prev.partidas.map((p) =>
-            p.id === partidaId ? { ...p, notas } : p
-          ),
-        }
-      })
-    } catch (err) {
-      window.alert(err.message || 'Error al guardar nota')
-    }
+    await apiFetch(
+      `/api/construccion/presupuestos/${presupuesto.id}/partidas/${partidaId}`,
+      { method: 'PATCH', body: { notas } }
+    )
+    setPresupuesto((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        partidas: prev.partidas.map((p) =>
+          p.id === partidaId ? { ...p, notas } : p
+        ),
+      }
+    })
   }
 
   const deletePartida = async (partidaId, descripcion) => {
@@ -563,8 +559,9 @@ function PartidaRow({ partida, isEditing, onCantidad, onDelete, onNotas }) {
   const [local, setLocal] = useState(partida.cantidad)
   const [notasOpen, setNotasOpen] = useState(false)
   const [notasLocal, setNotasLocal] = useState(partida.notas ?? '')
+  const [notasStatus, setNotasStatus] = useState('idle') // idle | saving | saved
   const debounceRef = useRef()
-  const notasRef = useRef()
+  const savedTimerRef = useRef()
 
   useEffect(() => { setLocal(partida.cantidad) }, [partida.cantidad])
   useEffect(() => { setNotasLocal(partida.notas ?? '') }, [partida.notas])
@@ -583,10 +580,32 @@ function PartidaRow({ partida, isEditing, onCantidad, onDelete, onNotas }) {
     if (local > 0 && local !== partida.cantidad) onCantidad(local)
   }
 
-  const saveNotas = () => {
-    clearTimeout(notasRef.current)
+  const saveNotas = async () => {
     const val = notasLocal.trim() || null
-    if (val !== (partida.notas ?? null)) onNotas(val)
+    if (val === (partida.notas ?? null)) return
+    setNotasStatus('saving')
+    try {
+      await onNotas(val)
+      setNotasStatus('saved')
+      clearTimeout(savedTimerRef.current)
+      savedTimerRef.current = setTimeout(() => setNotasStatus('idle'), 2000)
+    } catch {
+      setNotasStatus('idle')
+    }
+  }
+
+  const handleNotasKey = (e) => {
+    // Cmd/Ctrl+Enter to save and close
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault()
+      saveNotas()
+    }
+    // Escape to close without saving extra changes (blur handles save)
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      e.currentTarget.blur()
+      setNotasOpen(false)
+    }
   }
 
   const hasNotas = !!(partida.notas?.trim())
@@ -630,13 +649,34 @@ function PartidaRow({ partida, isEditing, onCantidad, onDelete, onNotas }) {
                 value={notasLocal}
                 onChange={(e) => setNotasLocal(e.target.value)}
                 onBlur={saveNotas}
-                placeholder="Notas internas sobre esta partida…"
+                onKeyDown={handleNotasKey}
+                placeholder="Notas internas sobre esta partida… (⌘+Enter para guardar)"
+                autoFocus
               />
-              {hasNotas && !notasLocal.trim() && (
-                <span className="muted" style={{ fontSize: '0.72rem' }}>
-                  Vaciar y salir para borrar la nota.
+              <div className="pres-notas-actions">
+                <span className="pres-notas-status">
+                  {notasStatus === 'saving' && '💾 Guardando…'}
+                  {notasStatus === 'saved' && <span style={{ color: '#16a34a' }}>✓ Guardado</span>}
+                  {notasStatus === 'idle' && notasLocal !== (partida.notas ?? '') && (
+                    <span className="muted">Cambios sin guardar</span>
+                  )}
                 </span>
-              )}
+                <button
+                  type="button"
+                  className="pres-notas-save"
+                  onClick={saveNotas}
+                  disabled={notasStatus === 'saving' || notasLocal === (partida.notas ?? '')}
+                >
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  className="pres-notas-close"
+                  onClick={async () => { await saveNotas(); setNotasOpen(false) }}
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           </td>
         </tr>
