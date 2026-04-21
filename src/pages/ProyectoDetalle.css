@@ -77,6 +77,105 @@
 .pd-fin-card dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; color: #0f172a; }
 .pd-fin-margin { background: #f0fdf4; border-color: #86efac; }
 
+/* Avance + Budget tracker */
+.pd-avance-section {
+  grid-column: 1 / -1;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  margin-top: 0.75rem;
+}
+.pd-avance-section summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2563eb;
+  padding: 0.25rem 0;
+  user-select: none;
+}
+.pd-avance-section summary:hover { color: #1d4ed8; }
+.pd-avance-section[open] summary { margin-bottom: 1rem; }
+
+.pd-avance-group {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.85rem;
+  margin-bottom: 0.75rem;
+  background: #fafbfc;
+}
+.pd-avance-group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+  font-size: 0.88rem;
+}
+
+.pd-avance-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+.pd-avance-bar-row {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.82rem;
+}
+.pd-avance-bar-row .label {
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+}
+.pd-avance-bar {
+  height: 14px;
+  background: #e2e8f0;
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+}
+.pd-avance-bar-fill {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 200ms ease;
+}
+.pd-avance-bar-fill.avance { background: linear-gradient(90deg, #60a5fa, #2563eb); }
+.pd-avance-bar-fill.gasto { background: linear-gradient(90deg, #86efac, #16a34a); }
+.pd-avance-bar-fill.gasto.over { background: linear-gradient(90deg, #fca5a5, #dc2626); }
+.pd-avance-bar-row .pct {
+  font-size: 0.78rem;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pd-avance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.pd-avance-table th {
+  padding: 0.45rem 0.55rem;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-align: left;
+}
+.pd-avance-table td {
+  padding: 0.45rem 0.55rem;
+  border-top: 1px solid #f1f5f9;
+}
+
 /* Presupuestos tab */
 .pd-pres-list { display: flex; flex-direction: column; gap: 0.75rem; }
 .pd-pres-card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; }

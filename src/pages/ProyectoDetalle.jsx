@@ -219,7 +219,141 @@ function ResumenTab({ proyecto, contrato, ejecutado }) {
           <dd>{ejecutado ? fmtMoney(ejecutadoTotal - solicitudesPagadas) : '—'}</dd>
         </dl>
       </div>
+
+      <AvancePresupuestoPorPartida proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} />
     </div>
+  )
+}
+
+// ── Avance + Presupuesto por partida ────────────────────────────────────────
+
+function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
+  // Use ejecutado as the basis if it exists, else contrato
+  const basis = ejecutado ?? contrato
+  if (!basis?.partidas?.length) return null
+
+  // Aggregate: for each presupuestoPartida (contrato version — that's what estimaciones reference)
+  // compute cantidadEjecutadaAcumulada from estimaciones.partidas
+  const avancePorPartida = new Map()
+  for (const est of proyecto.estimaciones ?? []) {
+    if (est.estado !== 'TIMBRADA' && est.estado !== 'PAGADA' && est.estado !== 'BORRADOR') continue
+    for (const p of est.partidas ?? []) {
+      if (!p.presupuestoPartidaId) continue
+      const cur = avancePorPartida.get(p.presupuestoPartidaId) ?? 0
+      avancePorPartida.set(p.presupuestoPartidaId, cur + (Number(p.cantidadEjecutada) || 0))
+    }
+  }
+
+  // Aggregate: gastado real per ejecutado partida (from paid solicitudes with presupuestoPartidaId link)
+  const gastadoPorPartida = new Map()
+  for (const sol of proyecto.solicitudesCompra ?? []) {
+    if (sol.estado !== 'PAGADA') continue
+    for (const sp of sol.partidas ?? []) {
+      if (!sp.presupuestoPartidaId) continue
+      const cur = gastadoPorPartida.get(sp.presupuestoPartidaId) ?? 0
+      gastadoPorPartida.set(sp.presupuestoPartidaId, cur + (Number(sp.importe) || 0))
+    }
+  }
+
+  // Group partidas by zona → partida
+  const grouped = new Map()
+  for (const p of basis.partidas) {
+    const key = `${p.zona ?? 'Sin zona'}__${p.partida ?? 'Sin partida'}`
+    if (!grouped.has(key)) {
+      grouped.set(key, { zona: p.zona, partida: p.partida, rows: [] })
+    }
+    grouped.get(key).rows.push(p)
+  }
+
+  return (
+    <details className="pd-avance-section">
+      <summary>Avance y presupuesto por partida</summary>
+
+      {[...grouped.values()].map((g, idx) => {
+        const groupPresup = g.rows.reduce((a, r) => a + (Number(r.importe) || 0), 0)
+        const groupGastado = g.rows.reduce((a, r) => a + (gastadoPorPartida.get(r.id) ?? 0), 0)
+        const groupCantTotal = g.rows.reduce((a, r) => a + (Number(r.cantidad) || 0), 0)
+        const groupCantEjec = g.rows.reduce((a, r) => a + (avancePorPartida.get(r.id) ?? 0), 0)
+        const avancePct = groupCantTotal > 0 ? (groupCantEjec / groupCantTotal * 100) : 0
+        const gastoPct = groupPresup > 0 ? (groupGastado / groupPresup * 100) : 0
+
+        return (
+          <div key={idx} className="pd-avance-group">
+            <div className="pd-avance-group-head">
+              <strong>{g.zona} → {g.partida}</strong>
+              <span className="muted">{g.rows.length} concepto(s)</span>
+            </div>
+            <div className="pd-avance-bars">
+              <div className="pd-avance-bar-row">
+                <span className="label">Avance</span>
+                <div className="pd-avance-bar">
+                  <div className="pd-avance-bar-fill avance" style={{ width: `${Math.min(avancePct, 100)}%` }} />
+                </div>
+                <span className="pct">{avancePct.toFixed(1)}%</span>
+              </div>
+              <div className="pd-avance-bar-row">
+                <span className="label">Gasto</span>
+                <div className="pd-avance-bar">
+                  <div
+                    className={`pd-avance-bar-fill gasto ${gastoPct > 100 ? 'over' : ''}`}
+                    style={{ width: `${Math.min(gastoPct, 100)}%` }}
+                  />
+                </div>
+                <span className="pct">
+                  {fmtMoney(groupGastado)} / {fmtMoney(groupPresup)} · {gastoPct.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+
+            <table className="pd-avance-table">
+              <thead>
+                <tr>
+                  <th>Concepto</th>
+                  <th style={{ width: 90, textAlign: 'right' }}>Cant. total</th>
+                  <th style={{ width: 90, textAlign: 'right' }}>Ejecutada</th>
+                  <th style={{ width: 60, textAlign: 'right' }}>%</th>
+                  <th style={{ width: 110, textAlign: 'right' }}>Presupuestado</th>
+                  <th style={{ width: 110, textAlign: 'right' }}>Gastado</th>
+                  <th style={{ width: 60, textAlign: 'right' }}>%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.rows.map(r => {
+                  const ejec = avancePorPartida.get(r.id) ?? 0
+                  const gast = gastadoPorPartida.get(r.id) ?? 0
+                  const pctAvance = r.cantidad > 0 ? (ejec / r.cantidad * 100) : 0
+                  const pctGasto = r.importe > 0 ? (gast / r.importe * 100) : 0
+                  return (
+                    <tr key={r.id}>
+                      <td>
+                        <span className="mono">{r.concepto?.codigo}</span>
+                        <span style={{ color: '#64748b', fontSize: '0.78rem', marginLeft: '0.4rem' }}>
+                          {r.concepto?.descripcion?.slice(0, 50)}…
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {r.cantidad.toFixed(2)} {r.concepto?.unidad}
+                      </td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {ejec.toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'right', color: pctAvance >= 100 ? '#16a34a' : '#0f172a' }}>
+                        {pctAvance.toFixed(0)}%
+                      </td>
+                      <td style={{ textAlign: 'right' }}>{fmtMoney(r.importe)}</td>
+                      <td style={{ textAlign: 'right' }}>{gast > 0 ? fmtMoney(gast) : '—'}</td>
+                      <td style={{ textAlign: 'right', color: pctGasto > 100 ? '#dc2626' : pctGasto > 80 ? '#ea580c' : '#0f172a' }}>
+                        {gast > 0 ? `${pctGasto.toFixed(0)}%` : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      })}
+    </details>
   )
 }
 
