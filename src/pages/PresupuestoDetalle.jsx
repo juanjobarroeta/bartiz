@@ -234,6 +234,26 @@ export default function PresupuestoDetalle() {
     }
   }
 
+  const updateNotas = async (partidaId, notas) => {
+    try {
+      await apiFetch(
+        `/api/construccion/presupuestos/${presupuesto.id}/partidas/${partidaId}`,
+        { method: 'PATCH', body: { notas } }
+      )
+      setPresupuesto((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          partidas: prev.partidas.map((p) =>
+            p.id === partidaId ? { ...p, notas } : p
+          ),
+        }
+      })
+    } catch (err) {
+      window.alert(err.message || 'Error al guardar nota')
+    }
+  }
+
   const deletePartida = async (partidaId, descripcion) => {
     if (!window.confirm(`¿Eliminar esta partida?\n${descripcion}`)) return
     try {
@@ -440,9 +460,8 @@ export default function PresupuestoDetalle() {
                       partida={p}
                       isEditing={isEditing}
                       onCantidad={(v) => updateCantidad(p.id, v)}
-                      onDelete={() =>
-                        deletePartida(p.id, p.concepto?.descripcion ?? '')
-                      }
+                      onDelete={() => deletePartida(p.id, p.concepto?.descripcion ?? '')}
+                      onNotas={(notas) => updateNotas(p.id, notas)}
                     />
                   ))}
                 </tbody>
@@ -517,59 +536,12 @@ export default function PresupuestoDetalle() {
       </footer>
 
       {explosion && (
-        <div className="pres-picker-overlay" onClick={() => setExplosion(null)}>
-          <div className="pres-picker" style={{ maxWidth: 900, maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
-            <header>
-              <h3>Explosión de Insumos — {explosion.presupuestoNombre}</h3>
-              <div className="muted">
-                {explosion.resumen?.insumoCount} insumos · Costo directo total: {fmtMoney(explosion.resumen?.totalCostoDirecto)}
-              </div>
-              <button className="pres-picker-close" onClick={() => setExplosion(null)}>×</button>
-            </header>
-            <div style={{ padding: '1rem 1.25rem', overflow: 'auto', flex: 1 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                <div style={{ background: '#f0fdf4', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Materiales</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#166534' }}>{fmtMoney(explosion.resumen?.totalMateriales)}</div>
-                </div>
-                <div style={{ background: '#eff6ff', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Mano de obra</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e40af' }}>{fmtMoney(explosion.resumen?.totalManoObra)}</div>
-                </div>
-                <div style={{ background: '#fefce8', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Equipo</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#92400e' }}>{fmtMoney(explosion.resumen?.totalEquipo)}</div>
-                </div>
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Código</th>
-                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Descripción</th>
-                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Tipo</th>
-                    <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Unidad</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Cantidad total</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Costo unit.</th>
-                    <th style={{ textAlign: 'right', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }}>Importe total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(explosion.explosion ?? []).map((e, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '0.45rem 0.5rem', fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem' }}>{e.codigo}</td>
-                      <td style={{ padding: '0.45rem 0.5rem', maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.descripcion}</td>
-                      <td style={{ padding: '0.45rem 0.5rem', color: '#64748b' }}>{e.tipo}</td>
-                      <td style={{ padding: '0.45rem 0.5rem' }}>{e.unidad}</td>
-                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{e.cantidadTotal.toLocaleString('es-MX', { maximumFractionDigits: 2 })}</td>
-                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right' }}>{fmtMoney(e.costoUnitario)}</td>
-                      <td style={{ padding: '0.45rem 0.5rem', textAlign: 'right', fontWeight: 600 }}>{fmtMoney(e.importeTotal)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <ExplosionModal
+          explosion={explosion}
+          presupuesto={presupuesto}
+          onClose={() => setExplosion(null)}
+          navigate={navigate}
+        />
       )}
 
       {pickerOpen && activeCompany?.id && (
@@ -587,13 +559,15 @@ export default function PresupuestoDetalle() {
 
 // ── Partida row (edit-aware) ────────────────────────────────────────────────
 
-function PartidaRow({ partida, isEditing, onCantidad, onDelete }) {
+function PartidaRow({ partida, isEditing, onCantidad, onDelete, onNotas }) {
   const [local, setLocal] = useState(partida.cantidad)
+  const [notasOpen, setNotasOpen] = useState(false)
+  const [notasLocal, setNotasLocal] = useState(partida.notas ?? '')
   const debounceRef = useRef()
+  const notasRef = useRef()
 
-  useEffect(() => {
-    setLocal(partida.cantidad)
-  }, [partida.cantidad])
+  useEffect(() => { setLocal(partida.cantidad) }, [partida.cantidad])
+  useEffect(() => { setNotasLocal(partida.notas ?? '') }, [partida.notas])
 
   const handleChange = (e) => {
     const v = parseFloat(e.target.value) || 0
@@ -609,39 +583,210 @@ function PartidaRow({ partida, isEditing, onCantidad, onDelete }) {
     if (local > 0 && local !== partida.cantidad) onCantidad(local)
   }
 
+  const saveNotas = () => {
+    clearTimeout(notasRef.current)
+    const val = notasLocal.trim() || null
+    if (val !== (partida.notas ?? null)) onNotas(val)
+  }
+
+  const hasNotas = !!(partida.notas?.trim())
+
   return (
-    <tr>
-      <td className="mono">{partida.concepto?.codigo ?? '—'}</td>
-      <td className="desc">{partida.concepto?.descripcion ?? '—'}</td>
-      <td>{partida.concepto?.unidad ?? '—'}</td>
-      <td style={{ textAlign: 'right' }}>
-        {isEditing ? (
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={local}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            className="pres-qty-input"
-          />
-        ) : (
-          fmtQty(partida.cantidad)
-        )}
-      </td>
-      <td style={{ textAlign: 'right' }}>{fmtMoney(partida.precioUnitario)}</td>
-      <td style={{ textAlign: 'right' }}>
-        <strong>{fmtMoney(partida.importe)}</strong>
-      </td>
-      <td style={{ textAlign: 'right' }}>{partida.porc.toFixed(2)}%</td>
-      {isEditing && (
-        <td style={{ textAlign: 'center' }}>
-          <button className="pres-delete-btn" onClick={onDelete} title="Eliminar">
-            ×
+    <>
+      <tr>
+        <td className="mono">
+          {partida.concepto?.codigo ?? '—'}
+          <button
+            className={`pres-notas-btn ${hasNotas ? 'has-notas' : ''}`}
+            onClick={() => setNotasOpen(v => !v)}
+            title={hasNotas ? partida.notas : 'Agregar nota'}
+          >
+            {hasNotas ? '📝' : '💬'}
           </button>
         </td>
+        <td className="desc">{partida.concepto?.descripcion ?? '—'}</td>
+        <td>{partida.concepto?.unidad ?? '—'}</td>
+        <td style={{ textAlign: 'right' }}>
+          {isEditing ? (
+            <input type="number" min="0" step="0.01" value={local}
+              onChange={handleChange} onBlur={handleBlur} className="pres-qty-input" />
+          ) : fmtQty(partida.cantidad)}
+        </td>
+        <td style={{ textAlign: 'right' }}>{fmtMoney(partida.precioUnitario)}</td>
+        <td style={{ textAlign: 'right' }}><strong>{fmtMoney(partida.importe)}</strong></td>
+        <td style={{ textAlign: 'right' }}>{partida.porc.toFixed(2)}%</td>
+        {isEditing && (
+          <td style={{ textAlign: 'center' }}>
+            <button className="pres-delete-btn" onClick={onDelete} title="Eliminar">×</button>
+          </td>
+        )}
+      </tr>
+      {notasOpen && (
+        <tr className="pres-notas-row">
+          <td colSpan={isEditing ? 8 : 7}>
+            <div className="pres-notas-editor">
+              <textarea
+                rows={2}
+                value={notasLocal}
+                onChange={(e) => setNotasLocal(e.target.value)}
+                onBlur={saveNotas}
+                placeholder="Notas internas sobre esta partida…"
+              />
+              {hasNotas && !notasLocal.trim() && (
+                <span className="muted" style={{ fontSize: '0.72rem' }}>
+                  Vaciar y salir para borrar la nota.
+                </span>
+              )}
+            </div>
+          </td>
+        </tr>
       )}
-    </tr>
+    </>
+  )
+}
+
+// ── Explosión de insumos modal (with OC generation) ────────────────────────
+
+function ExplosionModal({ explosion, presupuesto, onClose, navigate }) {
+  const [selected, setSelected] = useState(new Set())
+  const [busy, setBusy] = useState(false)
+  const items = explosion.explosion ?? []
+  const materialItems = items.filter(e => e.tipo === 'MATERIAL')
+
+  const toggleAll = () => {
+    if (selected.size === materialItems.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(materialItems.map((_, i) => items.indexOf(materialItems[i]))))
+    }
+  }
+
+  const toggle = (idx) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(idx) ? next.delete(idx) : next.add(idx)
+      return next
+    })
+  }
+
+  const generateOC = async () => {
+    const selectedItems = [...selected].map(i => items[i]).filter(Boolean)
+    if (selectedItems.length === 0) {
+      window.alert('Selecciona al menos un insumo para generar la orden de compra.')
+      return
+    }
+
+    // Find the proyecto ID from the presupuesto
+    const proyectoId = presupuesto?.proyecto?.id
+
+    setBusy(true)
+    try {
+      const folio = `OC-${Date.now().toString(36).toUpperCase()}`
+      await apiFetch('/api/construccion/solicitudes-compra', {
+        method: 'POST',
+        body: {
+          companyId: presupuesto.companyId,
+          folio,
+          proyectoId: proyectoId || undefined,
+          notas: `Generada desde explosión de insumos — ${presupuesto.nombre}`,
+          partidas: selectedItems.map(e => ({
+            descripcion: `${e.codigo} — ${e.descripcion}`,
+            cantidad: e.cantidadTotal,
+            precioUnitario: e.costoUnitario,
+          })),
+        },
+      })
+      window.alert(`✓ Solicitud de compra ${folio} creada con ${selectedItems.length} partida(s).`)
+      onClose()
+      navigate('/solicitudes-compra')
+    } catch (err) {
+      window.alert(err.message || 'Error al generar orden de compra')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const thStyle = { textAlign: 'left', padding: '0.5rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.7rem', textTransform: 'uppercase', color: '#64748b' }
+  const tdStyle = { padding: '0.45rem 0.5rem' }
+
+  return (
+    <div className="pres-picker-overlay" onClick={onClose}>
+      <div className="pres-picker" style={{ maxWidth: 950, maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+        <header>
+          <h3>Explosión de Insumos — {explosion.presupuestoNombre}</h3>
+          <div className="muted">
+            {explosion.resumen?.insumoCount} insumos · Costo directo: {fmtMoney(explosion.resumen?.totalCostoDirecto)}
+          </div>
+          <button className="pres-picker-close" onClick={onClose}>×</button>
+        </header>
+        <div style={{ padding: '1rem 1.25rem', overflow: 'auto', flex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+            <div style={{ background: '#f0fdf4', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Materiales</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#166534' }}>{fmtMoney(explosion.resumen?.totalMateriales)}</div>
+            </div>
+            <div style={{ background: '#eff6ff', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Mano de obra</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e40af' }}>{fmtMoney(explosion.resumen?.totalManoObra)}</div>
+            </div>
+            <div style={{ background: '#fefce8', padding: '0.75rem', borderRadius: 8, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>Equipo</div>
+              <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#92400e' }}>{fmtMoney(explosion.resumen?.totalEquipo)}</div>
+            </div>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+            <thead>
+              <tr>
+                <th style={{ ...thStyle, width: 30 }}>
+                  <input type="checkbox" checked={selected.size === materialItems.length && materialItems.length > 0} onChange={toggleAll} title="Seleccionar todos los materiales" />
+                </th>
+                <th style={thStyle}>Código</th>
+                <th style={thStyle}>Descripción</th>
+                <th style={thStyle}>Tipo</th>
+                <th style={thStyle}>Unidad</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Cantidad</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Costo unit.</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((e, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', background: selected.has(idx) ? '#eff6ff' : undefined }}>
+                  <td style={tdStyle}>
+                    {e.tipo === 'MATERIAL' && (
+                      <input type="checkbox" checked={selected.has(idx)} onChange={() => toggle(idx)} />
+                    )}
+                  </td>
+                  <td style={{ ...tdStyle, fontFamily: 'ui-monospace, monospace', fontSize: '0.78rem' }}>{e.codigo}</td>
+                  <td style={{ ...tdStyle, maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.descripcion}</td>
+                  <td style={{ ...tdStyle, color: '#64748b' }}>{e.tipo}</td>
+                  <td style={tdStyle}>{e.unidad}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{e.cantidadTotal.toLocaleString('es-MX', { maximumFractionDigits: 2 })}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right' }}>{fmtMoney(e.costoUnitario)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{fmtMoney(e.importeTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {selected.size > 0 && (
+            <div style={{ marginTop: '1rem', padding: '0.85rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#166534', fontWeight: 600 }}>
+                {selected.size} material(es) seleccionado(s) · {fmtMoney([...selected].reduce((a, i) => a + (items[i]?.importeTotal ?? 0), 0))}
+              </span>
+              <button
+                onClick={generateOC}
+                disabled={busy}
+                style={{ background: '#16a34a', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}
+              >
+                {busy ? 'Generando…' : '📋 Generar orden de compra'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 

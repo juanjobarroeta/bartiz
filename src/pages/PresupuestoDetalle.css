@@ -267,6 +267,49 @@
   color: #b91c1c;
 }
 
+/* Partida notes */
+.pres-notas-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  opacity: 0.4;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}
+.pres-notas-btn:hover { opacity: 1; }
+.pres-notas-btn.has-notas { opacity: 0.8; }
+
+.pres-notas-row td {
+  padding: 0 0.6rem 0.6rem !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #fafbff;
+}
+
+.pres-notas-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pres-notas-editor textarea {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 40px;
+  background: white;
+}
+
+.pres-notas-editor textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
 /* ── Edit mode ───────────────────────────────────────────────────────── */
 
 .pres-actions button.secondary {
