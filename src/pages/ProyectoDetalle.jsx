@@ -273,7 +273,7 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
         const groupPresup = g.rows.reduce((a, r) => a + (Number(r.importe) || 0), 0)
         const groupGastado = g.rows.reduce((a, r) => a + (gastadoPorPartida.get(r.id) ?? 0), 0)
         const groupCantTotal = g.rows.reduce((a, r) => a + (Number(r.cantidad) || 0), 0)
-        const groupCantEjec = g.rows.reduce((a, r) => a + (avancePorPartida.get(r.id) ?? 0), 0)
+        const groupCantEjec = g.rows.reduce((a, r) => a + (avancePorPartida.get(r.contratoPartidaId ?? r.id) ?? 0), 0)
         const avancePct = groupCantTotal > 0 ? (groupCantEjec / groupCantTotal * 100) : 0
         const gastoPct = groupPresup > 0 ? (groupGastado / groupPresup * 100) : 0
 
@@ -319,7 +319,11 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
               </thead>
               <tbody>
                 {g.rows.map(r => {
-                  const ejec = avancePorPartida.get(r.id) ?? 0
+                  // Avance is tracked on the CONTRATO partida (that's what estimaciones reference).
+                  // If this row is an ejecutado partida, look up via its contratoPartidaId link.
+                  // Brand-new ejecutado concepts (no contrato link) show 0% avance, which is correct.
+                  const avanceKey = r.contratoPartidaId ?? r.id
+                  const ejec = avancePorPartida.get(avanceKey) ?? 0
                   const gast = gastadoPorPartida.get(r.id) ?? 0
                   const pctAvance = r.cantidad > 0 ? (ejec / r.cantidad * 100) : 0
                   const pctGasto = r.importe > 0 ? (gast / r.importe * 100) : 0
