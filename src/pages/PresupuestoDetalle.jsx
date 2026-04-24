@@ -57,29 +57,101 @@ const fmtQty = (n) =>
     maximumFractionDigits: 4,
   }).format(Number(n) || 0)
 
+/**
+ * Build a zona → partida → rows view from a flat PresupuestoPartida list
+ * that may now contain Capítulo-tree branches (esRollup=true).
+ *
+ * Strategy: walk the tree from each root. The first level of rollup nodes
+ * becomes the "zona" header; every deeper branch collapses into the
+ * partida label as a dotted path ("2.3.1 Albañilería › Muros › Aplanados").
+ * Leaves attach to the innermost branch they descend from.
+ *
+ * Bartiz's backfilled tree has depth exactly 2 (zona → partida → leaves),
+ * so output matches the pre-tree render byte-for-byte.
+ *
+ * Decolsa's Torres Platino has 4+ levels; for now we flatten so the
+ * existing render works. Fully recursive collapsible sections are a
+ * follow-up.
+ *
+ * Partidas with no tree data at all (legacy pre-backfill rows) fall back
+ * to grouping by the free-text zona/partida strings.
+ */
 function groupPartidas(rawPartidas) {
-  // Only leaves: rollup branches carry a sum of their children, so including
-  // them would double-count. Tree navigation uses parentPartidaId separately.
-  const partidas = (rawPartidas ?? []).filter(p => !p.esRollup)
-  const totalImporte = partidas.reduce((a, p) => a + (p.importe || 0), 0) || 1
+  const all = rawPartidas ?? []
+  const leaves = all.filter((p) => !p.esRollup)
+  const totalImporte = leaves.reduce((a, p) => a + (p.importe || 0), 0) || 1
+  const byId = new Map(all.map((p) => [p.id, p]))
+
+  // Find each leaf's ancestor chain (nearest parent first).
+  const ancestorChain = (leaf) => {
+    const chain = []
+    let cursor = leaf.parentPartidaId ? byId.get(leaf.parentPartidaId) : null
+    while (cursor) {
+      chain.push(cursor)
+      cursor = cursor.parentPartidaId ? byId.get(cursor.parentPartidaId) : null
+    }
+    return chain.reverse() // root → ...innermost
+  }
+
   const zonaMap = new Map()
+  for (const leaf of leaves) {
+    const chain = ancestorChain(leaf)
+    let zonaLabel, partidaLabel
 
-  for (const p of partidas) {
-    const zonaKey = p.zona ?? 'Sin zona'
-    if (!zonaMap.has(zonaKey)) {
-      zonaMap.set(zonaKey, { zona: zonaKey, subtotal: 0, porc: 0, grupos: new Map() })
+    if (chain.length > 0) {
+      // Tree-native: root is zona, rest is flattened partida label
+      const root = chain[0]
+      zonaLabel = (root.partida ?? root.zona ?? 'Sin zona').trim()
+      const innerBranches = chain.slice(1)
+      if (innerBranches.length === 0) {
+        // No middle branch (leaf attaches directly to root). Rare, but
+        // fall back to the leaf's own partida string.
+        partidaLabel = leaf.partida ?? 'Sin partida'
+      } else if (innerBranches.length === 1) {
+        // Bartiz shape: zona → partida → leaf. Keep the label clean —
+        // just the partida name, no code prefix.
+        partidaLabel =
+          (innerBranches[0].partida ?? innerBranches[0].zona ?? '').trim() ||
+          leaf.partida ||
+          'Sin partida'
+      } else {
+        // Decolsa-style deep tree: prepend the dotted code from the
+        // innermost branch and join intermediate names with a separator.
+        const innermost = innerBranches[innerBranches.length - 1]
+        const prefix = innermost.codigo ? `${innermost.codigo} ` : ''
+        const path = innerBranches
+          .map((b) => (b.partida ?? b.zona ?? '').trim())
+          .filter(Boolean)
+          .join(' › ')
+        partidaLabel = `${prefix}${path}`.trim() || 'Sin partida'
+      }
+    } else {
+      // Legacy row without tree info — fall back to the flat strings.
+      zonaLabel = leaf.zona ?? 'Sin zona'
+      partidaLabel = leaf.partida ?? 'Sin partida'
     }
-    const z = zonaMap.get(zonaKey)
 
-    const partidaKey = p.partida ?? 'Sin partida'
-    if (!z.grupos.has(partidaKey)) {
-      z.grupos.set(partidaKey, { partida: partidaKey, subtotal: 0, porc: 0, rows: [] })
+    if (!zonaMap.has(zonaLabel)) {
+      zonaMap.set(zonaLabel, {
+        zona: zonaLabel,
+        subtotal: 0,
+        porc: 0,
+        grupos: new Map(),
+      })
     }
-    const g = z.grupos.get(partidaKey)
-
-    g.rows.push(p)
-    g.subtotal += p.importe || 0
-    z.subtotal += p.importe || 0
+    const z = zonaMap.get(zonaLabel)
+    if (!z.grupos.has(partidaLabel)) {
+      z.grupos.set(partidaLabel, {
+        partida: partidaLabel,
+        subtotal: 0,
+        porc: 0,
+        rows: [],
+      })
+    }
+    const g = z.grupos.get(partidaLabel)
+    g.rows.push(leaf)
+    g.subtotal += leaf.importe || 0
+    z.subtotal += leaf.importe || 0
   }
 
   return [...zonaMap.values()].map((z) => ({
