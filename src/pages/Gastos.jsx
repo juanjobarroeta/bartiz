@@ -14,7 +14,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import BankTxPicker from '../components/BankTxPicker'
+import FileUpload from '../components/FileUpload'
 import '../components/BankTxPicker.css'
+import '../components/FileUpload.css'
 import './Gastos.css'
 
 const fmtMoney = (n) =>
@@ -172,6 +174,39 @@ export default function Gastos() {
         </section>
       </div>
     </div>
+  )
+}
+
+// Opens the comprobante in a new tab. For file-stored comprobantes we
+// fetch the bytes with the bearer token, convert to a blob URL, and
+// open it — direct <a href> wouldn't carry the auth header. For legacy
+// URL-only comprobantes we just open the URL.
+function ComprobanteLink({ gasto }) {
+  const open = async (type = 'gasto') => {
+    if (gasto.comprobanteUrl && type === 'gasto') {
+      window.open(gasto.comprobanteUrl, '_blank')
+      return
+    }
+    try {
+      const base = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || ''
+      const token = localStorage.getItem('cadmin.token')
+      const res = await fetch(
+        `${base}/api/construccion/gastos/${gasto.id}/comprobante?type=${type}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (!res.ok) throw new Error('No se pudo abrir el comprobante')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (err) {
+      window.alert(err.message || 'Error')
+    }
+  }
+  return (
+    <button type="button" className="link small" onClick={() => open('gasto')}>
+      📎 {gasto.comprobanteName || 'Comprobante'}
+    </button>
   )
 }
 
@@ -333,8 +368,8 @@ function GastoRow({ gasto, onChange, companyId }) {
           <button className="link small danger" disabled={busy} onClick={eliminar}>eliminar</button>
         </div>
       )}
-      {gasto.comprobanteUrl && (
-        <a href={gasto.comprobanteUrl} target="_blank" rel="noreferrer" className="link small">📎 Comprobante</a>
+      {(gasto.comprobanteUrl || gasto.comprobanteName) && (
+        <ComprobanteLink gasto={gasto} />
       )}
 
       <BankTxPicker
@@ -373,7 +408,7 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
   const [beneficiarioNombre, setBeneficiario] = useState('')
   const [descripcion, setDesc] = useState('')
   const [importe, setImporte] = useState('')
-  const [comprobanteUrl, setComprobante] = useState('')
+  const [comprobanteFile, setComprobanteFile] = useState(null) // { data, mime, name }
 
   // One of three attribution modes must be set before approval.
   // Default 'directo' — if user types and picks a suggestion, it stays here.
@@ -470,13 +505,16 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
           insumoId: isDirecto ? insumoId : null,
           indirecto: isIndirecto,
           categoriaIndirecto: isIndirecto ? categoriaIndirecto.trim() : null,
-          comprobanteUrl: comprobanteUrl?.trim() || null,
+          // Either an uploaded file (base64) or nothing. URL path deprecated.
+          comprobanteData: comprobanteFile?.data ?? null,
+          comprobanteMime: comprobanteFile?.mime ?? null,
+          comprobanteName: comprobanteFile?.name ?? null,
         },
       })
       setBeneficiario('')
       setDesc('')
       setImporte('')
-      setComprobante('')
+      setComprobanteFile(null)
       clearPick()
       setCategoriaIndirecto('')
       setMode('directo')
@@ -617,9 +655,9 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
         </select>
       </label>
 
-      <label>
-        <span>URL del comprobante (WhatsApp foto)</span>
-        <input value={comprobanteUrl} onChange={(e) => setComprobante(e.target.value)} placeholder="https://…" />
+      <label className="stack">
+        <span>Comprobante (foto / PDF)</span>
+        <FileUpload value={comprobanteFile} onChange={setComprobanteFile} />
       </label>
 
       <button type="submit" className="primary" disabled={busy}>

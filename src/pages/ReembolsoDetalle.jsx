@@ -14,7 +14,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import BankTxPicker from '../components/BankTxPicker'
+import FileUpload from '../components/FileUpload'
 import '../components/BankTxPicker.css'
+import '../components/FileUpload.css'
 import './Reembolsos.css'
 
 const fmtMoney = (n) =>
@@ -244,6 +246,32 @@ export default function ReembolsoDetalle() {
   )
 }
 
+function ReembolsoComprobanteLink({ gasto }) {
+  const open = async () => {
+    if (gasto.comprobanteUrl && !gasto.comprobanteName) {
+      window.open(gasto.comprobanteUrl, '_blank'); return
+    }
+    try {
+      const base = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || ''
+      const token = localStorage.getItem('cadmin.token')
+      const res = await fetch(
+        `${base}/api/construccion/gastos/${gasto.id}/comprobante?type=gasto`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (!res.ok) throw new Error('No se pudo abrir')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (err) { window.alert(err.message) }
+  }
+  return (
+    <button type="button" className="link small" onClick={open}>
+      📎 {gasto.comprobanteName || 'Comprobante'}
+    </button>
+  )
+}
+
 function GastoRowInline({ gasto, frozen, onDelete }) {
   const puReal = gasto.cantidad ? gasto.importe / gasto.cantidad : null
   const puCatalogo = gasto.insumo?.costoActual ?? null
@@ -255,6 +283,11 @@ function GastoRowInline({ gasto, frozen, onDelete }) {
       <td>
         <strong>{gasto.beneficiarioNombre}</strong>
         <div className="small muted">{gasto.descripcion}</div>
+        {(gasto.comprobanteName || gasto.comprobanteUrl) && (
+          <div className="small" style={{ marginTop: '0.2rem' }}>
+            <ReembolsoComprobanteLink gasto={gasto} />
+          </div>
+        )}
       </td>
       <td className="small">
         {gasto.insumo ? (
@@ -301,6 +334,7 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
   const [picked, setPicked] = useState(null)
   const [categoriaIndirecto, setCategoriaIndirecto] = useState('')
   const [suggestions, setSuggestions] = useState({ insumos: [], partidas: [] })
+  const [comprobanteFile, setComprobanteFile] = useState(null)
   const [busy, setBusy] = useState(false)
   const timer = useRef(null)
 
@@ -364,6 +398,9 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
           presupuestoPartidaId: isDirecto ? presupuestoPartidaId : null,
           indirecto: isIndirecto,
           categoriaIndirecto: isIndirecto ? categoriaIndirecto.trim() : null,
+          comprobanteData: comprobanteFile?.data ?? null,
+          comprobanteMime: comprobanteFile?.mime ?? null,
+          comprobanteName: comprobanteFile?.name ?? null,
         },
       })
       onCreated?.()
@@ -451,6 +488,11 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
           ))}
         </div>
       )}
+
+      <label className="stack">
+        <span>Comprobante (foto/PDF, opcional)</span>
+        <FileUpload value={comprobanteFile} onChange={setComprobanteFile} />
+      </label>
 
       <div className="row">
         <button type="submit" className="primary small" disabled={busy}>+ Agregar</button>

@@ -82,6 +82,7 @@
   font-size: 0.9rem;
   background: #fff;
 }
+.gasto-form label.stack { display: flex; flex-direction: column; gap: 0.3rem; }
 .gasto-form input:focus, .gasto-form select:focus { outline: 2px solid #3b82f6; outline-offset: -1px; border-color: #3b82f6; }
 
 .suggest-box {
