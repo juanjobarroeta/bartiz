@@ -95,6 +95,10 @@ export default function ProyectoDetalle() {
 
   const totalPagos = (proyecto.pagos ?? []).reduce((a, p) => a + (Number(p.monto) || 0), 0)
   const solicitudesPagadas = (proyecto.solicitudesCompra ?? []).filter(s => s.estado === 'PAGADA').reduce((a, s) => a + (Number(s.total) || 0), 0)
+  // Include approved/paid Gastos in the top-level "Gastado" KPI so the
+  // card reflects both OC payments and quick WhatsApp-style expenses.
+  const gastosPagadosTotal = (proyecto.gastos ?? []).filter(g => g.estado === 'PAGADO' || g.estado === 'APROBADO').reduce((a, g) => a + (Number(g.importe) || 0), 0)
+  const totalGastado = solicitudesPagadas + gastosPagadosTotal
   const estimacionesTimbradas = (proyecto.estimaciones ?? []).filter(e => e.estado === 'TIMBRADA' || e.estado === 'PAGADA').reduce((a, e) => a + (Number(e.subtotal) || 0), 0)
 
   return (
@@ -134,7 +138,7 @@ export default function ProyectoDetalle() {
         </div>
         <div className="pd-kpi">
           <div className="pd-kpi-label">Gastado</div>
-          <div className="pd-kpi-value">{fmtMoney(solicitudesPagadas)}</div>
+          <div className="pd-kpi-value">{fmtMoney(totalGastado)}</div>
         </div>
         <div className="pd-kpi">
           <div className="pd-kpi-label">Pagos recibidos</div>
@@ -257,7 +261,12 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
     }
   }
 
-  // Aggregate: gastado real per ejecutado partida (from paid solicitudes with presupuestoPartidaId link)
+  // Aggregate: gastado real per partida from TWO sources:
+  //   1. Paid SolicitudCompra partidas (formal OC flow — material orders).
+  //   2. Approved/paid Gastos with a presupuestoPartidaId (Katia's quick
+  //      payments like the WhatsApp "PSP $4,825 a Lesly").
+  // Both feed the same "gastado" bar so the budget reflects everything
+  // that's been committed against that partida regardless of flow.
   const gastadoPorPartida = new Map()
   for (const sol of proyecto.solicitudesCompra ?? []) {
     if (sol.estado !== 'PAGADA') continue
@@ -266,6 +275,12 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
       const cur = gastadoPorPartida.get(sp.presupuestoPartidaId) ?? 0
       gastadoPorPartida.set(sp.presupuestoPartidaId, cur + (Number(sp.importe) || 0))
     }
+  }
+  for (const g of proyecto.gastos ?? []) {
+    if (g.estado !== 'PAGADO' && g.estado !== 'APROBADO') continue
+    if (!g.presupuestoPartidaId) continue
+    const cur = gastadoPorPartida.get(g.presupuestoPartidaId) ?? 0
+    gastadoPorPartida.set(g.presupuestoPartidaId, cur + (Number(g.importe) || 0))
   }
 
   // Group partidas by zona → partida. For the Capítulo tree, zona =
