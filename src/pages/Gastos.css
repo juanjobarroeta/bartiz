@@ -119,6 +119,71 @@
 }
 .picked .mono { font-weight: 600; }
 
+.suggest-empty {
+  padding: 0.4rem 0.5rem;
+  background: #fef3c7;
+  border-radius: 5px;
+  color: #78350f;
+}
+.suggest-empty .link { color: #1e40af; text-decoration: underline; background: none; border: none; padding: 0; cursor: pointer; }
+
+.mode-tabs {
+  display: flex;
+  gap: 0.3rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.4rem;
+}
+.mode-tabs button {
+  background: #f1f5f9;
+  border: 1px solid transparent;
+  padding: 0.35rem 0.7rem;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: #334155;
+}
+.mode-tabs button.active {
+  background: #0f172a;
+  color: white;
+  border-color: #0f172a;
+}
+
+.indirecto-picker {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.cat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.cat-chips button {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: #334155;
+}
+.cat-chips button:hover { background: #f1f5f9; }
+.cat-chips button.active {
+  background: #fde68a;
+  border-color: #d97706;
+  color: #78350f;
+}
+.cat-other {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 0.85rem;
+}
+
 /* ── Caja chica panel ── */
 .gastos-caja-panel {
   display: flex;

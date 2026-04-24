@@ -176,8 +176,35 @@ export default function Gastos() {
 // ── Individual gasto row ─────────────────────────────────────────────────────
 function GastoRow({ gasto, onChange }) {
   const [busy, setBusy] = useState(false)
+  const [attributing, setAttributing] = useState(false)
+
+  const hasAttribution =
+    !!gasto.presupuestoPartidaId || !!gasto.insumoId || gasto.indirecto === true
+
+  const markIndirecto = async (categoria) => {
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/gastos/${gasto.id}`, {
+        method: 'PATCH',
+        body: { indirecto: true, categoriaIndirecto: categoria },
+      })
+      setAttributing(false)
+      onChange?.()
+    } catch (err) {
+      window.alert(err.message || 'Error al vincular')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const pagar = async () => {
+    if (!hasAttribution) {
+      window.alert(
+        'Este gasto no tiene atribución. Vincúlalo a un insumo/partida o márcalo como indirecto antes de aprobar.'
+      )
+      setAttributing(true)
+      return
+    }
     if (!window.confirm(`Pagar ${fmtMoney(gasto.importe)} a ${gasto.beneficiarioNombre}?`)) return
     setBusy(true)
     try {
@@ -242,14 +269,24 @@ function GastoRow({ gasto, onChange }) {
         <div className="small gasto-link">
           {gasto.insumo && (
             <span>
-              Insumo: <span className="mono">{gasto.insumo.codigo}</span> {gasto.insumo.descripcion.slice(0, 40)}
+              🟢 Insumo: <span className="mono">{gasto.insumo.codigo}</span> {gasto.insumo.descripcion.slice(0, 40)}
             </span>
           )}
           {gasto.presupuestoPartida && (
             <span>
-              Partida: <span className="mono">{gasto.presupuestoPartida.codigo || gasto.presupuestoPartida.concepto?.codigo}</span>
+              🟢 Partida: <span className="mono">{gasto.presupuestoPartida.codigo || gasto.presupuestoPartida.concepto?.codigo}</span>
             </span>
           )}
+        </div>
+      )}
+      {gasto.indirecto && (
+        <div className="small gasto-link">
+          ⚫ Indirecto: <span className="mono">{gasto.categoriaIndirecto || 'SIN CATEGORÍA'}</span>
+        </div>
+      )}
+      {!gasto.presupuestoPartida && !gasto.insumo && !gasto.indirecto && (
+        <div className="small gasto-link" style={{ color: '#dc2626' }}>
+          ⚠ Sin atribución — no se puede aprobar hasta vincularlo.
         </div>
       )}
       <div className="gasto-meta small muted">
@@ -257,9 +294,33 @@ function GastoRow({ gasto, onChange }) {
         {gasto.estado === 'PAGADO' && ` · pagado ${fmtDateTime(gasto.pagadoAt)}`}
       </div>
 
+      {gasto.estado === 'PENDIENTE' && !hasAttribution && attributing && (
+        <div className="indirecto-picker small" style={{ marginTop: '0.5rem' }}>
+          <div className="suggest-title">Marcar como indirecto — elige categoría:</div>
+          <div className="cat-chips">
+            {CATEGORIAS_INDIRECTO.map(c => (
+              <button
+                key={c.id}
+                type="button"
+                disabled={busy}
+                onClick={() => markIndirecto(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="link small" onClick={() => setAttributing(false)}>cancelar</button>
+        </div>
+      )}
+
       {gasto.estado === 'PENDIENTE' && (
         <div className="gasto-actions">
           <button className="primary small" disabled={busy} onClick={pagar}>✓ Aprobar y pagar</button>
+          {!hasAttribution && !attributing && (
+            <button className="secondary small" disabled={busy} onClick={() => setAttributing(true)}>
+              ⚫ Marcar indirecto
+            </button>
+          )}
           <button className="secondary small" disabled={busy} onClick={rechazar}>rechazar</button>
           <button className="link small danger" disabled={busy} onClick={eliminar}>eliminar</button>
         </div>
@@ -271,7 +332,23 @@ function GastoRow({ gasto, onChange }) {
   )
 }
 
-// ── New gasto form with live suggest ──────────────────────────────────────────
+// Preset list of common indirect categories. Rosy's GASTOS SEMANA 1 analysis
+// surfaced these as the real buckets field spending falls into when it
+// can't be attributed to a specific insumo/partida. Free-text input below
+// the buttons lets Katia add new ones (LIMPIEZA, TELEFONIA, etc).
+const CATEGORIAS_INDIRECTO = [
+  { id: 'GASOLINA',          label: 'Gasolina' },
+  { id: 'VIATICOS',          label: 'Viáticos' },
+  { id: 'ALIMENTOS',         label: 'Alimentos' },
+  { id: 'FLETE_TRANSPORTE',  label: 'Flete / transporte' },
+  { id: 'HERRAMIENTA_MENOR', label: 'Herramienta menor' },
+  { id: 'EQUIPO_SEGURIDAD',  label: 'Equipo de seguridad' },
+  { id: 'RENTA_EQUIPO',      label: 'Renta de equipo (andamios…)' },
+  { id: 'PAPELERIA',         label: 'Papelería / oficina' },
+  { id: 'OTROS',             label: 'Otros' },
+]
+
+// ── New gasto form with live suggest + 3-mode picker ─────────────────────────
 function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
   const [proyectoId, setProyectoId] = useState('')
   const [bankAccountId, setBankAccountId] = useState('')
@@ -279,9 +356,16 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
   const [descripcion, setDesc] = useState('')
   const [importe, setImporte] = useState('')
   const [comprobanteUrl, setComprobante] = useState('')
+
+  // One of three attribution modes must be set before approval.
+  // Default 'directo' — if user types and picks a suggestion, it stays here.
+  // 'indirecto' flips to the categoría picker. 'nuevo' opens a mini create
+  // form (v2 — for now it's a stub that sets indirecto OTROS with a reminder).
+  const [mode, setMode] = useState('directo')
   const [presupuestoPartidaId, setPartidaId] = useState(null)
   const [insumoId, setInsumoId] = useState(null)
   const [picked, setPicked] = useState(null)
+  const [categoriaIndirecto, setCategoriaIndirecto] = useState('')
   const [suggestions, setSuggestions] = useState({ insumos: [], partidas: [] })
   const [busy, setBusy] = useState(false)
   const timer = useRef(null)
@@ -328,6 +412,12 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
     setPartidaId(null)
     setPicked(null)
   }
+  const switchMode = (m) => {
+    setMode(m)
+    // Clearing prior state keeps invariants: only one attribution can stick
+    if (m !== 'directo') clearPick()
+    if (m !== 'indirecto') setCategoriaIndirecto('')
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -337,6 +427,17 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
     }
     const imp = parseFloat(importe)
     if (!(imp > 0)) { window.alert('Importe inválido'); return }
+
+    // Enforce: exactly one of directo / indirecto / nuevo must have a value.
+    const isDirecto = mode === 'directo' && (presupuestoPartidaId || insumoId)
+    const isIndirecto = mode === 'indirecto' && categoriaIndirecto.trim().length > 0
+    if (!isDirecto && !isIndirecto) {
+      window.alert(
+        'Vincula el gasto a un insumo/partida, o márcalo como indirecto con una categoría. No se puede aprobar sin atribución.'
+      )
+      return
+    }
+
     setBusy(true)
     try {
       await apiFetch('/api/construccion/gastos', {
@@ -347,8 +448,10 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
           beneficiarioNombre: beneficiarioNombre.trim(),
           descripcion: descripcion.trim(),
           importe: imp,
-          presupuestoPartidaId,
-          insumoId,
+          presupuestoPartidaId: isDirecto ? presupuestoPartidaId : null,
+          insumoId: isDirecto ? insumoId : null,
+          indirecto: isIndirecto,
+          categoriaIndirecto: isIndirecto ? categoriaIndirecto.trim() : null,
           comprobanteUrl: comprobanteUrl?.trim() || null,
         },
       })
@@ -357,6 +460,8 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
       setImporte('')
       setComprobante('')
       clearPick()
+      setCategoriaIndirecto('')
+      setMode('directo')
       onCreated?.()
     } catch (err) {
       window.alert(err.message || 'Error al crear gasto')
@@ -389,43 +494,97 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
         <input value={descripcion} onChange={(e) => setDesc(e.target.value)} placeholder="varilla arena, sellador, PSP…" />
       </label>
 
-      {/* Suggestions */}
-      {(suggestions.insumos.length > 0 || suggestions.partidas.length > 0) && !picked && (
-        <div className="suggest-box">
-          {suggestions.insumos.length > 0 && (
-            <div>
-              <div className="suggest-title">Insumos sugeridos</div>
-              {suggestions.insumos.slice(0, 5).map(i => (
-                <button type="button" key={i.id} className="suggest-item" onClick={() => pickInsumo(i)}>
-                  <span className="mono">{i.codigo}</span> {i.descripcion.slice(0, 50)}
-                  <span className="muted small"> · {i.unidad} · ${i.costoActual?.toFixed(2) ?? '—'}/u</span>
-                </button>
-              ))}
+      {/* 3-mode attribution picker. Every gasto MUST fall into exactly one
+          of these before it can be approved (backend enforces it too). */}
+      <div className="mode-tabs" role="tablist">
+        <button
+          type="button"
+          className={mode === 'directo' ? 'active' : ''}
+          onClick={() => switchMode('directo')}
+        >
+          🟢 Directo (insumo/partida)
+        </button>
+        <button
+          type="button"
+          className={mode === 'indirecto' ? 'active' : ''}
+          onClick={() => switchMode('indirecto')}
+        >
+          ⚫ Indirecto (overhead)
+        </button>
+      </div>
+
+      {/* Mode 1: Directo — auto-suggest from descripcion */}
+      {mode === 'directo' && (
+        <>
+          {(suggestions.insumos.length > 0 || suggestions.partidas.length > 0) && !picked && (
+            <div className="suggest-box">
+              {suggestions.insumos.length > 0 && (
+                <div>
+                  <div className="suggest-title">Insumos sugeridos</div>
+                  {suggestions.insumos.slice(0, 5).map(i => (
+                    <button type="button" key={i.id} className="suggest-item" onClick={() => pickInsumo(i)}>
+                      <span className="mono">{i.codigo}</span> {i.descripcion.slice(0, 50)}
+                      <span className="muted small"> · {i.unidad} · ${i.costoActual?.toFixed(2) ?? '—'}/u</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {suggestions.partidas.length > 0 && (
+                <div>
+                  <div className="suggest-title">Partidas del presupuesto</div>
+                  {suggestions.partidas.slice(0, 5).map(p => (
+                    <button type="button" key={p.id} className="suggest-item" onClick={() => pickPartida(p)}>
+                      <span className="mono">{p.codigo ?? p.concepto?.codigo}</span> {p.concepto?.descripcion?.slice(0, 40)}
+                      <span className="muted small"> · queda {fmtMoney(p.queda)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-          {suggestions.partidas.length > 0 && (
-            <div>
-              <div className="suggest-title">Partidas del presupuesto</div>
-              {suggestions.partidas.slice(0, 5).map(p => (
-                <button type="button" key={p.id} className="suggest-item" onClick={() => pickPartida(p)}>
-                  <span className="mono">{p.codigo ?? p.concepto?.codigo}</span> {p.concepto?.descripcion?.slice(0, 40)}
-                  <span className="muted small"> · queda {fmtMoney(p.queda)}</span>
-                </button>
-              ))}
+          {picked && (
+            <div className="picked">
+              <span className="small">Vinculado: </span>
+              {picked.tipo === 'insumo' ? (
+                <><span className="mono">{picked.codigo}</span> {picked.descripcion?.slice(0, 40)}</>
+              ) : (
+                <><span className="mono">{picked.codigo ?? picked.concepto?.codigo}</span> {picked.concepto?.descripcion?.slice(0, 40)} <span className="muted small">· queda {fmtMoney(picked.queda)}</span></>
+              )}
+              <button type="button" className="link small" onClick={clearPick}>quitar</button>
             </div>
           )}
-        </div>
+          {!picked && descripcion.trim().length >= 2 &&
+            suggestions.insumos.length === 0 &&
+            suggestions.partidas.length === 0 && (
+              <div className="muted small suggest-empty">
+                Sin coincidencias en el catálogo. Marca como <button type="button" className="link small" onClick={() => switchMode('indirecto')}>indirecto</button> si es overhead, o pide a Juan crear un insumo nuevo.
+              </div>
+            )}
+        </>
       )}
 
-      {picked && (
-        <div className="picked">
-          <span className="small">Vinculado: </span>
-          {picked.tipo === 'insumo' ? (
-            <><span className="mono">{picked.codigo}</span> {picked.descripcion?.slice(0, 40)}</>
-          ) : (
-            <><span className="mono">{picked.codigo ?? picked.concepto?.codigo}</span> {picked.concepto?.descripcion?.slice(0, 40)} <span className="muted small">· queda {fmtMoney(picked.queda)}</span></>
-          )}
-          <button type="button" className="link small" onClick={clearPick}>quitar</button>
+      {/* Mode 2: Indirecto — pick a categoría */}
+      {mode === 'indirecto' && (
+        <div className="indirecto-picker">
+          <div className="suggest-title">Categoría del gasto indirecto</div>
+          <div className="cat-chips">
+            {CATEGORIAS_INDIRECTO.map(c => (
+              <button
+                type="button"
+                key={c.id}
+                className={categoriaIndirecto === c.id ? 'active' : ''}
+                onClick={() => setCategoriaIndirecto(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <input
+            className="cat-other"
+            value={CATEGORIAS_INDIRECTO.some(c => c.id === categoriaIndirecto) ? '' : categoriaIndirecto}
+            onChange={(e) => setCategoriaIndirecto(e.target.value.toUpperCase().replace(/\s+/g, '_'))}
+            placeholder="…o escribe una nueva (ej. LIMPIEZA)"
+          />
         </div>
       )}
 
