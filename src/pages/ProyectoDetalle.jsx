@@ -36,10 +36,15 @@ const BIT_TIPO = { NOTA: 'Nota', DECISION: 'Decisión', PROBLEMA: 'Problema', CL
 const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n))
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
 
+// `flag` gates the tab behind a CompanyModule code — hidden unless
+// activeCompany.modulos includes it. Bartiz doesn't have CUADRILLAS so the
+// Cuadrillas + Rayas tabs stay invisible there.
 const TABS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'unidades', label: 'Unidades' },
+  { id: 'cuadrillas', label: 'Cuadrillas', flag: 'CONSTRUCCION_CUADRILLAS' },
+  { id: 'rayas', label: 'Rayas', flag: 'CONSTRUCCION_CUADRILLAS' },
   { id: 'estimaciones', label: 'Estimaciones' },
   { id: 'compras', label: 'Compras' },
   { id: 'pagos', label: 'Pagos' },
@@ -138,7 +143,7 @@ export default function ProyectoDetalle() {
       </div>
 
       <nav className="pd-tabs">
-        {TABS.map(t => (
+        {TABS.filter(t => !t.flag || activeCompany?.modulos?.includes(t.flag)).map(t => (
           <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
             {t.label}
             {t.id === 'bitacora' && (proyecto.bitacora?.length > 0) && <span className="tab-count">{proyecto.bitacora.length}</span>}
@@ -151,6 +156,8 @@ export default function ProyectoDetalle() {
         {tab === 'resumen' && <ResumenTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} />}
         {tab === 'presupuestos' && <PresupuestosTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} navigate={navigate} onRefresh={cargar} />}
         {tab === 'unidades' && <UnidadesTab proyecto={proyecto} onRefresh={cargar} />}
+        {tab === 'cuadrillas' && <CuadrillasTab proyecto={proyecto} />}
+        {tab === 'rayas' && <RayasTab proyecto={proyecto} />}
         {tab === 'estimaciones' && <EstimacionesTab proyecto={proyecto} navigate={navigate} />}
         {tab === 'compras' && <ComprasTab proyecto={proyecto} />}
         {tab === 'pagos' && <PagosTab proyecto={proyecto} companyId={activeCompany?.id} onRefresh={cargar} />}
@@ -666,6 +673,334 @@ function UnidadNode({ unidad, depth, busy, onAddChild, onRename, onDelete }) {
       )}
     </li>
   )
+}
+
+// ── Cuadrillas Tab ──────────────────────────────────────────────────────────
+//
+// Per-especialidad trade teams (Decolsa feature, gated on CONSTRUCCION_CUADRILLAS).
+// Inline CRUD: list cuadrillas, add/rename/deactivate; click a cuadrilla to
+// expand and manage its miembros.
+
+function CuadrillasTab({ proyecto }) {
+  const [cuadrillas, setCuadrillas] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [expanded, setExpanded] = useState(null)
+
+  const reload = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await apiFetch(
+        `/api/construccion/cuadrillas?proyectoId=${encodeURIComponent(proyecto.id)}`
+      )
+      setCuadrillas(Array.isArray(data) ? data : [])
+    } catch (err) {
+      window.alert(err.message || 'Error al cargar cuadrillas')
+    } finally {
+      setLoading(false)
+    }
+  }, [proyecto.id])
+
+  useEffect(() => { reload() }, [reload])
+
+  const crear = async () => {
+    const nombre = window.prompt('Nombre de la cuadrilla (ej. "Albañilería"):')
+    if (!nombre) return
+    const especialidad = window.prompt(
+      'Especialidad (tag corto, ej. ALBANILERIA, PLOMERIA, ELECTRICO):',
+      'ALBANILERIA'
+    )
+    if (!especialidad) return
+    const jefeNombre = window.prompt('Nombre del maestro/jefe (opcional):') || null
+    setBusy(true)
+    try {
+      await apiFetch('/api/construccion/cuadrillas', {
+        method: 'POST',
+        body: {
+          proyectoId: proyecto.id,
+          nombre: nombre.trim(),
+          especialidad: especialidad.trim().toUpperCase(),
+          jefeNombre: jefeNombre?.trim() || null,
+        },
+      })
+      await reload()
+    } catch (err) { window.alert(err.message || 'Error al crear cuadrilla') }
+    finally { setBusy(false) }
+  }
+
+  const eliminar = async (c) => {
+    if (!window.confirm(`¿Eliminar "${c.nombre}"?`)) return
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/cuadrillas/${c.id}`, { method: 'DELETE' })
+      await reload()
+    } catch (err) { window.alert(err.message || 'Error al eliminar') }
+    finally { setBusy(false) }
+  }
+
+  const addMiembro = async (cuadrillaId) => {
+    const nombre = window.prompt('Nombre del miembro:')
+    if (!nombre) return
+    const rol = window.prompt('Rol (ej. Oficial, Ayudante, Maestro):') || null
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/cuadrillas/${cuadrillaId}/miembros`, {
+        method: 'POST',
+        body: { nombre: nombre.trim(), rolEnCuadrilla: rol?.trim() || null },
+      })
+      await reload()
+    } catch (err) { window.alert(err.message || 'Error al agregar miembro') }
+    finally { setBusy(false) }
+  }
+
+  const removeMiembro = async (cuadrillaId, miembro) => {
+    if (!window.confirm(`¿Quitar a "${miembro.nombre}"?`)) return
+    setBusy(true)
+    try {
+      await apiFetch(
+        `/api/construccion/cuadrillas/${cuadrillaId}/miembros/${miembro.id}`,
+        { method: 'DELETE' }
+      )
+      await reload()
+    } catch (err) { window.alert(err.message || 'Error al quitar miembro') }
+    finally { setBusy(false) }
+  }
+
+  if (loading) return <div className="pd-empty">Cargando…</div>
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <div className="muted small">
+          {cuadrillas.length === 0
+            ? 'Cuadrillas trabajan por destajo — se pagan semanalmente vía rayas.'
+            : `${cuadrillas.length} cuadrilla(s) activas`}
+        </div>
+        <button className="secondary" disabled={busy} onClick={crear}>+ Nueva cuadrilla</button>
+      </div>
+      {cuadrillas.length === 0 ? (
+        <div className="pd-empty">Aún no hay cuadrillas. Crea la primera.</div>
+      ) : (
+        <div>
+          {cuadrillas.map(c => (
+            <div key={c.id} style={{ border: '1px solid #e2e8f0', borderRadius: 6, padding: '0.75rem', marginBottom: '0.5rem', background: '#fff' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
+                <strong>{c.nombre}</strong>
+                <span className="mono small muted">{c.especialidad}</span>
+                {c.jefeNombre && <span className="muted small">· Jefe: {c.jefeNombre}</span>}
+                <span className="muted small">· {c.miembros?.length ?? 0} miembros · {c._count?.rayas ?? 0} rayas</span>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.35rem' }}>
+                  <button className="link small" disabled={busy} onClick={() => setExpanded(expanded === c.id ? null : c.id)}>
+                    {expanded === c.id ? 'ocultar' : 'miembros'}
+                  </button>
+                  <button className="link small danger" disabled={busy} onClick={() => eliminar(c)}>eliminar</button>
+                </div>
+              </div>
+              {expanded === c.id && (
+                <div style={{ marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: '1px dashed #e2e8f0' }}>
+                  {(c.miembros ?? []).length === 0 ? (
+                    <div className="muted small">Sin miembros.</div>
+                  ) : (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                      {c.miembros.map(m => (
+                        <li key={m.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.85rem', padding: '0.2rem 0' }}>
+                          <span>{m.nombre}</span>
+                          {m.rolEnCuadrilla && <span className="muted small">({m.rolEnCuadrilla})</span>}
+                          {m.employeeId && <span className="muted small" title="IMSS-registered">✓ IMSS</span>}
+                          <button className="link small danger" style={{ marginLeft: 'auto' }} disabled={busy} onClick={() => removeMiembro(c.id, m)}>quitar</button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <button className="link small" style={{ marginTop: '0.4rem' }} disabled={busy} onClick={() => addMiembro(c.id)}>
+                    + agregar miembro
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Rayas Tab ───────────────────────────────────────────────────────────────
+//
+// Weekly cash-flow rayas per cuadrilla. List shows every raya for this
+// proyecto sorted newest-first with state badges + quick-action buttons
+// (Aprobar, Pagar). A minimal inline form creates a new BORRADOR raya.
+
+function RayasTab({ proyecto }) {
+  const [rayas, setRayas] = useState([])
+  const [cuadrillas, setCuadrillas] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const reload = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [r, c] = await Promise.all([
+        apiFetch(`/api/construccion/rayas?proyectoId=${encodeURIComponent(proyecto.id)}`),
+        apiFetch(`/api/construccion/cuadrillas?proyectoId=${encodeURIComponent(proyecto.id)}`),
+      ])
+      setRayas(Array.isArray(r) ? r : [])
+      setCuadrillas(Array.isArray(c) ? c : [])
+    } catch (err) {
+      window.alert(err.message || 'Error al cargar rayas')
+    } finally {
+      setLoading(false)
+    }
+  }, [proyecto.id])
+
+  useEffect(() => { reload() }, [reload])
+
+  const crear = async () => {
+    if (cuadrillas.length === 0) {
+      window.alert('Crea una cuadrilla primero (tab Cuadrillas).')
+      return
+    }
+    const cuadrillaLabel = cuadrillas
+      .map((c, i) => `${i + 1}) ${c.nombre}`)
+      .join('\n')
+    const pick = window.prompt(
+      `¿Para qué cuadrilla?\n\n${cuadrillaLabel}\n\nEscribe el número:`
+    )
+    const idx = parseInt(pick ?? '', 10) - 1
+    if (!(idx >= 0 && idx < cuadrillas.length)) return
+    const cuadrilla = cuadrillas[idx]
+
+    const lunes = window.prompt(
+      'Lunes de la semana (YYYY-MM-DD):',
+      defaultMonday()
+    )
+    if (!lunes) return
+    const importe = parseFloat(window.prompt('Total destajo de la semana ($):') || '0')
+    if (!(importe > 0)) { window.alert('Importe inválido'); return }
+    const descripcion = window.prompt(
+      'Descripción del trabajo (una línea, v1):',
+      'Trabajo semanal'
+    ) || 'Trabajo semanal'
+
+    const inicio = new Date(lunes + 'T00:00:00')
+    const fin = new Date(inicio)
+    fin.setDate(fin.getDate() + 6)
+    fin.setHours(23, 59, 59, 999)
+
+    setBusy(true)
+    try {
+      await apiFetch('/api/construccion/rayas', {
+        method: 'POST',
+        body: {
+          cuadrillaId: cuadrilla.id,
+          semanaInicio: inicio.toISOString(),
+          semanaFin: fin.toISOString(),
+          trabajos: [{ descripcion, importeDestajo: importe }],
+          detalles: [],
+        },
+      })
+      await reload()
+    } catch (err) { window.alert(err.message || 'Error al crear raya') }
+    finally { setBusy(false) }
+  }
+
+  const aprobar = async (raya) => {
+    if (!window.confirm(`¿Aprobar raya de ${raya.cuadrilla.nombre} (${fmtMoney(raya.totalDestajo)})?`)) return
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/rayas/${raya.id}/aprobar`, { method: 'POST' })
+      await reload()
+    } catch (err) { window.alert(err.message || 'Error al aprobar') }
+    finally { setBusy(false) }
+  }
+
+  const pagar = async (raya) => {
+    const bankAccountId = window.prompt('ID de la cuenta bancaria (TD GDCS, etc.). Pega el ID:')
+    if (!bankAccountId) return
+    const fecha = window.prompt('Fecha del pago (YYYY-MM-DD):', new Date().toISOString().slice(0, 10))
+    if (!fecha) return
+    const referencia = window.prompt('Referencia (opcional):') || null
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/rayas/${raya.id}/pagar`, {
+        method: 'POST',
+        body: {
+          bankAccountId: bankAccountId.trim(),
+          fecha: new Date(fecha + 'T12:00:00').toISOString(),
+          referencia: referencia?.trim() || null,
+        },
+      })
+      await reload()
+    } catch (err) { window.alert(err.message || 'Error al pagar') }
+    finally { setBusy(false) }
+  }
+
+  const eliminar = async (raya) => {
+    if (!window.confirm('¿Eliminar raya en BORRADOR?')) return
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/rayas/${raya.id}`, { method: 'DELETE' })
+      await reload()
+    } catch (err) { window.alert(err.message || 'Error al eliminar') }
+    finally { setBusy(false) }
+  }
+
+  if (loading) return <div className="pd-empty">Cargando rayas…</div>
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <div className="muted small">{rayas.length} raya(s)</div>
+        <button className="secondary" disabled={busy} onClick={crear}>+ Nueva raya</button>
+      </div>
+      {rayas.length === 0 ? (
+        <div className="pd-empty">Sin rayas. Crea la primera semana.</div>
+      ) : (
+        <table className="pd-table">
+          <thead>
+            <tr>
+              <th>Semana</th>
+              <th>Cuadrilla</th>
+              <th>Estado</th>
+              <th style={{ textAlign: 'right' }}>Total</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rayas.map(r => (
+              <tr key={r.id}>
+                <td className="small">{fmtDate(r.semanaInicio)} – {fmtDate(r.semanaFin)}</td>
+                <td>{r.cuadrilla?.nombre} <span className="muted small">{r.cuadrilla?.especialidad}</span></td>
+                <td><span className={`badge estado-${r.estado?.toLowerCase()}`}>{r.estado}</span></td>
+                <td style={{ textAlign: 'right' }}>{fmtMoney(r.totalDestajo)}</td>
+                <td>
+                  {r.estado === 'BORRADOR' && (
+                    <>
+                      <button className="link small" disabled={busy} onClick={() => aprobar(r)}>aprobar</button>
+                      {' · '}
+                      <button className="link small danger" disabled={busy} onClick={() => eliminar(r)}>eliminar</button>
+                    </>
+                  )}
+                  {r.estado === 'APROBADA' && (
+                    <button className="link small" disabled={busy} onClick={() => pagar(r)}>pagar</button>
+                  )}
+                  {r.estado === 'PAGADA' && <span className="muted small">pagada</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
+function defaultMonday() {
+  const d = new Date()
+  const day = d.getDay() // 0=Sun, 1=Mon
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  return d.toISOString().slice(0, 10)
 }
 
 // ── Estimaciones Tab ────────────────────────────────────────────────────────
