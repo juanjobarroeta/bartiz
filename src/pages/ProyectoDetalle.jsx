@@ -268,14 +268,50 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
     }
   }
 
-  // Group partidas by zona → partida — only leaves (rollup branches are
-  // grouping nodes, their importe/cantidad are sums we'd double-count).
+  // Group partidas by zona → partida. For the Capítulo tree, zona =
+  // root branch's label and partida = innermost branch's label (with
+  // dotted code prefix when the tree is deep). For legacy rows with no
+  // tree metadata, fall back to the flat zona/partida strings so
+  // Bartiz's pre-tree data keeps grouping the way it always did.
+  const byId = new Map((basis.partidas ?? []).map((p) => [p.id, p]))
+  const ancestorChain = (leaf) => {
+    const chain = []
+    let cursor = leaf.parentPartidaId ? byId.get(leaf.parentPartidaId) : null
+    while (cursor) {
+      chain.push(cursor)
+      cursor = cursor.parentPartidaId ? byId.get(cursor.parentPartidaId) : null
+    }
+    return chain.reverse() // root → ...innermost
+  }
   const grouped = new Map()
   for (const p of basis.partidas) {
     if (p.esRollup) continue
-    const key = `${p.zona ?? 'Sin zona'}__${p.partida ?? 'Sin partida'}`
+    const chain = ancestorChain(p)
+    let zonaLabel, partidaLabel
+    if (chain.length > 0) {
+      const root = chain[0]
+      zonaLabel = (root.partida ?? root.zona ?? 'Sin zona').trim()
+      const inner = chain.slice(1)
+      if (inner.length === 0) {
+        partidaLabel = p.partida ?? 'Sin partida'
+      } else if (inner.length === 1) {
+        partidaLabel = (inner[0].partida ?? inner[0].zona ?? p.partida ?? 'Sin partida').trim()
+      } else {
+        const innermost = inner[inner.length - 1]
+        const prefix = innermost.codigo ? `${innermost.codigo} ` : ''
+        const path = inner
+          .map((b) => (b.partida ?? b.zona ?? '').trim())
+          .filter(Boolean)
+          .join(' › ')
+        partidaLabel = `${prefix}${path}`.trim() || 'Sin partida'
+      }
+    } else {
+      zonaLabel = p.zona ?? 'Sin zona'
+      partidaLabel = p.partida ?? 'Sin partida'
+    }
+    const key = `${zonaLabel}__${partidaLabel}`
     if (!grouped.has(key)) {
-      grouped.set(key, { zona: p.zona, partida: p.partida, rows: [] })
+      grouped.set(key, { zona: zonaLabel, partida: partidaLabel, rows: [] })
     }
     grouped.get(key).rows.push(p)
   }
