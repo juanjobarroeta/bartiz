@@ -198,8 +198,16 @@ function ResumenTab({ proyecto, contrato, ejecutado }) {
     }
   }
 
+  // "Gastado real" debe reflejar TODO lo que salió del proyecto: compras
+  // pagadas + gastos aprobados/pagados. Antes solo sumaba compras, que era
+  // inconsistente con el KPI de arriba.
   const solicitudesPagadas = (proyecto.solicitudesCompra ?? []).filter(s => s.estado === 'PAGADA').reduce((a, s) => a + (Number(s.total) || 0), 0)
+  const gastosReales = (proyecto.gastos ?? []).filter(g => g.estado === 'PAGADO' || g.estado === 'APROBADO').reduce((a, g) => a + (Number(g.importe) || 0), 0)
+  const gastadoReal = solicitudesPagadas + gastosReales
+
   const margenContrato = contratoTotal > 0 ? ((contratoTotal - contratoCD) / contratoTotal * 100) : 0
+  const baseCD = ejecutadoCD > 0 ? ejecutadoCD : contratoCD
+  const baseMonto = ejecutado ? ejecutadoTotal : contratoTotal
 
   return (
     <div className="pd-fin-grid">
@@ -211,9 +219,11 @@ function ResumenTab({ proyecto, contrato, ejecutado }) {
           <dt>Margen presupuestado</dt><dd><strong>{margenContrato.toFixed(1)}%</strong></dd>
         </dl>
       </div>
-      <div className="pd-fin-card">
-        <h3>Ejecutado (costo real estimado)</h3>
-        {ejecutado ? (
+      {/* Ejecutado only shows when it diverges from Contrato — otherwise
+          the duplicate "same numbers twice" is just visual noise. */}
+      {ejecutado ? (
+        <div className="pd-fin-card">
+          <h3>Ejecutado (costo real estimado)</h3>
           <dl>
             <dt>Monto ejecutado</dt><dd>{fmtMoney(ejecutadoTotal)}</dd>
             <dt>Costo directo</dt><dd>{fmtMoney(ejecutadoCD)}</dd>
@@ -222,18 +232,25 @@ function ResumenTab({ proyecto, contrato, ejecutado }) {
               <strong>{fmtMoney(ejecutadoTotal - contratoTotal)}</strong>
             </dd>
           </dl>
-        ) : (
-          <div className="pd-empty-mini">Crea el ejecutado en la pestaña Presupuestos.</div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="pd-fin-card pd-fin-hint">
+          <h3>Ejecutado (aún no creado)</h3>
+          <div className="pd-empty-mini">
+            Crea un presupuesto <strong>Ejecutado</strong> en la pestaña Presupuestos
+            cuando quieras registrar variaciones reales (cantidades extras, conceptos
+            que surgieron en obra). Por ahora el contrato se toma como estimado.
+          </div>
+        </div>
+      )}
       <div className="pd-fin-card pd-fin-margin">
         <h3>Gastado real</h3>
         <dl>
-          <dt>Compras pagadas</dt><dd>{fmtMoney(solicitudesPagadas)}</dd>
-          <dt>% del costo ejecutado</dt>
-          <dd>{ejecutadoCD > 0 ? (solicitudesPagadas / ejecutadoCD * 100).toFixed(1) + '%' : '—'}</dd>
+          <dt>Compras + gastos</dt><dd>{fmtMoney(gastadoReal)}</dd>
+          <dt>% del presupuesto</dt>
+          <dd>{baseMonto > 0 ? (gastadoReal / baseMonto * 100).toFixed(1) + '%' : '—'}</dd>
           <dt>Por gastar</dt>
-          <dd>{ejecutado ? fmtMoney(ejecutadoTotal - solicitudesPagadas) : '—'}</dd>
+          <dd>{fmtMoney(Math.max(0, baseMonto - gastadoReal))}</dd>
         </dl>
       </div>
 
