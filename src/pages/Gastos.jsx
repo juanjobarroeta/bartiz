@@ -13,6 +13,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
+import BankTxPicker from '../components/BankTxPicker'
+import '../components/BankTxPicker.css'
 import './Gastos.css'
 
 const fmtMoney = (n) =>
@@ -120,7 +122,7 @@ export default function Gastos() {
           ) : (
             <ul className="gastos-items">
               {filtered.map(g => (
-                <GastoRow key={g.id} gasto={g} onChange={reload} />
+                <GastoRow key={g.id} gasto={g} onChange={reload} companyId={companyId} />
               ))}
             </ul>
           )}
@@ -174,9 +176,10 @@ export default function Gastos() {
 }
 
 // ── Individual gasto row ─────────────────────────────────────────────────────
-function GastoRow({ gasto, onChange }) {
+function GastoRow({ gasto, onChange, companyId }) {
   const [busy, setBusy] = useState(false)
   const [attributing, setAttributing] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const hasAttribution =
     !!gasto.presupuestoPartidaId || !!gasto.insumoId || gasto.indirecto === true
@@ -197,7 +200,7 @@ function GastoRow({ gasto, onChange }) {
     }
   }
 
-  const pagar = async () => {
+  const pagar = () => {
     if (!hasAttribution) {
       window.alert(
         'Este gasto no tiene atribución. Vincúlalo a un insumo/partida o márcalo como indirecto antes de aprobar.'
@@ -205,17 +208,22 @@ function GastoRow({ gasto, onChange }) {
       setAttributing(true)
       return
     }
-    if (!window.confirm(`Pagar ${fmtMoney(gasto.importe)} a ${gasto.beneficiarioNombre}?`)) return
+    setPickerOpen(true)
+  }
+
+  const onBankTxPicked = async (tx) => {
+    setPickerOpen(false)
     setBusy(true)
     try {
-      const fecha = window.prompt('Fecha del pago (YYYY-MM-DD):', new Date().toISOString().slice(0, 10))
-      const referencia = window.prompt('Referencia SPEI (opcional):') || null
+      const body = tx.newTx
+        ? {
+            fecha: new Date(tx.fecha + 'T12:00:00').toISOString(),
+            referencia: tx.referencia,
+          }
+        : { bankTransactionId: tx.id }
       await apiFetch(`/api/construccion/gastos/${gasto.id}/aprobar-pagar`, {
         method: 'POST',
-        body: {
-          fecha: fecha ? new Date(fecha + 'T12:00:00').toISOString() : undefined,
-          referencia: referencia?.trim() || null,
-        },
+        body,
       })
       onChange?.()
     } catch (err) {
@@ -328,6 +336,16 @@ function GastoRow({ gasto, onChange }) {
       {gasto.comprobanteUrl && (
         <a href={gasto.comprobanteUrl} target="_blank" rel="noreferrer" className="link small">📎 Comprobante</a>
       )}
+
+      <BankTxPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={onBankTxPicked}
+        companyId={companyId}
+        bankAccountId={gasto.bankAccount?.id}
+        expectedAmount={gasto.importe}
+        title={`Pagar ${fmtMoney(gasto.importe)} a ${gasto.beneficiarioNombre}`}
+      />
     </li>
   )
 }

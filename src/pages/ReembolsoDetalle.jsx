@@ -13,6 +13,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
+import BankTxPicker from '../components/BankTxPicker'
+import '../components/BankTxPicker.css'
 import './Reembolsos.css'
 
 const fmtMoney = (n) =>
@@ -41,6 +43,7 @@ export default function ReembolsoDetalle() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [showNew, setShowNew] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -84,7 +87,7 @@ export default function ReembolsoDetalle() {
     finally { setBusy(false) }
   }
 
-  const reembolsar = async () => {
+  const reembolsar = () => {
     const sinAtribucion = reembolso.gastos.filter(
       g => !g.presupuestoPartidaId && !g.insumoId && !g.indirecto
     )
@@ -92,18 +95,22 @@ export default function ReembolsoDetalle() {
       window.alert(`Hay ${sinAtribucion.length} gasto(s) sin atribución. Completa los links primero.`)
       return
     }
-    if (!window.confirm(`Reembolsar ${fmtMoney(reembolso.totalReembolso)} a Rosy desde ${reembolso.bankAccount.nombre}?`)) return
-    const fecha = window.prompt('Fecha del pago (YYYY-MM-DD):', new Date().toISOString().slice(0, 10))
-    if (!fecha) return
-    const referencia = window.prompt('Referencia SPEI (opcional):') || null
+    setPickerOpen(true)
+  }
+
+  const onBankTxPicked = async (tx) => {
+    setPickerOpen(false)
     setBusy(true)
     try {
+      const body = tx.newTx
+        ? {
+            fecha: new Date(tx.fecha + 'T12:00:00').toISOString(),
+            referencia: tx.referencia,
+          }
+        : { bankTransactionId: tx.id }
       await apiFetch(`/api/construccion/reembolsos/${id}/reembolsar`, {
         method: 'POST',
-        body: {
-          fecha: new Date(fecha + 'T12:00:00').toISOString(),
-          referencia: referencia?.trim() || null,
-        },
+        body,
       })
       await reload()
     } catch (err) {
@@ -223,6 +230,16 @@ export default function ReembolsoDetalle() {
           />
         )}
       </div>
+
+      <BankTxPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={onBankTxPicked}
+        companyId={activeCompany?.id}
+        bankAccountId={reembolso.bankAccountId}
+        expectedAmount={reembolso.totalReembolso}
+        title={`Vincular reembolso a un movimiento bancario (${fmtMoney(reembolso.totalReembolso)})`}
+      />
     </div>
   )
 }

@@ -1,0 +1,61 @@
+.btx-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.btx-filters { display: flex; gap: 0.3rem; }
+.btx-filters button {
+  background: #f1f5f9;
+  border: 1px solid transparent;
+  padding: 0.3rem 0.6rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #334155;
+}
+.btx-filters button.active {
+  background: #0f172a;
+  color: white;
+  border-color: #0f172a;
+}
+.btx-table { width: 100%; border-collapse: collapse; }
+.btx-table th, .btx-table td {
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.85rem;
+  vertical-align: top;
+}
+.btx-table thead th {
+  background: #f8fafc;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+.btx-table tr.exact { background: #dcfce7; }
+.btx-table tr.exact td { border-bottom-color: #bbf7d0; }
+.btx-table button.primary.small {
+  background: #0f172a;
+  color: white;
+  border: none;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.manual-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.manual-form label { display: flex; flex-direction: column; gap: 0.25rem; }
+.manual-form label > span { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+.manual-form input {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+.manual-form input:focus { outline: 2px solid #3b82f6; outline-offset: -1px; border-color: #3b82f6; }
