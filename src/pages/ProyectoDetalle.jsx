@@ -43,6 +43,7 @@ const TABS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'unidades', label: 'Unidades' },
+  { id: 'consumo', label: 'Explosión vs Real' },
   { id: 'cuadrillas', label: 'Cuadrillas', flag: 'CONSTRUCCION_CUADRILLAS' },
   { id: 'rayas', label: 'Rayas', flag: 'CONSTRUCCION_CUADRILLAS' },
   { id: 'estimaciones', label: 'Estimaciones' },
@@ -160,6 +161,7 @@ export default function ProyectoDetalle() {
         {tab === 'resumen' && <ResumenTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} />}
         {tab === 'presupuestos' && <PresupuestosTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} navigate={navigate} onRefresh={cargar} />}
         {tab === 'unidades' && <UnidadesTab proyecto={proyecto} onRefresh={cargar} />}
+        {tab === 'consumo' && <ConsumoInsumosTab proyecto={proyecto} />}
         {tab === 'cuadrillas' && <CuadrillasTab proyecto={proyecto} />}
         {tab === 'rayas' && <RayasTab proyecto={proyecto} />}
         {tab === 'estimaciones' && <EstimacionesTab proyecto={proyecto} navigate={navigate} />}
@@ -740,6 +742,168 @@ function UnidadNode({ unidad, depth, busy, onAddChild, onRename, onDelete }) {
         </ul>
       )}
     </li>
+  )
+}
+
+// ── Explosión vs Real Tab (Neodata-style variance view) ──────────────────────
+//
+// For each insumo: planeado (from APU matrices × partida cantidades) vs
+// real (sum of Gasto.cantidad / .importe). Highlights over-budget
+// materials + shows weighted-average real PU vs catálogo PU.
+//
+// Also shows indirect-cost breakdown (gasolina, viáticos, etc.) since
+// those don't belong to any insumo but do consume the project budget.
+
+function ConsumoInsumosTab({ proyecto }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [sort, setSort] = useState('variance') // variance | real | planeado | codigo
+
+  useEffect(() => {
+    let alive = true
+    apiFetch(`/api/construccion/proyectos/${proyecto.id}/consumo-insumos`)
+      .then((r) => { if (alive) setData(r) })
+      .catch((err) => console.error(err))
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [proyecto.id])
+
+  const insumos = useMemo(() => {
+    if (!data?.insumos) return []
+    const arr = [...data.insumos]
+    arr.sort((a, b) => {
+      switch (sort) {
+        case 'real':     return b.realImporte - a.realImporte
+        case 'planeado': return b.planeadoImporte - a.planeadoImporte
+        case 'codigo':   return a.codigo.localeCompare(b.codigo)
+        case 'variance':
+        default:
+          // Rank by absolute variance (most over/under budget first), insumos
+          // with no real consumption get ranked last.
+          const va = a.variancePct == null ? -999 : Math.abs(a.variancePct)
+          const vb = b.variancePct == null ? -999 : Math.abs(b.variancePct)
+          return vb - va
+      }
+    })
+    return arr
+  }, [data, sort])
+
+  if (loading) return <div className="pd-empty">Cargando…</div>
+  if (!data) return <div className="pd-empty">Error al cargar.</div>
+
+  const pctReal = data.totals.planeadoImporte > 0
+    ? (data.totals.realImporte / data.totals.planeadoImporte) * 100
+    : 0
+
+  return (
+    <div>
+      {/* Resumen arriba */}
+      <div className="pd-kpis" style={{ marginBottom: '1rem' }}>
+        <div className="pd-kpi">
+          <div className="pd-kpi-label">Planeado (del presupuesto)</div>
+          <div className="pd-kpi-value">{fmtMoney(data.totals.planeadoImporte)}</div>
+        </div>
+        <div className="pd-kpi">
+          <div className="pd-kpi-label">Gastado real (insumos)</div>
+          <div className="pd-kpi-value">{fmtMoney(data.totals.realImporte)}</div>
+          <div className="small muted">{pctReal.toFixed(1)}% del planeado</div>
+        </div>
+        <div className="pd-kpi">
+          <div className="pd-kpi-label">Indirectos</div>
+          <div className="pd-kpi-value">{fmtMoney(data.totals.indirectosTotal)}</div>
+        </div>
+      </div>
+
+      {/* Indirectos breakdown */}
+      {data.indirectos?.length > 0 && (
+        <details className="pd-avance-section" style={{ marginBottom: '1rem' }}>
+          <summary>Costos indirectos ({fmtMoney(data.totals.indirectosTotal)})</summary>
+          <table className="pd-table">
+            <thead>
+              <tr>
+                <th>Categoría</th>
+                <th style={{ textAlign: 'right' }}># gastos</th>
+                <th style={{ textAlign: 'right' }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.indirectos.map((c) => (
+                <tr key={c.categoria}>
+                  <td>{c.categoria}</td>
+                  <td style={{ textAlign: 'right' }}>{c.count}</td>
+                  <td style={{ textAlign: 'right' }}>{fmtMoney(c.totalImporte)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+
+      {insumos.length === 0 ? (
+        <div className="pd-empty">
+          Aún no hay consumo ni datos de APU para este proyecto.
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.5rem' }}>
+            <span className="muted small">Ordenar por:</span>
+            {['variance', 'real', 'planeado', 'codigo'].map((s) => (
+              <button
+                key={s}
+                className="link small"
+                style={{ fontWeight: sort === s ? 600 : 400, background: sort === s ? '#e0e7ff' : 'transparent', padding: '0.1rem 0.4rem', borderRadius: 4, border: 'none', cursor: 'pointer' }}
+                onClick={() => setSort(s)}
+              >
+                {s === 'variance' ? 'variación' : s === 'real' ? 'gastado' : s === 'planeado' ? 'planeado' : 'código'}
+              </button>
+            ))}
+          </div>
+
+          <table className="pd-table">
+            <thead>
+              <tr>
+                <th>Insumo</th>
+                <th style={{ textAlign: 'right' }}>Unidad</th>
+                <th style={{ textAlign: 'right' }}>Cant. planeada</th>
+                <th style={{ textAlign: 'right' }}>Cant. real</th>
+                <th style={{ textAlign: 'right' }}>PU catálogo</th>
+                <th style={{ textAlign: 'right' }}>PU real prom.</th>
+                <th style={{ textAlign: 'right' }}>Variación</th>
+                <th style={{ textAlign: 'right' }}>Planeado $</th>
+                <th style={{ textAlign: 'right' }}>Gastado $</th>
+              </tr>
+            </thead>
+            <tbody>
+              {insumos.map((i) => {
+                const varColor =
+                  i.variancePct == null ? '#64748b' :
+                  Math.abs(i.variancePct) < 5 ? '#16a34a' :
+                  Math.abs(i.variancePct) < 15 ? '#ea580c' :
+                  '#dc2626'
+                return (
+                  <tr key={i.id}>
+                    <td className="small">
+                      <span className="mono">{i.codigo}</span>
+                      <div className="muted small">{i.descripcion.slice(0, 55)}</div>
+                    </td>
+                    <td style={{ textAlign: 'right' }} className="small">{i.unidad}</td>
+                    <td style={{ textAlign: 'right' }}>{i.planeadoCantidad ? i.planeadoCantidad.toFixed(2) : '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{i.realCantidad ? i.realCantidad.toFixed(2) : '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{fmtMoney(i.puCatalogo)}</td>
+                    <td style={{ textAlign: 'right' }}>{i.puPromedioReal != null ? fmtMoney(i.puPromedioReal) : '—'}</td>
+                    <td style={{ textAlign: 'right', color: varColor, fontWeight: 600 }}>
+                      {i.variancePct != null ? `${i.variancePct > 0 ? '+' : ''}${i.variancePct.toFixed(1)}%` : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }} className="muted">{i.planeadoImporte ? fmtMoney(i.planeadoImporte) : '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{i.realImporte ? fmtMoney(i.realImporte) : '—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+    </div>
   )
 }
 
