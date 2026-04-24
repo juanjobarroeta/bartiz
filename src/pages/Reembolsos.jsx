@@ -11,6 +11,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
+import Modal from '../components/Modal'
+import '../components/Modal.css'
 import './Reembolsos.css'
 
 const fmtMoney = (n) =>
@@ -18,6 +20,82 @@ const fmtMoney = (n) =>
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' }) : '—'
+
+function NewReembolsoForm({ proyectos, bankAccounts, defaultMonday, onClose, onCreated }) {
+  const [proyectoId, setProyectoId] = useState(proyectos[0]?.id ?? '')
+  const cheques = bankAccounts.find(a => a.tipo === 'CHEQUES') ?? bankAccounts[0]
+  const [bankAccountId, setBankAccountId] = useState(cheques?.id ?? '')
+  const [lunes, setLunes] = useState(defaultMonday)
+  const [anticipo, setAnticipo] = useState('0')
+  const [notas, setNotas] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!proyectoId || !bankAccountId || !lunes) return
+    const inicio = new Date(lunes + 'T00:00:00')
+    const fin = new Date(inicio)
+    fin.setDate(fin.getDate() + 6)
+    fin.setHours(23, 59, 59, 999)
+    setBusy(true)
+    try {
+      const created = await apiFetch('/api/construccion/reembolsos', {
+        method: 'POST',
+        body: {
+          proyectoId,
+          bankAccountId,
+          semanaInicio: inicio.toISOString(),
+          semanaFin: fin.toISOString(),
+          anticipoAplicado: parseFloat(anticipo) || 0,
+          notas: notas.trim() || null,
+        },
+      })
+      onCreated?.(created.id)
+    } catch (err) {
+      window.alert(err.message || 'Error al crear reembolso')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="manual-form">
+      <label>
+        <span>Proyecto</span>
+        <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)} required>
+          {proyectos.map(p => <option key={p.id} value={p.id}>{p.codigo} — {p.nombre}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Lunes de la semana</span>
+        <input type="date" value={lunes} onChange={(e) => setLunes(e.target.value)} required />
+      </label>
+      <label>
+        <span>Cuenta bancaria (desde donde se paga)</span>
+        <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} required>
+          {bankAccounts.map(a => (
+            <option key={a.id} value={a.id}>
+              {a.banco} — {a.nombre}
+              {a.tipo === 'CAJA' ? ' (Caja chica)' : a.tipo === 'TARJETA_DEPARTAMENTAL' ? ` (TD ${a.titular ?? ''})` : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Anticipo previo de caja chica (opcional)</span>
+        <input type="number" step="0.01" min="0" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} />
+      </label>
+      <label>
+        <span>Notas (opcional)</span>
+        <input value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Contexto del paquete…" />
+      </label>
+      <div className="modal-actions">
+        <button type="button" onClick={onClose}>Cancelar</button>
+        <button type="submit" className="primary" disabled={busy}>{busy ? 'Creando…' : 'Crear reembolso'}</button>
+      </div>
+    </form>
+  )
+}
 
 // Monday of the current/given week (Spanish-style: Monday = start).
 function mondayOf(date = new Date()) {
@@ -39,6 +117,7 @@ export default function Reembolsos() {
   const [bankAccounts, setBankAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('ALL') // SUBMITTED | REVISADO | REEMBOLSADO | ALL
+  const [newOpen, setNewOpen] = useState(false)
 
   const reload = useCallback(async () => {
     if (!companyId) return
@@ -61,52 +140,10 @@ export default function Reembolsos() {
 
   useEffect(() => { reload() }, [reload])
 
-  const crear = async () => {
-    if (proyectos.length === 0) {
-      window.alert('Crea un proyecto primero.'); return
-    }
-    if (bankAccounts.length === 0) {
-      window.alert('Configura una cuenta bancaria primero (Tesorería).'); return
-    }
-    const proyectoLabel = proyectos.map((p, i) => `${i + 1}) ${p.codigo} ${p.nombre}`).join('\n')
-    const pick = window.prompt(`¿Para qué proyecto?\n\n${proyectoLabel}\n\nNúmero:`)
-    const idx = parseInt(pick ?? '', 10) - 1
-    if (!(idx >= 0 && idx < proyectos.length)) return
-    const proyecto = proyectos[idx]
-
-    const lunesStr = window.prompt(
-      'Lunes de la semana (YYYY-MM-DD):',
-      mondayOf().toISOString().slice(0, 10)
-    )
-    if (!lunesStr) return
-    const inicio = new Date(lunesStr + 'T00:00:00')
-    const fin = new Date(inicio)
-    fin.setDate(fin.getDate() + 6)
-    fin.setHours(23, 59, 59, 999)
-
-    // Default bank account = CHEQUES (Juan SPEIs from here)
-    const cheques = bankAccounts.find(a => a.tipo === 'CHEQUES') ?? bankAccounts[0]
-    const anticipoStr = window.prompt(
-      'Anticipo previo de caja chica a justificar ($, opcional):',
-      '0'
-    )
-    const anticipo = parseFloat(anticipoStr ?? '0') || 0
-
-    try {
-      const created = await apiFetch('/api/construccion/reembolsos', {
-        method: 'POST',
-        body: {
-          proyectoId: proyecto.id,
-          bankAccountId: cheques.id,
-          semanaInicio: inicio.toISOString(),
-          semanaFin: fin.toISOString(),
-          anticipoAplicado: anticipo,
-        },
-      })
-      navigate(`/reembolsos/${created.id}`)
-    } catch (err) {
-      window.alert(err.message || 'Error al crear reembolso')
-    }
+  const openNewModal = () => {
+    if (proyectos.length === 0) { window.alert('Crea un proyecto primero.'); return }
+    if (bankAccounts.length === 0) { window.alert('Configura una cuenta bancaria primero (Tesorería).'); return }
+    setNewOpen(true)
   }
 
   const filtered = filter === 'ALL' ? rows : rows.filter(r => r.estado === filter)
@@ -131,8 +168,18 @@ export default function Reembolsos() {
             </button>
           ))}
         </div>
-        <button className="primary" onClick={crear}>+ Nuevo reembolso</button>
+        <button className="primary" onClick={openNewModal}>+ Nuevo reembolso</button>
       </div>
+
+      <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Nuevo reembolso semanal">
+        <NewReembolsoForm
+          proyectos={proyectos}
+          bankAccounts={bankAccounts}
+          defaultMonday={mondayOf().toISOString().slice(0, 10)}
+          onClose={() => setNewOpen(false)}
+          onCreated={(id) => { setNewOpen(false); navigate(`/reembolsos/${id}`) }}
+        />
+      </Modal>
 
       {loading ? (
         <div className="pd-empty">Cargando…</div>
