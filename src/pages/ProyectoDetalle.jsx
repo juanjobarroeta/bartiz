@@ -39,6 +39,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-MX', { year: 'nume
 const TABS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'presupuestos', label: 'Presupuestos' },
+  { id: 'unidades', label: 'Unidades' },
   { id: 'estimaciones', label: 'Estimaciones' },
   { id: 'compras', label: 'Compras' },
   { id: 'pagos', label: 'Pagos' },
@@ -149,6 +150,7 @@ export default function ProyectoDetalle() {
       <div className="pd-tab-content">
         {tab === 'resumen' && <ResumenTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} />}
         {tab === 'presupuestos' && <PresupuestosTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} navigate={navigate} onRefresh={cargar} />}
+        {tab === 'unidades' && <UnidadesTab proyecto={proyecto} onRefresh={cargar} />}
         {tab === 'estimaciones' && <EstimacionesTab proyecto={proyecto} navigate={navigate} />}
         {tab === 'compras' && <ComprasTab proyecto={proyecto} />}
         {tab === 'pagos' && <PagosTab proyecto={proyecto} companyId={activeCompany?.id} onRefresh={cargar} />}
@@ -421,6 +423,248 @@ function PresupuestosTab({ proyecto, contrato, ejecutado, navigate, onRefresh })
         </button>
       )}
     </div>
+  )
+}
+
+// ── Unidades Tab ────────────────────────────────────────────────────────────
+//
+// Torre / Nivel / Depto subdivisions of a proyecto. Decolsa's Torres Platino
+// needs three Torres (A/B/C) × ~12 deptos each; Bartiz projects may have
+// zero unidades and that's fine — the tab just shows empty state.
+//
+// Uses the GET/POST /proyectos/[id]/unidades + PUT/DELETE
+// /unidades/[id] endpoints; tree is rendered recursively.
+
+function UnidadesTab({ proyecto, onRefresh }) {
+  // Seed from the server's initial include. After any mutation we refetch
+  // via /unidades instead of bouncing the whole proyecto payload.
+  const [unidades, setUnidades] = useState(proyecto.unidades ?? [])
+  const [busy, setBusy] = useState(false)
+
+  const reload = useCallback(async () => {
+    try {
+      const data = await apiFetch(
+        `/api/construccion/proyectos/${proyecto.id}/unidades`
+      )
+      setUnidades(Array.isArray(data) ? data : [])
+    } catch (err) {
+      window.alert(err.message || 'Error al cargar unidades')
+    }
+  }, [proyecto.id])
+
+  useEffect(() => {
+    // If the outer proyecto refresh gave us unidades, trust them — no extra
+    // round-trip. Otherwise (e.g. before the backend change ships), go fetch.
+    if (proyecto.unidades !== undefined) {
+      setUnidades(proyecto.unidades ?? [])
+    } else {
+      reload()
+    }
+  }, [proyecto, reload])
+
+  const createUnidad = async ({ parentId = null, tipo = null } = {}) => {
+    const nombre = window.prompt(
+      parentId ? 'Nombre de la sub-unidad:' : 'Nombre de la unidad (ej. Torre A):'
+    )
+    if (!nombre) return
+    const codigo = window.prompt('Código (opcional, ej. T-A o 101):') || null
+    setBusy(true)
+    try {
+      await apiFetch(
+        `/api/construccion/proyectos/${proyecto.id}/unidades`,
+        {
+          method: 'POST',
+          body: {
+            nombre: nombre.trim(),
+            tipo,
+            codigo: codigo?.trim() || undefined,
+            parentId,
+          },
+        }
+      )
+      await reload()
+      if (onRefresh) onRefresh() // keep outer proyecto payload in sync
+    } catch (err) {
+      window.alert(err.message || 'Error al crear unidad')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const renameUnidad = async (u) => {
+    const nombre = window.prompt('Nuevo nombre:', u.nombre)
+    if (!nombre || nombre === u.nombre) return
+    setBusy(true)
+    try {
+      await apiFetch(
+        `/api/construccion/proyectos/${proyecto.id}/unidades/${u.id}`,
+        { method: 'PUT', body: { nombre: nombre.trim() } }
+      )
+      await reload()
+      if (onRefresh) onRefresh()
+    } catch (err) {
+      window.alert(err.message || 'Error al renombrar')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const deleteUnidad = async (u) => {
+    if (!window.confirm(`Eliminar "${u.nombre}"? Debe no tener sub-unidades.`)) return
+    setBusy(true)
+    try {
+      await apiFetch(
+        `/api/construccion/proyectos/${proyecto.id}/unidades/${u.id}`,
+        { method: 'DELETE' }
+      )
+      await reload()
+      if (onRefresh) onRefresh()
+    } catch (err) {
+      window.alert(err.message || 'Error al eliminar')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Assemble tree from the flat list (server returns sorted by parentId, orden)
+  const roots = useMemo(() => {
+    const byParent = new Map()
+    for (const u of unidades) {
+      const key = u.parentId ?? '__root__'
+      if (!byParent.has(key)) byParent.set(key, [])
+      byParent.get(key).push(u)
+    }
+    const build = (parentKey) =>
+      (byParent.get(parentKey) ?? []).map((u) => ({
+        ...u,
+        children: build(u.id),
+      }))
+    return build('__root__')
+  }, [unidades])
+
+  if (unidades.length === 0) {
+    return (
+      <div>
+        <div className="pd-empty">
+          No hay unidades definidas. Úsalas para dividir el proyecto en
+          torres, niveles o deptos.
+        </div>
+        <button
+          className="primary"
+          style={{ marginTop: '1rem' }}
+          disabled={busy}
+          onClick={() => createUnidad({ tipo: 'TORRE' })}
+        >
+          + Crear primera unidad
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="pd-unidades">
+      <div style={{ marginBottom: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+        <button
+          className="secondary"
+          disabled={busy}
+          onClick={() => createUnidad({ tipo: 'TORRE' })}
+        >
+          + Torre / sección raíz
+        </button>
+      </div>
+
+      <ul className="pd-unidad-tree" style={{ listStyle: 'none', padding: 0 }}>
+        {roots.map((u) => (
+          <UnidadNode
+            key={u.id}
+            unidad={u}
+            depth={0}
+            busy={busy}
+            onAddChild={(parent) => createUnidad({ parentId: parent.id })}
+            onRename={renameUnidad}
+            onDelete={deleteUnidad}
+          />
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function UnidadNode({ unidad, depth, busy, onAddChild, onRename, onDelete }) {
+  return (
+    <li
+      style={{
+        marginLeft: depth * 20,
+        padding: '0.4rem 0.6rem',
+        borderLeft: depth > 0 ? '2px solid #e2e8f0' : 'none',
+        borderBottom: '1px solid #f1f5f9',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.9rem' }}>
+        <strong>{unidad.nombre}</strong>
+        {unidad.codigo && (
+          <span className="mono" style={{ color: '#64748b', fontSize: '0.78rem' }}>
+            {unidad.codigo}
+          </span>
+        )}
+        {unidad.tipo && (
+          <span
+            style={{
+              fontSize: '0.7rem',
+              color: '#64748b',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {unidad.tipo}
+          </span>
+        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.35rem' }}>
+          <button
+            className="link small"
+            disabled={busy}
+            onClick={() => onAddChild(unidad)}
+            title="Crear sub-unidad"
+          >
+            + sub
+          </button>
+          <button
+            className="link small"
+            disabled={busy}
+            onClick={() => onRename(unidad)}
+          >
+            renombrar
+          </button>
+          <button
+            className="link small danger"
+            disabled={busy || (unidad.children ?? []).length > 0}
+            onClick={() => onDelete(unidad)}
+            title={
+              (unidad.children ?? []).length > 0
+                ? 'Elimina primero las sub-unidades'
+                : undefined
+            }
+          >
+            eliminar
+          </button>
+        </div>
+      </div>
+      {(unidad.children ?? []).length > 0 && (
+        <ul className="pd-unidad-tree" style={{ listStyle: 'none', padding: 0, marginTop: '0.3rem' }}>
+          {unidad.children.map((c) => (
+            <UnidadNode
+              key={c.id}
+              unidad={c}
+              depth={depth + 1}
+              busy={busy}
+              onAddChild={onAddChild}
+              onRename={onRename}
+              onDelete={onDelete}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
   )
 }
 
