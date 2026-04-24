@@ -22,6 +22,7 @@ const ALL_NAV_ITEMS = [
   { path: '/cotizaciones',        label: 'Cotizaciones',  icon: '💰', ported: false, note: 'pending port' },
   { path: '/solicitudes-compra',  label: 'Solicitudes',   icon: '📝', ported: true },
   { path: '/gastos',              label: 'Gastos',        icon: '💸', ported: true },
+  { path: '/reembolsos',          label: 'Reembolsos',    icon: '📦', ported: true },
   { path: '/compras',             label: 'Compras',       icon: '📈', ported: false, note: 'pending port' },
   { path: '/inventario',          label: 'Inventario',    icon: '📦', ported: false, note: 'pending port' },
 

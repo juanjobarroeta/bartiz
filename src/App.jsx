@@ -26,6 +26,8 @@ import Estimaciones from './pages/Estimaciones'
 import Compras from './pages/Compras'
 import SolicitudesCompra from './pages/SolicitudesCompra'
 import Gastos from './pages/Gastos'
+import Reembolsos from './pages/Reembolsos'
+import ReembolsoDetalle from './pages/ReembolsoDetalle'
 import Usuarios from './pages/Usuarios'
 
 /**
@@ -73,6 +75,8 @@ function App() {
                     <Route path="/compras" element={<Compras />} />
                     <Route path="/solicitudes-compra" element={<SolicitudesCompra />} />
                     <Route path="/gastos" element={<Gastos />} />
+                    <Route path="/reembolsos" element={<Reembolsos />} />
+                    <Route path="/reembolsos/:id" element={<ReembolsoDetalle />} />
                     <Route path="/usuarios" element={<Usuarios />} />
                   </Routes>
                 </Layout>
