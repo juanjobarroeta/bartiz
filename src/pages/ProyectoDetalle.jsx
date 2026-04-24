@@ -165,19 +165,23 @@ function ResumenTab({ proyecto, contrato, ejecutado }) {
     return <div className="pd-empty">Aprueba un presupuesto contrato para ver el resumen financiero.</div>
   }
 
-  // Compute from contrato partidas
+  // Compute from contrato partidas — skip rollup branches (they have null
+  // concepto + null cantidad and their importes are sums of children; including
+  // them would double-count).
   let contratoCD = 0, contratoTotal = 0
   for (const p of contrato.partidas ?? []) {
-    contratoCD += p.cantidad * (p.concepto?.apuActual?.costoDirecto ?? 0)
-    contratoTotal += p.importe
+    if (p.esRollup) continue
+    contratoCD += (p.cantidad ?? 0) * (p.concepto?.apuActual?.costoDirecto ?? 0)
+    contratoTotal += p.importe ?? 0
   }
 
   // Compute from ejecutado partidas (if exists)
   let ejecutadoCD = 0, ejecutadoTotal = 0
   if (ejecutado) {
     for (const p of ejecutado.partidas ?? []) {
-      ejecutadoCD += p.cantidad * (p.concepto?.apuActual?.costoDirecto ?? 0)
-      ejecutadoTotal += p.importe
+      if (p.esRollup) continue
+      ejecutadoCD += (p.cantidad ?? 0) * (p.concepto?.apuActual?.costoDirecto ?? 0)
+      ejecutadoTotal += p.importe ?? 0
     }
   }
 
@@ -255,9 +259,11 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
     }
   }
 
-  // Group partidas by zona → partida
+  // Group partidas by zona → partida — only leaves (rollup branches are
+  // grouping nodes, their importe/cantidad are sums we'd double-count).
   const grouped = new Map()
   for (const p of basis.partidas) {
+    if (p.esRollup) continue
     const key = `${p.zona ?? 'Sin zona'}__${p.partida ?? 'Sin partida'}`
     if (!grouped.has(key)) {
       grouped.set(key, { zona: p.zona, partida: p.partida, rows: [] })
@@ -336,7 +342,7 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
                         </span>
                       </td>
                       <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                        {r.cantidad.toFixed(2)} {r.concepto?.unidad}
+                        {(r.cantidad ?? 0).toFixed(2)} {r.concepto?.unidad}
                       </td>
                       <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {ejec.toFixed(2)}

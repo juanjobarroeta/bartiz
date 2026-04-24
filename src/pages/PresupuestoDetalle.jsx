@@ -57,7 +57,10 @@ const fmtQty = (n) =>
     maximumFractionDigits: 4,
   }).format(Number(n) || 0)
 
-function groupPartidas(partidas) {
+function groupPartidas(rawPartidas) {
+  // Only leaves: rollup branches carry a sum of their children, so including
+  // them would double-count. Tree navigation uses parentPartidaId separately.
+  const partidas = (rawPartidas ?? []).filter(p => !p.esRollup)
   const totalImporte = partidas.reduce((a, p) => a + (p.importe || 0), 0) || 1
   const zonaMap = new Map()
 

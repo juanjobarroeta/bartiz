@@ -227,7 +227,9 @@ function AvanceEditor({ estimacion, presupuesto, estimaciones, onSave, onTimbrar
     return map
   }, [estimaciones, estimacion.id])
 
-  const partidas = presupuesto?.partidas ?? []
+  // Only leaves are estimables — rollup branches are grouping nodes with
+  // null concepto/cantidad and their importe is a sum of children.
+  const partidas = (presupuesto?.partidas ?? []).filter(p => !p.esRollup)
 
   // Group by zona → partida
   const grouped = useMemo(() => {
