@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import './Dashboard.css'
-import { api } from '../config/api'
+import { apiFetch } from '../config/api'
+import { useAuth } from '../auth/AuthContext'
 
 // Simple Sparkline component
 const Sparkline = ({ data, color = 'var(--color-primary)', trend = 'up' }) => {
@@ -129,6 +130,7 @@ const DonutChart = ({ planned, earned }) => {
 }
 
 const Dashboard = () => {
+  const { activeCompany } = useAuth()
   const [stats, setStats] = useState({
     moneySpent: 0,
     projectStatus: 0,
@@ -153,24 +155,46 @@ const Dashboard = () => {
   ]
 
   useEffect(() => {
-    // Load projects
-    fetch(api('/api/proyectos?limit=4'))
-      .then(res => res.json())
-      .then(data => setProyectos(data))
-      .catch(err => console.error('Error loading projects:', err))
-    
-    // Load stats from API
-    fetch(api('/api/stats'))
-      .then(res => res.json())
-      .then(data => {
+    // No company selected yet (fresh login / switcher hasn't hydrated) —
+    // skip the fetch instead of 401-ing against an empty companyId.
+    if (!activeCompany?.id) {
+      setProyectos([])
+      setStats({ moneySpent: 0, projectStatus: 0, completedProjects: 0 })
+      return
+    }
+
+    // Load projects (the top 4 most recent) via the construccion API. The
+    // legacy /api/stats + /api/proyectos endpoints never existed on
+    // contabilidad-os — we derive dashboard stats from the proyectos list.
+    apiFetch(
+      `/api/construccion/proyectos?companyId=${encodeURIComponent(activeCompany.id)}`
+    )
+      .then((data) => {
+        const list = Array.isArray(data) ? data : []
+        setProyectos(list.slice(0, 4))
+
+        // Derive stats client-side: total gastado (montoContratado sum),
+        // progreso promedio (avg avance) and # proyectos CERRADOS.
+        const totalGastado = list.reduce(
+          (a, p) => a + (Number(p.montoContratado) || 0),
+          0
+        )
+        const concretos = list.filter((p) => typeof p.avancePct === 'number')
+        const progresoPromedio =
+          concretos.length > 0
+            ? concretos.reduce((a, p) => a + (p.avancePct || 0), 0) /
+              concretos.length
+            : 0
+        const completados = list.filter((p) => p.estado === 'CERRADO').length
+
         setStats({
-          moneySpent: data.totalGastado || 0,
-          projectStatus: data.progresoPromedio || 0,
-          completedProjects: data.proyectosCompletados || 0
+          moneySpent: totalGastado,
+          projectStatus: Math.round(progresoPromedio),
+          completedProjects: completados,
         })
       })
-      .catch(err => console.error('Error loading stats:', err))
-  }, [])
+      .catch((err) => console.error('Error loading dashboard:', err))
+  }, [activeCompany?.id])
 
   const getStatusClass = (estado) => {
     switch(estado) {
