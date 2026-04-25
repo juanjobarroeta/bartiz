@@ -16,6 +16,11 @@
 .toolbar .filters button:hover { background: #f1f5f9; color: #0f172a; }
 .toolbar .filters button.active { background: #0f172a; color: white; }
 
+.month-block { margin-bottom: 1.5rem; }
+.month-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.4rem; }
+.month-head h2 { margin: 0; font-size: 0.95rem; text-transform: capitalize; color: #334155; }
+.month-totals { font-size: 0.78rem; color: #64748b; }
+
 .reembolsos-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
 .reembolsos-table th, .reembolsos-table td { padding: 0.55rem 0.75rem; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; }
 .reembolsos-table thead th { background: #f8fafc; font-size: 0.72rem; text-transform: uppercase; color: #64748b; letter-spacing: 0.04em; }

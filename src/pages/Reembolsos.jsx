@@ -1,14 +1,19 @@
 /**
- * Reembolsos — weekly "concentrado de gastos" packages.
+ * Caja Chica (formerly Reembolsos) — weekly justification packages.
  *
- * List view: one row per ReembolsoSemanal showing week dates, total,
- * estado, # gastos. Click to open detail page for line-by-line editing.
- * "+ Nuevo reembolso" creates an empty SUBMITTED package that Katia
- * then fills as she processes Rosy's WhatsApp submission.
+ * Each row = one week's worth of Rosy's field spending: a header that
+ * groups gastos + nómina + indirectos for the week and resolves with a
+ * single SPEI reembolso to her. The "Reembolsos" naming was removed in
+ * Sprint 1 because it confused users — the real construction concept
+ * is "caja chica" (petty cash with monthly/weekly justification).
+ *
+ * List view: groups packages by month. Current week sticky at top with
+ * running balance. Past weeks below in reverse-chrono.
+ * "+ Nuevo período" creates an empty SUBMITTED package.
  */
 
-import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
@@ -109,8 +114,15 @@ function mondayOf(date = new Date()) {
 
 export default function Reembolsos() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { activeCompany } = useAuth()
   const companyId = activeCompany?.id
+
+  // Detect if loaded under /caja-chica vs legacy /reembolsos and adapt
+  // copy / detail-link routes accordingly. Both paths render this same
+  // component to preserve old links.
+  const isCajaChica = location.pathname.startsWith('/caja-chica')
+  const detailBase = isCajaChica ? '/caja-chica' : '/reembolsos'
 
   const [rows, setRows] = useState([])
   const [proyectos, setProyectos] = useState([])
@@ -150,13 +162,32 @@ export default function Reembolsos() {
 
   if (!companyId) return <div className="pd-empty">Selecciona una empresa.</div>
 
+  // Group rows by year-month for the historical feed. Current month
+  // gets its own header treatment so Katia sees "this month" first.
+  const grouped = useMemo(() => {
+    const m = new Map()
+    for (const r of filtered) {
+      const d = new Date(r.semanaInicio)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      if (!m.has(key)) m.set(key, [])
+      m.get(key).push(r)
+    }
+    return [...m.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+  }, [filtered])
+
+  const monthLabel = (key) => {
+    const [y, mo] = key.split('-').map(Number)
+    return new Date(y, mo - 1).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })
+  }
+
   return (
     <div className="reembolsos-page">
       <header>
-        <h1>Reembolsos semanales</h1>
+        <h1>{isCajaChica ? 'Caja Chica' : 'Reembolsos semanales'}</h1>
         <p className="muted small">
-          Concentrado de gastos de Rosy. Un paquete = una semana de gastos materiales + indirectos + nómina.
-          Al cerrar, genera UN SPEI a Rosy.
+          {isCajaChica
+            ? 'Cada semana Rosy justifica los gastos de la caja chica. Cuando cierras un período, se reembolsa con UN SPEI y se inicia el siguiente.'
+            : 'Concentrado de gastos de Rosy. Un paquete = una semana de gastos materiales + indirectos + nómina. Al cerrar, genera UN SPEI a Rosy.'}
         </p>
       </header>
 
@@ -164,11 +195,13 @@ export default function Reembolsos() {
         <div className="filters">
           {['ALL', 'SUBMITTED', 'REVISADO', 'REEMBOLSADO'].map(f => (
             <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
-              {f === 'ALL' ? 'Todos' : f.charAt(0) + f.slice(1).toLowerCase()}
+              {f === 'ALL' ? 'Todos' : f === 'SUBMITTED' ? 'Por revisar' : f === 'REVISADO' ? 'Revisados' : 'Pagados'}
             </button>
           ))}
         </div>
-        <button className="primary" onClick={openNewModal}>+ Nuevo reembolso</button>
+        <button className="primary" onClick={openNewModal}>
+          + {isCajaChica ? 'Nuevo período' : 'Nuevo reembolso'}
+        </button>
       </div>
 
       <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Nuevo reembolso semanal">
@@ -177,7 +210,7 @@ export default function Reembolsos() {
           bankAccounts={bankAccounts}
           defaultMonday={mondayOf().toISOString().slice(0, 10)}
           onClose={() => setNewOpen(false)}
-          onCreated={(id) => { setNewOpen(false); navigate(`/reembolsos/${id}`) }}
+          onCreated={(id) => { setNewOpen(false); navigate(`${detailBase}/${id}`) }}
         />
       </Modal>
 
@@ -186,36 +219,61 @@ export default function Reembolsos() {
       ) : filtered.length === 0 ? (
         <div className="pd-empty">
           {rows.length === 0
-            ? 'No hay reembolsos aún. Crea el primero para la semana pasada.'
+            ? (isCajaChica
+                ? 'No hay períodos aún. Crea el primero cuando Rosy te mande la justificación de la semana.'
+                : 'No hay reembolsos aún. Crea el primero para la semana pasada.')
             : 'Nada en este filtro.'}
         </div>
       ) : (
-        <table className="reembolsos-table">
-          <thead>
-            <tr>
-              <th>Semana</th>
-              <th>Proyecto</th>
-              <th>Estado</th>
-              <th style={{ textAlign: 'right' }}># gastos</th>
-              <th style={{ textAlign: 'right' }}>Total gastos</th>
-              <th style={{ textAlign: 'right' }}>Anticipo</th>
-              <th style={{ textAlign: 'right' }}>A reembolsar</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(r => (
-              <tr key={r.id} className="clickable" onClick={() => navigate(`/reembolsos/${r.id}`)}>
-                <td>{fmtDate(r.semanaInicio)} — {fmtDate(r.semanaFin)}</td>
-                <td>{r.proyecto?.codigo} <span className="muted small">{r.proyecto?.nombre}</span></td>
-                <td><span className={`badge estado-${r.estado.toLowerCase()}`}>{r.estado}</span></td>
-                <td style={{ textAlign: 'right' }}>{r._count?.gastos ?? 0}</td>
-                <td style={{ textAlign: 'right' }}>{fmtMoney(r.totalGastos)}</td>
-                <td style={{ textAlign: 'right', color: '#64748b' }}>{fmtMoney(r.anticipoAplicado)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtMoney(r.totalReembolso)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        grouped.map(([monthKey, list]) => {
+          const totalMes = list.reduce((a, r) => a + (r.totalGastos || 0), 0)
+          const reembolsadoMes = list
+            .filter((r) => r.estado === 'REEMBOLSADO')
+            .reduce((a, r) => a + (r.totalReembolso || 0), 0)
+          return (
+            <section key={monthKey} className="month-block">
+              <div className="month-head">
+                <h2>{monthLabel(monthKey)}</h2>
+                <div className="month-totals">
+                  <span className="muted small">{list.length} período(s) · gastos {fmtMoney(totalMes)}</span>
+                  {reembolsadoMes > 0 && (
+                    <span className="muted small"> · reembolsado {fmtMoney(reembolsadoMes)}</span>
+                  )}
+                </div>
+              </div>
+              <table className="reembolsos-table">
+                <thead>
+                  <tr>
+                    <th>Semana</th>
+                    <th>Proyecto</th>
+                    <th>Estado</th>
+                    <th style={{ textAlign: 'right' }}># gastos</th>
+                    <th style={{ textAlign: 'right' }}>Total gastos</th>
+                    <th style={{ textAlign: 'right' }}>Anticipo</th>
+                    <th style={{ textAlign: 'right' }}>A reembolsar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="clickable"
+                      onClick={() => navigate(`${detailBase}/${r.id}`)}
+                    >
+                      <td>{fmtDate(r.semanaInicio)} — {fmtDate(r.semanaFin)}</td>
+                      <td>{r.proyecto?.codigo} <span className="muted small">{r.proyecto?.nombre}</span></td>
+                      <td><span className={`badge estado-${r.estado.toLowerCase()}`}>{r.estado}</span></td>
+                      <td style={{ textAlign: 'right' }}>{r._count?.gastos ?? 0}</td>
+                      <td style={{ textAlign: 'right' }}>{fmtMoney(r.totalGastos)}</td>
+                      <td style={{ textAlign: 'right', color: '#64748b' }}>{fmtMoney(r.anticipoAplicado)}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtMoney(r.totalReembolso)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )
+        })
       )}
     </div>
   )

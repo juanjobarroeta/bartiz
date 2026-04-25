@@ -36,16 +36,15 @@ const BIT_TIPO = { NOTA: 'Nota', DECISION: 'Decisión', PROBLEMA: 'Problema', CL
 const fmtMoney = (n) => n == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n))
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
 
-// `flag` gates the tab behind a CompanyModule code — hidden unless
-// activeCompany.modulos includes it. Bartiz doesn't have CUADRILLAS so the
-// Cuadrillas + Rayas tabs stay invisible there.
+// Sprint 1 cleanup: trimmed tabs to project-specific surfaces.
+// Cuadrillas + Rayas now live at top-level /destajo (cross-project view).
+// Compras / Pagos will move to top-level /requisiciones + /tesoreria
+// in Sprint 2-3.
 const TABS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'unidades', label: 'Unidades' },
   { id: 'consumo', label: 'Explosión vs Real' },
-  { id: 'cuadrillas', label: 'Cuadrillas', flag: 'CONSTRUCCION_CUADRILLAS' },
-  { id: 'rayas', label: 'Rayas', flag: 'CONSTRUCCION_CUADRILLAS' },
   { id: 'estimaciones', label: 'Estimaciones' },
   { id: 'compras', label: 'Compras' },
   { id: 'pagos', label: 'Pagos' },
@@ -350,9 +349,23 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
     grouped.get(key).rows.push(p)
   }
 
+  // Compute totals to drive the "no avance / no gasto-por-partida yet" hint.
+  // When everything is zero, default the section to collapsed so it doesn't
+  // look like the page is broken.
+  const totalAvance = [...avancePorPartida.values()].reduce((a, n) => a + n, 0)
+  const totalGastoPartida = [...gastadoPorPartida.values()].reduce((a, n) => a + n, 0)
+  const everythingEmpty = totalAvance === 0 && totalGastoPartida === 0
+
   return (
-    <details className="pd-avance-section">
-      <summary>Avance y presupuesto por partida</summary>
+    <details className="pd-avance-section" {...(!everythingEmpty && { open: true })}>
+      <summary>
+        Avance y gasto por partida
+        {everythingEmpty && (
+          <span className="muted small" style={{ marginLeft: '0.5rem' }}>
+            (sin datos aún — el avance se mide con estimaciones; el gasto por partida solo cuenta gastos vinculados a una partida específica)
+          </span>
+        )}
+      </summary>
 
       {[...grouped.values()].map((g, idx) => {
         const groupPresup = g.rows.reduce((a, r) => a + (Number(r.importe) || 0), 0)

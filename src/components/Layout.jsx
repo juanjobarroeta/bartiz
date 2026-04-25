@@ -14,25 +14,32 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import './Layout.css'
 
+// Nav structure — reorganized in Sprint 1 to separate top-level workflows
+// (Gerardo's compras, Rosy's caja chica, Katia's gastos) from the
+// project-detail context. Each surface owns its own page so things
+// don't pile up inside ProyectoDetalle tabs.
 const ALL_NAV_ITEMS = [
   { path: '/',                    label: 'Dashboard',     icon: '⊞',  ported: false, note: 'pending port' },
   { path: '/proyectos',           label: 'Proyectos',     icon: '📋', ported: true },
   { path: '/catalogo',            label: 'Catálogo',      icon: '📚', ported: true },
-  { path: '/presupuestos',        label: 'Presupuestos',  icon: '💼', ported: false, note: 'pending port' },
-  { path: '/cotizaciones',        label: 'Cotizaciones',  icon: '💰', ported: false, note: 'pending port' },
-  { path: '/solicitudes-compra',  label: 'Solicitudes',   icon: '📝', ported: true },
+  { path: '/requisiciones',       label: 'Requisiciones', icon: '📝', ported: false, note: 'Sprint 2' },
   { path: '/gastos',              label: 'Gastos',        icon: '💸', ported: true },
-  { path: '/reembolsos',          label: 'Reembolsos',    icon: '📦', ported: true },
-  { path: '/compras',             label: 'Compras',       icon: '📈', ported: false, note: 'pending port' },
-  { path: '/inventario',          label: 'Inventario',    icon: '📦', ported: false, note: 'pending port' },
+  { path: '/caja-chica',          label: 'Caja Chica',    icon: '📦', ported: true },
+  { path: '/destajo',             label: 'Destajo',       icon: '👷', ported: true },
+  { path: '/tesoreria-bartiz',    label: 'Tesorería',     icon: '🏦', ported: false, note: 'Sprint 3' },
+  { path: '/reportes',            label: 'Reportes',      icon: '📊', ported: false, note: 'Sprint 4' },
 
   // Permanently hidden — contabilidad-os native UI owns these. Users go there.
   { path: '/clientes',            label: 'Clientes',      icon: '👥', ported: false, hidden: true, reason: 'owned by contabilidad-os' },
   { path: '/empleados',           label: 'Empleados',     icon: '👷', ported: false, hidden: true, reason: 'owned by contabilidad-os' },
   { path: '/proveedores',         label: 'Proveedores',   icon: '🏢', ported: false, hidden: true, reason: 'owned by contabilidad-os' },
-  { path: '/tesoreria',           label: 'Tesorería',     icon: '💰', ported: false, hidden: true, reason: 'owned by contabilidad-os' },
+  { path: '/tesoreria',           label: 'Tesorería (legacy)', icon: '💰', ported: false, hidden: true, reason: 'owned by contabilidad-os' },
   { path: '/contabilidad',        label: 'Contabilidad',  icon: '📊', ported: false, hidden: true, reason: 'owned by contabilidad-os' },
   { path: '/usuarios',            label: 'Usuarios',      icon: '👤', ported: false, hidden: true, reason: 'owned by contabilidad-os' },
+
+  // Deprecated — kept hidden until referrers are gone
+  { path: '/reembolsos',          label: 'Reembolsos',    icon: '📦', ported: false, hidden: true, reason: 'renamed to Caja Chica' },
+  { path: '/solicitudes-compra',  label: 'Solicitudes',   icon: '📝', ported: false, hidden: true, reason: 'merged into Requisiciones (Sprint 2)' },
 ]
 
 const Layout = ({ children }) => {
