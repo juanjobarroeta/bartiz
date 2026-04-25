@@ -1,15 +1,17 @@
 /**
- * Caja Chica (formerly Reembolsos) — weekly justification packages.
+ * Caja Chica — weekly expense tracking + reimbursement packages.
  *
- * Each row = one week's worth of Rosy's field spending: a header that
- * groups gastos + nómina + indirectos for the week and resolves with a
- * single SPEI reembolso to her. The "Reembolsos" naming was removed in
- * Sprint 1 because it confused users — the real construction concept
- * is "caja chica" (petty cash with monthly/weekly justification).
+ * Each row groups the expenses paid out of caja chica during one week
+ * (or any period). When closed, the period gets marked REEMBOLSADO —
+ * how that reimbursement actually happens (SPEI, cash, off-books) is
+ * up to the company. Bartiz reimburses off-books today; Decolsa's
+ * model TBD.
  *
- * List view: groups packages by month. Current week sticky at top with
- * running balance. Past weeks below in reverse-chrono.
- * "+ Nuevo período" creates an empty SUBMITTED package.
+ * The titular of the caja chica BankAccount is the responsable de la
+ * caja — could be a field PM, a maestro, an admin. NOT hardcoded.
+ *
+ * List view: groups packages by month. Current week at top, past
+ * weeks below in reverse-chrono.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -186,9 +188,9 @@ export default function Reembolsos() {
       <header>
         <h1>{isCajaChica ? 'Caja Chica' : 'Reembolsos semanales'}</h1>
         <p className="muted small">
-          {isCajaChica
-            ? 'Cada semana Rosy justifica los gastos de la caja chica. Cuando cierras un período, se reembolsa con UN SPEI y se inicia el siguiente.'
-            : 'Concentrado de gastos de Rosy. Un paquete = una semana de gastos materiales + indirectos + nómina. Al cerrar, genera UN SPEI a Rosy.'}
+          Control de gastos pagados con caja chica, agrupados por período.
+          Cada período se cierra cuando los gastos ya fueron justificados
+          (y, si aplica, reembolsados al responsable de la caja).
         </p>
       </header>
 
@@ -205,7 +207,7 @@ export default function Reembolsos() {
         </button>
       </div>
 
-      <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Nuevo reembolso semanal">
+      <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Nuevo período de caja chica">
         <NewReembolsoForm
           proyectos={proyectos}
           bankAccounts={bankAccounts}
@@ -220,9 +222,7 @@ export default function Reembolsos() {
       ) : filtered.length === 0 ? (
         <div className="pd-empty">
           {rows.length === 0
-            ? (isCajaChica
-                ? 'No hay períodos aún. Crea el primero cuando Rosy te mande la justificación de la semana.'
-                : 'No hay reembolsos aún. Crea el primero para la semana pasada.')
+            ? 'No hay períodos aún. Crea el primero cuando recibas la justificación de gastos.'
             : 'Nada en este filtro.'}
         </div>
       ) : (
@@ -251,7 +251,7 @@ export default function Reembolsos() {
                     <th style={{ textAlign: 'right' }}># gastos</th>
                     <th style={{ textAlign: 'right' }}>Total gastos</th>
                     <th style={{ textAlign: 'right' }}>Anticipo</th>
-                    <th style={{ textAlign: 'right' }}>A reembolsar</th>
+                    <th style={{ textAlign: 'right' }}>Saldo del período</th>
                   </tr>
                 </thead>
                 <tbody>

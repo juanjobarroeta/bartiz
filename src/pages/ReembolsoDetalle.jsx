@@ -1,12 +1,16 @@
 /**
- * ReembolsoDetalle — the weekly package processing page.
+ * ReembolsoDetalle — período de caja chica processing page.
  *
  * Header: proyecto, semana, anticipo, running totals.
  * Body: one row per Gasto (beneficiario, descripción, cant/unidad,
  *       importe, attribution badge). Inline "+" opens a mini form
- *       with 3-mode picker (directo / indirecto / misc).
- * Footer: Total gastos − anticipo = total reembolso + "Reembolsar a
- *         Rosy" button.
+ *       with 3-mode picker (directo / indirecto).
+ * Footer: Total gastos − anticipo = saldo del período + "Marcar
+ *         reembolsado" button (which optionally links to a real
+ *         BankTransaction or just records the closure off-books).
+ *
+ * Generic — no hardcoded responsable. The titular of the linked
+ * BankAccount (if set) is shown as the responsable de la caja.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -98,15 +102,41 @@ export default function ReembolsoDetalle() {
     finally { setBusy(false) }
   }
 
-  const reembolsar = () => {
+  const sinAtribucionGuard = () => {
     const sinAtribucion = reembolso.gastos.filter(
       g => !g.presupuestoPartidaId && !g.insumoId && !g.indirecto
     )
     if (sinAtribucion.length > 0) {
       alertDialog({ title: 'Atribución pendiente', message: `Hay ${sinAtribucion.length} gasto(s) sin atribución. Completa los links primero.` })
-      return
+      return false
     }
+    return true
+  }
+
+  const reembolsar = () => {
+    if (!sinAtribucionGuard()) return
     setPickerOpen(true)
+  }
+
+  const cerrarOffBooks = async () => {
+    if (!sinAtribucionGuard()) return
+    if (!(await confirmDialog({
+      title: 'Cerrar período sin movimiento bancario',
+      message: 'Marca el período como REEMBOLSADO sin registrar movimiento en el banco. Úsalo cuando el reembolso al responsable se hace fuera del sistema (efectivo, off-books). ¿Continuar?',
+      okLabel: 'Cerrar off-books',
+    }))) return
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/reembolsos/${id}/reembolsar`, {
+        method: 'POST',
+        body: { offBooks: true },
+      })
+      await reload()
+    } catch (err) {
+      alertDialog({ message: err.message || 'Error al cerrar' })
+    } finally {
+      setBusy(false)
+    }
   }
 
   const onBankTxPicked = async (tx) => {
@@ -125,7 +155,7 @@ export default function ReembolsoDetalle() {
       })
       await reload()
     } catch (err) {
-      alertDialog({ message: err.message || 'Error al reembolsar' })
+      alertDialog({ message: err.message || 'Error al cerrar' })
     } finally {
       setBusy(false)
     }
@@ -157,7 +187,12 @@ export default function ReembolsoDetalle() {
           <div>
             <span className={`badge estado-${reembolso.estado.toLowerCase()}`}>{reembolso.estado}</span>
             {' '}
-            <span className="muted small">Pago desde {reembolso.bankAccount?.nombre}</span>
+            <span className="muted small">
+              Caja: {reembolso.bankAccount?.nombre}
+              {reembolso.bankAccount?.titular && (
+                <> · responsable: <strong>{reembolso.bankAccount.titular}</strong></>
+              )}
+            </span>
           </div>
         </div>
         <div className="reembolso-totals">
@@ -167,13 +202,13 @@ export default function ReembolsoDetalle() {
           </div>
           <div className="row">
             <span>
-              Anticipo aplicado
+              Anticipo previo
               {!frozen && <button type="button" className="link small" onClick={setAnticipo}>editar</button>}
             </span>
             <strong>−{fmtMoney(reembolso.anticipoAplicado)}</strong>
           </div>
           <div className="row total">
-            <span>A reembolsar a Rosy</span>
+            <span>Saldo del período</span>
             <strong>{fmtMoney(reembolso.totalReembolso)}</strong>
           </div>
         </div>
@@ -191,14 +226,31 @@ export default function ReembolsoDetalle() {
                 className="primary"
                 disabled={busy || reembolso.gastos.length === 0 || reembolso.totalReembolso <= 0}
                 onClick={reembolsar}
+                title="Cierra el período y vincula un movimiento bancario (preferido si el reembolso pasa por una cuenta del banco)."
               >
-                💸 Reembolsar {fmtMoney(reembolso.totalReembolso)}
+                ✓ Cerrar con movimiento banco
+              </button>
+              <button
+                className="secondary"
+                disabled={busy || reembolso.gastos.length === 0}
+                onClick={cerrarOffBooks}
+                title="Cierra el período sin crear movimiento bancario. Úsalo cuando el reembolso se maneja fuera del sistema."
+              >
+                Cerrar off-books
               </button>
             </>
           )}
           {frozen && (
             <div className="reembolso-frozen">
-              ✓ Pagado el {fmtDate(reembolso.reembolsadoAt)}. BankTx: {reembolso.bankTransaction?.referencia ?? '—'}
+              ✓ Cerrado el {fmtDate(reembolso.reembolsadoAt)}.
+              {reembolso.bankTransaction
+                ? (
+                    <> Mov. banco: {reembolso.bankTransaction.referencia ?? `${reembolso.bankTransaction.id.slice(0, 8)}…`}</>
+                  )
+                : (
+                    <> <span className="muted small">(reembolso off-books, sin movimiento bancario)</span></>
+                  )
+              }
             </div>
           )}
         </div>
@@ -249,7 +301,7 @@ export default function ReembolsoDetalle() {
         companyId={activeCompany?.id}
         bankAccountId={reembolso.bankAccountId}
         expectedAmount={reembolso.totalReembolso}
-        title={`Vincular reembolso a un movimiento bancario (${fmtMoney(reembolso.totalReembolso)})`}
+        title={`Cerrar período — vincular movimiento bancario (${fmtMoney(reembolso.totalReembolso)})`}
       />
     </div>
   )
