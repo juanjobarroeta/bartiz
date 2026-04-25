@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
+import { alertDialog } from '../components/Dialog'
 import '../components/Modal.css'
 import './Requisiciones.css'
 
@@ -167,7 +168,7 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
         precioUnitario: 0, // unknown until cotización lands
       }))
     if (cleanLines.length === 0) {
-      window.alert('Agrega al menos una línea con descripción y cantidad.')
+      alertDialog({ message: 'Agrega al menos una línea con descripción y cantidad.' })
       return
     }
     setBusy(true)
@@ -184,7 +185,7 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
       })
       onCreated?.(created.id)
     } catch (err) {
-      window.alert(err.message || 'Error al crear requisición')
+      alertDialog({ message: err.message || 'Error al crear requisición' })
     } finally {
       setBusy(false)
     }

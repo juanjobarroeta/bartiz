@@ -15,6 +15,7 @@ import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import BankTxPicker from '../components/BankTxPicker'
 import FileUpload from '../components/FileUpload'
+import { confirmDialog, promptDialog, alertDialog } from '../components/Dialog'
 import '../components/BankTxPicker.css'
 import '../components/FileUpload.css'
 import './Reembolsos.css'
@@ -53,7 +54,7 @@ export default function ReembolsoDetalle() {
       const data = await apiFetch(`/api/construccion/reembolsos/${id}`)
       setReembolso(data)
     } catch (err) {
-      window.alert(err.message || 'Error al cargar reembolso')
+      alertDialog({ message: err.message || 'Error al cargar reembolso' })
     } finally {
       setLoading(false)
     }
@@ -62,10 +63,18 @@ export default function ReembolsoDetalle() {
   useEffect(() => { reload() }, [reload])
 
   const setAnticipo = async () => {
-    const v = window.prompt('Anticipo previo aplicado ($):', String(reembolso?.anticipoAplicado ?? 0))
+    const v = await promptDialog({
+      title: 'Anticipo previo aplicado',
+      label: 'Monto en pesos',
+      type: 'number',
+      defaultValue: String(reembolso?.anticipoAplicado ?? 0),
+      validate: (s) => {
+        const n = parseFloat(s)
+        return (!Number.isNaN(n) && n >= 0) || 'Captura un número >= 0'
+      },
+    })
     if (v == null) return
     const n = parseFloat(v)
-    if (Number.isNaN(n) || n < 0) { window.alert('Valor inválido'); return }
     setBusy(true)
     try {
       await apiFetch(`/api/construccion/reembolsos/${id}`, {
@@ -73,7 +82,7 @@ export default function ReembolsoDetalle() {
         body: { anticipoAplicado: n },
       })
       await reload()
-    } catch (err) { window.alert(err.message) }
+    } catch (err) { alertDialog({ message: err.message }) }
     finally { setBusy(false) }
   }
 
@@ -85,7 +94,7 @@ export default function ReembolsoDetalle() {
         body: { estado: 'REVISADO' },
       })
       await reload()
-    } catch (err) { window.alert(err.message) }
+    } catch (err) { alertDialog({ message: err.message }) }
     finally { setBusy(false) }
   }
 
@@ -94,7 +103,7 @@ export default function ReembolsoDetalle() {
       g => !g.presupuestoPartidaId && !g.insumoId && !g.indirecto
     )
     if (sinAtribucion.length > 0) {
-      window.alert(`Hay ${sinAtribucion.length} gasto(s) sin atribución. Completa los links primero.`)
+      alertDialog({ title: 'Atribución pendiente', message: `Hay ${sinAtribucion.length} gasto(s) sin atribución. Completa los links primero.` })
       return
     }
     setPickerOpen(true)
@@ -116,19 +125,19 @@ export default function ReembolsoDetalle() {
       })
       await reload()
     } catch (err) {
-      window.alert(err.message || 'Error al reembolsar')
+      alertDialog({ message: err.message || 'Error al reembolsar' })
     } finally {
       setBusy(false)
     }
   }
 
   const eliminarGasto = async (gastoId) => {
-    if (!window.confirm('¿Eliminar este gasto del reembolso?')) return
+    if (!(await confirmDialog({ title: 'Eliminar gasto', message: '¿Eliminar este gasto del reembolso?', destructive: true, okLabel: 'Eliminar' }))) return
     setBusy(true)
     try {
       await apiFetch(`/api/construccion/gastos/${gastoId}`, { method: 'DELETE' })
       await reload()
-    } catch (err) { window.alert(err.message) }
+    } catch (err) { alertDialog({ message: err.message }) }
     finally { setBusy(false) }
   }
 
@@ -263,7 +272,7 @@ function ReembolsoComprobanteLink({ gasto }) {
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 60000)
-    } catch (err) { window.alert(err.message) }
+    } catch (err) { alertDialog({ message: err.message }) }
   }
   return (
     <button type="button" className="link small" onClick={open}>
@@ -376,12 +385,12 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
     e.preventDefault()
     const imp = parseFloat(importe)
     if (!beneficiarioNombre.trim() || !descripcion.trim() || !(imp > 0)) {
-      window.alert('Completa beneficiario, descripción e importe.'); return
+      alertDialog({ message: 'Completa beneficiario, descripción e importe.' }); return
     }
     const isDirecto = mode === 'directo' && (insumoId || presupuestoPartidaId)
     const isIndirecto = mode === 'indirecto' && categoriaIndirecto.trim().length > 0
     if (!isDirecto && !isIndirecto) {
-      window.alert('Elige insumo/partida (directo) o una categoría indirecta.'); return
+      alertDialog({ message: 'Elige insumo/partida (directo) o una categoría indirecta.' }); return
     }
     const cantNum = cantidad ? parseFloat(cantidad) : null
     setBusy(true)
@@ -405,7 +414,7 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
       })
       onCreated?.()
     } catch (err) {
-      window.alert(err.message || 'Error al agregar gasto')
+      alertDialog({ message: err.message || 'Error al agregar gasto' })
     } finally {
       setBusy(false)
     }

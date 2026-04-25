@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import Layout from './components/Layout'
+import { DialogHost } from './components/Dialog'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Proyectos from './pages/Proyectos'
@@ -50,6 +51,7 @@ function RequireAuth({ children }) {
 function App() {
   return (
     <AuthProvider>
+      <DialogHost />
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />

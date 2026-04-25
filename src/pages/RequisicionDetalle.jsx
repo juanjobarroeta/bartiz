@@ -16,6 +16,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import FileUpload from '../components/FileUpload'
+import { confirmDialog, alertDialog } from '../components/Dialog'
 import '../components/Modal.css'
 import '../components/FileUpload.css'
 import './Requisiciones.css'
@@ -37,7 +38,7 @@ export default function RequisicionDetalle() {
       const res = await apiFetch(`/api/construccion/solicitudes-compra/${id}`)
       setData(res)
     } catch (err) {
-      window.alert(err.message || 'Error al cargar')
+      alertDialog({ message: err.message || 'Error al cargar' })
     } finally {
       setLoading(false)
     }
@@ -64,13 +65,13 @@ export default function RequisicionDetalle() {
   }, [data])
 
   const selectCot = async (cotId) => {
-    if (!window.confirm('¿Marcar esta cotización como la ganadora? Se actualizan precios + supplier.')) return
+    if (!(await confirmDialog({ title: 'Elegir cotización ganadora', message: 'Se actualizarán precios y proveedor en la requisición. ¿Continuar?', okLabel: 'Sí, elegir' }))) return
     setBusy(true)
     try {
       await apiFetch(`/api/construccion/solicitudes-compra/${id}/cotizaciones/${cotId}/seleccionar`, { method: 'POST' })
       await reload()
     } catch (err) {
-      window.alert(err.message || 'Error')
+      alertDialog({ message: err.message || 'Error' })
     } finally {
       setBusy(false)
     }
@@ -223,7 +224,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
 
   const submit = async (e) => {
     e.preventDefault()
-    if (!supplierNombre.trim()) { window.alert('Falta nombre del proveedor'); return }
+    if (!supplierNombre.trim()) { alertDialog({ message: 'Falta nombre del proveedor' }); return }
     const lineas = requisicion.partidas
       .filter((p) => parseFloat(pus[p.id]) >= 0)
       .map((p) => ({
@@ -232,7 +233,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       }))
       .filter((l) => l.precioUnitario > 0)
     if (lineas.length === 0) {
-      window.alert('Captura al menos un precio.'); return
+      alertDialog({ message: 'Captura al menos un precio.' }); return
     }
     setBusy(true)
     try {
@@ -251,7 +252,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       })
       onCreated?.()
     } catch (err) {
-      window.alert(err.message || 'Error al guardar cotización')
+      alertDialog({ message: err.message || 'Error al guardar cotización' })
     } finally {
       setBusy(false)
     }

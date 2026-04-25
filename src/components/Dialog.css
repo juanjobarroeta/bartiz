@@ -1,0 +1,55 @@
+.dlg-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 2000;
+}
+.dlg-panel {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 440px;
+  padding: 1.25rem 1.5rem 1rem;
+}
+.dlg-title { margin: 0 0 0.5rem; font-size: 1rem; }
+.dlg-message { margin: 0 0 1rem; color: #334155; font-size: 0.92rem; line-height: 1.4; }
+.dlg-label { display: block; font-size: 0.78rem; color: #64748b; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.dlg-input {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+.dlg-input:focus { outline: 2px solid #3b82f6; outline-offset: -1px; border-color: #3b82f6; }
+.dlg-error { color: #dc2626; font-size: 0.82rem; padding: 0.2rem 0 0.5rem; }
+.dlg-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  padding-top: 0.6rem;
+  border-top: 1px solid #f1f5f9;
+}
+.dlg-cancel, .dlg-ok {
+  padding: 0.45rem 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.dlg-cancel:hover { background: #f8fafc; }
+.dlg-ok {
+  background: #0f172a;
+  color: white;
+  border-color: #0f172a;
+}
+.dlg-ok:hover { background: #1e293b; }
+.dlg-ok.destructive { background: #dc2626; border-color: #dc2626; }
+.dlg-ok.destructive:hover { background: #b91c1c; }

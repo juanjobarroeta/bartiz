@@ -17,6 +17,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
+import { alertDialog } from '../components/Dialog'
 import '../components/Modal.css'
 import './Reembolsos.css'
 
@@ -57,7 +58,7 @@ function NewReembolsoForm({ proyectos, bankAccounts, defaultMonday, onClose, onC
       })
       onCreated?.(created.id)
     } catch (err) {
-      window.alert(err.message || 'Error al crear reembolso')
+      alertDialog({ message: err.message || 'Error al crear reembolso' })
     } finally {
       setBusy(false)
     }
@@ -153,8 +154,8 @@ export default function Reembolsos() {
   useEffect(() => { reload() }, [reload])
 
   const openNewModal = () => {
-    if (proyectos.length === 0) { window.alert('Crea un proyecto primero.'); return }
-    if (bankAccounts.length === 0) { window.alert('Configura una cuenta bancaria primero (Tesorería).'); return }
+    if (proyectos.length === 0) { alertDialog({ message: 'Crea un proyecto primero.' }); return }
+    if (bankAccounts.length === 0) { alertDialog({ message: 'Configura una cuenta bancaria primero (Tesorería).' }); return }
     setNewOpen(true)
   }
 

@@ -15,6 +15,7 @@ import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import BankTxPicker from '../components/BankTxPicker'
 import FileUpload from '../components/FileUpload'
+import { confirmDialog, alertDialog } from '../components/Dialog'
 import '../components/BankTxPicker.css'
 import '../components/FileUpload.css'
 import './Gastos.css'
@@ -200,7 +201,7 @@ function ComprobanteLink({ gasto }) {
       window.open(url, '_blank')
       setTimeout(() => URL.revokeObjectURL(url), 60000)
     } catch (err) {
-      window.alert(err.message || 'Error')
+      alertDialog({ message: err.message || 'Error' })
     }
   }
   return (
@@ -229,7 +230,7 @@ function GastoRow({ gasto, onChange, companyId }) {
       setAttributing(false)
       onChange?.()
     } catch (err) {
-      window.alert(err.message || 'Error al vincular')
+      alertDialog({ message: err.message || 'Error al vincular' })
     } finally {
       setBusy(false)
     }
@@ -237,9 +238,11 @@ function GastoRow({ gasto, onChange, companyId }) {
 
   const pagar = () => {
     if (!hasAttribution) {
-      window.alert(
-        'Este gasto no tiene atribución. Vincúlalo a un insumo/partida o márcalo como indirecto antes de aprobar.'
-      )
+      alertDialog({
+        title: 'Atribución requerida',
+        message:
+          'Este gasto no tiene atribución. Vincúlalo a un insumo/partida o márcalo como indirecto antes de aprobar.',
+      })
       setAttributing(true)
       return
     }
@@ -262,14 +265,14 @@ function GastoRow({ gasto, onChange, companyId }) {
       })
       onChange?.()
     } catch (err) {
-      window.alert(err.message || 'Error al pagar')
+      alertDialog({ message: err.message || 'Error al pagar' })
     } finally {
       setBusy(false)
     }
   }
 
   const rechazar = async () => {
-    if (!window.confirm('¿Rechazar este gasto?')) return
+    if (!(await confirmDialog({ title: 'Rechazar gasto', message: '¿Rechazar este gasto?', destructive: true, okLabel: 'Rechazar' }))) return
     setBusy(true)
     try {
       await apiFetch(`/api/construccion/gastos/${gasto.id}`, {
@@ -278,20 +281,20 @@ function GastoRow({ gasto, onChange, companyId }) {
       })
       onChange?.()
     } catch (err) {
-      window.alert(err.message)
+      alertDialog({ message: err.message })
     } finally {
       setBusy(false)
     }
   }
 
   const eliminar = async () => {
-    if (!window.confirm('¿Eliminar?')) return
+    if (!(await confirmDialog({ title: 'Eliminar gasto', message: '¿Eliminar este gasto?', destructive: true, okLabel: 'Eliminar' }))) return
     setBusy(true)
     try {
       await apiFetch(`/api/construccion/gastos/${gasto.id}`, { method: 'DELETE' })
       onChange?.()
     } catch (err) {
-      window.alert(err.message)
+      alertDialog({ message: err.message })
     } finally {
       setBusy(false)
     }
@@ -475,19 +478,21 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
   const submit = async (e) => {
     e.preventDefault()
     if (!proyectoId || !bankAccountId || !beneficiarioNombre || !descripcion) {
-      window.alert('Completa beneficiario, descripción, proyecto y cuenta.')
+      alertDialog({ message: 'Completa beneficiario, descripción, proyecto y cuenta.' })
       return
     }
     const imp = parseFloat(importe)
-    if (!(imp > 0)) { window.alert('Importe inválido'); return }
+    if (!(imp > 0)) { alertDialog({ message: 'Importe inválido' }); return }
 
     // Enforce: exactly one of directo / indirecto / nuevo must have a value.
     const isDirecto = mode === 'directo' && (presupuestoPartidaId || insumoId)
     const isIndirecto = mode === 'indirecto' && categoriaIndirecto.trim().length > 0
     if (!isDirecto && !isIndirecto) {
-      window.alert(
-        'Vincula el gasto a un insumo/partida, o márcalo como indirecto con una categoría. No se puede aprobar sin atribución.'
-      )
+      alertDialog({
+        title: 'Atribución requerida',
+        message:
+          'Vincula el gasto a un insumo/partida, o márcalo como indirecto con una categoría. No se puede aprobar sin atribución.',
+      })
       return
     }
 
@@ -520,7 +525,7 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
       setMode('directo')
       onCreated?.()
     } catch (err) {
-      window.alert(err.message || 'Error al crear gasto')
+      alertDialog({ message: err.message || 'Error al crear gasto' })
     } finally {
       setBusy(false)
     }
