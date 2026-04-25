@@ -26,7 +26,7 @@ const ALL_NAV_ITEMS = [
   { path: '/gastos',              label: 'Gastos',        icon: '💸', ported: true },
   { path: '/caja-chica',          label: 'Caja Chica',    icon: '📦', ported: true },
   { path: '/destajo',             label: 'Destajo',       icon: '👷', ported: true },
-  { path: '/tesoreria-bartiz',    label: 'Tesorería',     icon: '🏦', ported: false, note: 'Sprint 3' },
+  { path: '/tesoreria-bartiz',    label: 'Tesorería',     icon: '🏦', ported: true },
   { path: '/reportes',            label: 'Reportes',      icon: '📊', ported: false, note: 'Sprint 4' },
 
   // Permanently hidden — contabilidad-os native UI owns these. Users go there.
