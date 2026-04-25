@@ -244,6 +244,15 @@ export default function TesoreriaBartiz() {
                               <span className={`badge status-${(t.status ?? 'UNMATCHED').toLowerCase()}`}>
                                 {t.status ?? 'UNMATCHED'}
                               </span>
+                              {t.source === 'MANUAL' && (
+                                <span
+                                  className="badge source-manual"
+                                  title="Creado por flujo de pago, no por importación de CSV. Reimporta el estado de cuenta para que esta línea coincida con el banco real."
+                                  style={{ marginLeft: '0.3rem' }}
+                                >
+                                  manual
+                                </span>
+                              )}
                             </td>
                             <td className="small">{linkedTo ?? <span className="muted">—</span>}</td>
                             <td

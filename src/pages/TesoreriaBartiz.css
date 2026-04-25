@@ -139,6 +139,7 @@
 .badge.status-unmatched { background: #fef3c7; color: #78350f; }
 .badge.status-matched   { background: #bbf7d0; color: #166534; }
 .badge.status-ignored   { background: #e2e8f0; color: #475569; }
+.badge.source-manual    { background: #fde68a; color: #78350f; cursor: help; }
 
 .mono { font-family: ui-monospace, Menlo, monospace; }
 .small { font-size: 0.8rem; }
