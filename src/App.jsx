@@ -32,6 +32,7 @@ import Destajo from './pages/Destajo'
 import Requisiciones from './pages/Requisiciones'
 import RequisicionDetalle from './pages/RequisicionDetalle'
 import TesoreriaBartiz from './pages/TesoreriaBartiz'
+import Reportes from './pages/Reportes'
 import Usuarios from './pages/Usuarios'
 
 /**
@@ -87,6 +88,7 @@ function App() {
                     <Route path="/requisiciones" element={<Requisiciones />} />
                     <Route path="/requisiciones/:id" element={<RequisicionDetalle />} />
                     <Route path="/tesoreria-bartiz" element={<TesoreriaBartiz />} />
+                    <Route path="/reportes" element={<Reportes />} />
                     <Route path="/usuarios" element={<Usuarios />} />
                   </Routes>
                 </Layout>
