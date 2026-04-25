@@ -1,25 +1,22 @@
 /**
  * Tesorería — bank accounts + recent movements at a glance.
  *
- * Surface for Juan/Katia to see the cash picture without bouncing to
- * contabilidad-os. Reads from the same BankAccount + BankTransaction
- * tables — both products share state, this is just the bartiz lens.
+ * Two-pane layout (left: accounts grouped by tipo, right: movements
+ * of the selected account with status badges + entity-link descriptors).
  *
- * Two-pane layout:
- *   • Left:  list of accounts grouped by tipo (CHEQUES / CAJA / TD).
- *           Each card shows banco, nombre, titular, saldo + flujo 30d.
- *   • Right: movements of the selected account, with status badges
- *           (UNMATCHED / MATCHED / IGNORED). Filter chips for unmatched-
- *           only. Each row links back to its source (Gasto / Reembolso
- *           / Raya / Invoice).
- *
- * Mutations (import CSV, edit account, manual reconciliation) live in
- * contabilidad-os — bartiz shows the read-only view.
+ * Now also supports importing bank statements (CSV / PDF text) directly.
+ * Reuses the shared importBankStatement helper on the backend so dedup
+ * + auto-categorize behaviour is identical to contabilidad-os's bancos
+ * upload flow. Same logic both sides — re-importing a file is safe,
+ * existing rows get skipped on (fecha, monto, descripcion, referencia).
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
+import Modal from '../components/Modal'
+import { alertDialog } from '../components/Dialog'
+import '../components/Modal.css'
 import './TesoreriaBartiz.css'
 
 const fmtMoney = (n) =>
@@ -43,6 +40,7 @@ export default function TesoreriaBartiz() {
   const [txs, setTxs] = useState([])
   const [txLoading, setTxLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [uploadOpen, setUploadOpen] = useState(false)
 
   // Load accounts with balances baked in
   useEffect(() => {
@@ -101,8 +99,9 @@ export default function TesoreriaBartiz() {
       <header>
         <h1>Tesorería</h1>
         <p className="muted small">
-          Cuentas y movimientos de la empresa. Para importar estados de
-          cuenta o conciliar manualmente, ve a <strong>contabilidad-os → Bancos</strong>.
+          Cuentas y movimientos de la empresa. Sube tus estados de cuenta
+          (CSV/PDF) desde la cuenta seleccionada — los movimientos
+          existentes se ignoran y solo los nuevos se importan.
         </p>
       </header>
 
@@ -167,18 +166,43 @@ export default function TesoreriaBartiz() {
                       {selectedAcc.tipo} · cuenta {selectedAcc.numeroCuenta}
                     </div>
                   </div>
-                  <div className="teso-filters">
-                    {['ALL', 'UNMATCHED', 'MATCHED', 'IGNORED'].map((f) => (
-                      <button
-                        key={f}
-                        className={statusFilter === f ? 'active' : ''}
-                        onClick={() => setStatusFilter(f)}
-                      >
-                        {f === 'ALL' ? 'Todos' : f === 'UNMATCHED' ? 'Sin conciliar' : f === 'MATCHED' ? 'Conciliados' : 'Ignorados'}
-                      </button>
-                    ))}
+                  <div className="teso-tx-toolbar">
+                    <button
+                      type="button"
+                      className="teso-import-btn"
+                      onClick={() => setUploadOpen(true)}
+                    >
+                      ⬆ Importar movimientos
+                    </button>
+                    <div className="teso-filters">
+                      {['ALL', 'UNMATCHED', 'MATCHED', 'IGNORED'].map((f) => (
+                        <button
+                          key={f}
+                          className={statusFilter === f ? 'active' : ''}
+                          onClick={() => setStatusFilter(f)}
+                        >
+                          {f === 'ALL' ? 'Todos' : f === 'UNMATCHED' ? 'Sin conciliar' : f === 'MATCHED' ? 'Conciliados' : 'Ignorados'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
+
+                <Modal
+                  open={uploadOpen}
+                  onClose={() => setUploadOpen(false)}
+                  title={`Importar movimientos a ${selectedAcc.banco} ${selectedAcc.nombre}`}
+                  size="md"
+                >
+                  <ImportForm
+                    bankAccountId={selectedAcc.id}
+                    onClose={() => setUploadOpen(false)}
+                    onImported={() => {
+                      setUploadOpen(false)
+                      reloadTxs()
+                    }}
+                  />
+                </Modal>
 
                 {txLoading ? (
                   <div className="pd-empty">Cargando movimientos…</div>
@@ -246,5 +270,111 @@ export default function TesoreriaBartiz() {
         </div>
       )}
     </div>
+  )
+}
+
+// ── ImportForm ───────────────────────────────────────────────────────────────
+// Reads a CSV / PDF text file via FileReader and POSTs the raw text +
+// filename to /api/construccion/bank-accounts/[id]/upload. Server parses
+// + dedupes + auto-categorizes. Re-importing the same file is safe.
+function ImportForm({ bankAccountId, onClose, onImported }) {
+  const inputRef = useRef(null)
+  const [file, setFile] = useState(null) // { name, content }
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const onPick = (f) => {
+    if (!f) return
+    const reader = new FileReader()
+    reader.onload = () => setFile({ name: f.name, content: String(reader.result ?? '') })
+    reader.onerror = () => alertDialog({ message: 'No se pudo leer el archivo.' })
+    reader.readAsText(f)
+  }
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!file) return
+    setBusy(true)
+    setResult(null)
+    try {
+      const r = await apiFetch(
+        `/api/construccion/bank-accounts/${bankAccountId}/upload`,
+        { method: 'POST', body: { fileContent: file.content, filename: file.name } }
+      )
+      setResult(r)
+      if (r.ok && r.imported > 0) {
+        // Defer onImported a beat so user can read the result message
+        setTimeout(() => onImported?.(), 1500)
+      }
+    } catch (err) {
+      alertDialog({ message: err.message || 'Error al importar' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="teso-import-form">
+      <p className="muted small" style={{ marginTop: 0 }}>
+        Sube el estado de cuenta del banco (CSV o PDF convertido a texto).
+        Los movimientos que ya existen se ignoran automáticamente; solo
+        se agregan los nuevos. El sistema reconoce comisiones bancarias,
+        pagos al SAT y traspasos internos como <em>Ignorados</em> para que
+        tu bandeja "Sin conciliar" se mantenga limpia.
+      </p>
+
+      {!file ? (
+        <button
+          type="button"
+          className="file-btn"
+          onClick={() => inputRef.current?.click()}
+        >
+          📂 Elegir archivo (.csv / .txt)
+        </button>
+      ) : (
+        <div className="file-chip-row">
+          <span>📄 {file.name}</span>
+          <button
+            type="button"
+            className="link small"
+            onClick={() => { setFile(null); setResult(null); if (inputRef.current) inputRef.current.value = '' }}
+          >
+            quitar
+          </button>
+        </div>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,.txt,.tsv"
+        style={{ display: 'none' }}
+        onChange={(e) => onPick(e.target.files?.[0])}
+      />
+
+      {result && (
+        <div className={`import-result ${result.ok ? 'ok' : 'err'}`}>
+          {result.ok ? (
+            <>
+              <strong>{result.message}</strong>
+              {result.detectedBank && (
+                <div className="small muted">Formato detectado: {result.detectedBank}</div>
+              )}
+              {(result.warnings ?? []).slice(0, 3).map((w, i) => (
+                <div key={i} className="small muted">⚠ {w}</div>
+              ))}
+            </>
+          ) : (
+            <strong>{result.error || result.message}</strong>
+          )}
+        </div>
+      )}
+
+      <div className="modal-actions">
+        <button type="button" onClick={onClose}>Cerrar</button>
+        <button type="submit" className="primary" disabled={!file || busy}>
+          {busy ? 'Importando…' : 'Importar'}
+        </button>
+      </div>
+    </form>
   )
 }
