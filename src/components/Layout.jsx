@@ -22,7 +22,7 @@ const ALL_NAV_ITEMS = [
   { path: '/',                    label: 'Dashboard',     icon: '⊞',  ported: false, note: 'pending port' },
   { path: '/proyectos',           label: 'Proyectos',     icon: '📋', ported: true },
   { path: '/catalogo',            label: 'Catálogo',      icon: '📚', ported: true },
-  { path: '/requisiciones',       label: 'Requisiciones', icon: '📝', ported: false, note: 'Sprint 2' },
+  { path: '/requisiciones',       label: 'Requisiciones', icon: '📝', ported: true },
   { path: '/gastos',              label: 'Gastos',        icon: '💸', ported: true },
   { path: '/caja-chica',          label: 'Caja Chica',    icon: '📦', ported: true },
   { path: '/destajo',             label: 'Destajo',       icon: '👷', ported: true },
