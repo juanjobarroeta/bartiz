@@ -130,12 +130,23 @@ export function NewProveedorForm({ companyId, defaultName = '', onClose, onCreat
   const [rfc, setRfc] = useState('')
   const [regimen, setRegimen] = useState('')
   const [email, setEmail] = useState('')
+  // Bank info — all optional. CLABE is the canonical SPEI identifier; the
+  // others help when the proveedor only gives us their account number or
+  // when the cuenta is in someone else's name.
+  const [clabe, setClabe] = useState('')
+  const [banco, setBanco] = useState('')
+  const [cuentaBancaria, setCuentaBancaria] = useState('')
+  const [titularCuenta, setTitularCuenta] = useState('')
   const [busy, setBusy] = useState(false)
 
   const submit = async (e) => {
     e.preventDefault()
     if (!razonSocial.trim() || !rfc.trim()) {
       alertDialog({ message: 'Razón social y RFC son requeridos.' })
+      return
+    }
+    if (clabe.trim() && !/^\d{18}$/.test(clabe.trim())) {
+      alertDialog({ message: 'La CLABE debe tener exactamente 18 dígitos.' })
       return
     }
     setBusy(true)
@@ -148,6 +159,10 @@ export function NewProveedorForm({ companyId, defaultName = '', onClose, onCreat
           razonSocial: razonSocial.trim(),
           regimenFiscal: regimen.trim() || null,
           email: email.trim() || null,
+          clabe: clabe.trim() || null,
+          banco: banco.trim() || null,
+          cuentaBancaria: cuentaBancaria.trim() || null,
+          titularCuenta: titularCuenta.trim() || null,
         },
       })
       onCreated?.(created)
@@ -191,6 +206,44 @@ export function NewProveedorForm({ companyId, defaultName = '', onClose, onCreat
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@proveedor.mx" />
         </label>
       </div>
+
+      <fieldset className="prov-bank">
+        <legend>Datos bancarios para SPEI (opcional)</legend>
+        <label>
+          <span>CLABE (18 dígitos)</span>
+          <input
+            value={clabe}
+            onChange={(e) => setClabe(e.target.value.replace(/\D/g, '').slice(0, 18))}
+            placeholder="012345678901234567"
+            maxLength={18}
+            inputMode="numeric"
+            style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}
+          />
+        </label>
+        <div className="row">
+          <label>
+            <span>Banco</span>
+            <input value={banco} onChange={(e) => setBanco(e.target.value)} placeholder="BBVA, Banorte, Santander…" />
+          </label>
+          <label>
+            <span>Cuenta (opcional)</span>
+            <input
+              value={cuentaBancaria}
+              onChange={(e) => setCuentaBancaria(e.target.value)}
+              placeholder="No. de cuenta interno"
+            />
+          </label>
+        </div>
+        <label>
+          <span>Titular de la cuenta (si difiere del proveedor)</span>
+          <input
+            value={titularCuenta}
+            onChange={(e) => setTitularCuenta(e.target.value)}
+            placeholder="Nombre del titular"
+          />
+        </label>
+      </fieldset>
+
       <div className="modal-actions">
         <button type="button" onClick={onClose}>Cancelar</button>
         <button type="submit" className="primary" disabled={busy}>{busy ? 'Creando…' : 'Crear proveedor'}</button>

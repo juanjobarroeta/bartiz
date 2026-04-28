@@ -12,7 +12,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../config/api'
+import Modal from '../components/Modal'
 import { alertDialog } from '../components/Dialog'
+import '../components/Modal.css'
 import './ProveedoresBartiz.css'
 
 const fmtMoney = (n) =>
@@ -27,6 +29,7 @@ export default function ProveedorBartizDetalle() {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [bankOpen, setBankOpen] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -84,6 +87,57 @@ export default function ProveedorBartizDetalle() {
           </div>
         </div>
       </header>
+
+      {/* Datos bancarios para SPEI */}
+      <section className="prov-section">
+        <div className="prov-section-head">
+          <h2>Datos bancarios</h2>
+          <button className="link" onClick={() => setBankOpen(true)}>
+            {data.clabe || data.banco || data.cuentaBancaria ? 'Editar' : '+ Agregar'}
+          </button>
+        </div>
+        {data.clabe || data.banco || data.cuentaBancaria || data.titularCuenta ? (
+          <div className="prov-bank-display">
+            {data.clabe && (
+              <div>
+                <span className="muted small">CLABE</span>
+                <strong className="mono">{data.clabe}</strong>
+              </div>
+            )}
+            {data.banco && (
+              <div>
+                <span className="muted small">Banco</span>
+                <strong>{data.banco}</strong>
+              </div>
+            )}
+            {data.cuentaBancaria && (
+              <div>
+                <span className="muted small">Cuenta</span>
+                <strong className="mono">{data.cuentaBancaria}</strong>
+              </div>
+            )}
+            {data.titularCuenta && (
+              <div>
+                <span className="muted small">Titular</span>
+                <strong>{data.titularCuenta}</strong>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="pd-empty small">
+            Sin datos bancarios capturados. Agrégalos para tenerlos a la mano al
+            programar SPEIs.
+          </div>
+        )}
+      </section>
+
+      <Modal open={bankOpen} onClose={() => setBankOpen(false)} title="Datos bancarios">
+        <BankInfoForm
+          supplier={data}
+          onClose={() => setBankOpen(false)}
+          onSaved={() => { setBankOpen(false); reload() }}
+        />
+      </Modal>
 
       {/* Cotizaciones history */}
       <section className="prov-section">
@@ -207,5 +261,81 @@ export default function ProveedorBartizDetalle() {
         </section>
       </div>
     </div>
+  )
+}
+
+// ── Bank info edit form ──────────────────────────────────────────────────────
+function BankInfoForm({ supplier, onClose, onSaved }) {
+  const [clabe, setClabe] = useState(supplier.clabe ?? '')
+  const [banco, setBanco] = useState(supplier.banco ?? '')
+  const [cuentaBancaria, setCuentaBancaria] = useState(supplier.cuentaBancaria ?? '')
+  const [titularCuenta, setTitularCuenta] = useState(supplier.titularCuenta ?? '')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (clabe.trim() && !/^\d{18}$/.test(clabe.trim())) {
+      alertDialog({ message: 'La CLABE debe tener exactamente 18 dígitos.' })
+      return
+    }
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/suppliers/${supplier.id}`, {
+        method: 'PUT',
+        body: {
+          clabe: clabe.trim() || null,
+          banco: banco.trim() || null,
+          cuentaBancaria: cuentaBancaria.trim() || null,
+          titularCuenta: titularCuenta.trim() || null,
+        },
+      })
+      onSaved?.()
+    } catch (err) {
+      alertDialog({ message: err.message || 'Error al guardar' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="prov-form">
+      <label>
+        <span>CLABE (18 dígitos)</span>
+        <input
+          value={clabe}
+          onChange={(e) => setClabe(e.target.value.replace(/\D/g, '').slice(0, 18))}
+          placeholder="012345678901234567"
+          maxLength={18}
+          inputMode="numeric"
+          style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}
+        />
+      </label>
+      <div className="row">
+        <label>
+          <span>Banco</span>
+          <input value={banco} onChange={(e) => setBanco(e.target.value)} placeholder="BBVA, Banorte…" />
+        </label>
+        <label>
+          <span>Cuenta (opcional)</span>
+          <input
+            value={cuentaBancaria}
+            onChange={(e) => setCuentaBancaria(e.target.value)}
+            placeholder="No. de cuenta interno"
+          />
+        </label>
+      </div>
+      <label>
+        <span>Titular de la cuenta (si difiere del proveedor)</span>
+        <input
+          value={titularCuenta}
+          onChange={(e) => setTitularCuenta(e.target.value)}
+          placeholder="Nombre del titular"
+        />
+      </label>
+      <div className="modal-actions">
+        <button type="button" onClick={onClose}>Cancelar</button>
+        <button type="submit" className="primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
+      </div>
+    </form>
   )
 }

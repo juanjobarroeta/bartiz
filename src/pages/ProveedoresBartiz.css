@@ -56,6 +56,23 @@
 }
 .prov-form input:focus { outline: 2px solid #3b82f6; outline-offset: -1px; border-color: #3b82f6; }
 
+.prov-form fieldset.prov-bank {
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 0.75rem 0.9rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.25rem 0 0;
+}
+.prov-form fieldset.prov-bank legend {
+  font-size: 0.72rem;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 0.4rem;
+}
+
 /* ── Detail page ── */
 .prov-detalle { padding: 1.5rem; max-width: 1500px; margin: 0 auto; }
 .pd-back { background: transparent; border: none; color: #2563eb; cursor: pointer; font-size: 0.9rem; padding: 0 0 0.5rem 0; }
@@ -83,6 +100,36 @@
   margin-bottom: 1rem;
 }
 .prov-section h2 { margin: 0 0 0.6rem; font-size: 0.95rem; }
+.prov-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+.prov-section-head h2 { margin: 0; }
+.prov-section-head .link {
+  background: none;
+  border: none;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.prov-bank-display {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem 1.25rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+}
+.prov-bank-display > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.prov-bank-display strong { font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+
 
 .prov-bottom {
   display: grid;
