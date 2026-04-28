@@ -136,6 +136,10 @@ export default function RequisicionDetalle() {
         <button className="secondary" onClick={() => setNewCotOpen(true)}>+ Agregar cotización</button>
       </div>
 
+      {/* Movimiento bancario vinculado */}
+      <BankLinkPanel data={data} reload={reload} />
+
+
       <Modal open={newCotOpen} onClose={() => setNewCotOpen(false)} title="Nueva cotización" size="lg">
         <NewCotizacionForm
           requisicion={data}
@@ -221,6 +225,156 @@ export default function RequisicionDetalle() {
           </table>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Bank-link panel ─────────────────────────────────────────────────────────
+// Two states:
+//   1. Already paid (has bankTransaction) → show fecha + cuenta + monto.
+//   2. APROBADA + no BT yet → "Vincular movimiento" button opens picker
+//      with candidates from /bt-candidates (matched by amount + date).
+function BankLinkPanel({ data, reload }) {
+  const [open, setOpen] = useState(false)
+
+  if (data.bankTransaction) {
+    const bt = data.bankTransaction
+    return (
+      <div className="bank-link-panel paid">
+        <div>
+          <span className="muted small">Pagada con SPEI</span>
+          <div>
+            <strong>{fmtMoney(Math.abs(bt.monto))}</strong>
+            {' · '}
+            <span className="muted small">
+              {new Date(bt.fecha).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </span>
+            {' · '}
+            <span className="small">{bt.bankAccount?.banco} {bt.bankAccount?.nombre}</span>
+          </div>
+          {bt.referencia && <div className="muted small mono">Ref: {bt.referencia}</div>}
+        </div>
+      </div>
+    )
+  }
+
+  if (data.estado !== 'APROBADA') return null
+
+  return (
+    <>
+      <div className="bank-link-panel">
+        <div>
+          <span className="muted small">
+            Esta requisición está aprobada pero aún no tiene un movimiento bancario asignado.
+          </span>
+        </div>
+        <button className="secondary" onClick={() => setOpen(true)}>
+          Vincular movimiento bancario
+        </button>
+      </div>
+      <Modal open={open} onClose={() => setOpen(false)} title="Vincular movimiento bancario" size="lg">
+        <BankLinkPicker
+          solicitudId={data.id}
+          onClose={() => setOpen(false)}
+          onLinked={() => { setOpen(false); reload() }}
+        />
+      </Modal>
+    </>
+  )
+}
+
+function BankLinkPicker({ solicitudId, onClose, onLinked }) {
+  const [loading, setLoading] = useState(true)
+  const [candidates, setCandidates] = useState([])
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    apiFetch(`/api/construccion/solicitudes-compra/${solicitudId}/bt-candidates`)
+      .then((r) => { if (alive) setCandidates(r.candidates ?? []) })
+      .catch((err) => alertDialog({ message: err.message || 'Error al cargar candidatos' }))
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [solicitudId])
+
+  const link = async (btId) => {
+    if (!(await confirmDialog({
+      title: 'Vincular movimiento',
+      message: 'Esto marcará la requisición como PAGADA y conciliará el movimiento. ¿Continuar?',
+      okLabel: 'Sí, vincular',
+    }))) return
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/solicitudes-compra/${solicitudId}/vincular-bt`, {
+        method: 'POST',
+        body: { bankTransactionId: btId },
+      })
+      onLinked?.()
+    } catch (err) {
+      alertDialog({ message: err.message || 'Error al vincular' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (loading) return <div className="pd-empty">Cargando candidatos…</div>
+  if (candidates.length === 0) {
+    return (
+      <div>
+        <div className="pd-empty">
+          No se encontraron movimientos bancarios sin conciliar que coincidan en
+          monto (±15%) y fecha (±10 días). Sube el estado de cuenta o usa
+          "Pagar" para generar el movimiento.
+        </div>
+        <div className="modal-actions">
+          <button onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <p className="muted small">
+        Movimientos bancarios candidatos según monto y fecha. Selecciona el SPEI
+        que pagó esta requisición.
+      </p>
+      <table className="prov-table compact">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Cuenta</th>
+            <th>Descripción</th>
+            <th style={{ textAlign: 'right' }}>Monto</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {candidates.map((c) => (
+            <tr key={c.id}>
+              <td className="small muted">
+                {new Date(c.fecha).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </td>
+              <td className="small">{c.bankAccount?.banco} {c.bankAccount?.nombre}</td>
+              <td className="small">
+                {c.descripcion?.slice(0, 80)}
+                {c.referencia && <div className="muted small mono">Ref: {c.referencia}</div>}
+              </td>
+              <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#dc2626' }}>
+                {fmtMoney(c.monto)}
+              </td>
+              <td>
+                <button className="link small" disabled={busy} onClick={() => link(c.id)}>
+                  Vincular
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="modal-actions">
+        <button onClick={onClose}>Cancelar</button>
+      </div>
     </div>
   )
 }
