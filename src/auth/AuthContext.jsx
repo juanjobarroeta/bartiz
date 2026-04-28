@@ -48,13 +48,32 @@ function writeJson(key, value) {
   }
 }
 
+/**
+ * Bartiz is the construcción product. Companies in a user's despacho that
+ * DON'T have CONSTRUCCION enabled (e.g. Juan's Baobab Holdings, Zionx,
+ * personal RFCs) make no sense here — every page calls /api/construccion/*
+ * which returns 403 for those companies. Filter early so the switcher
+ * never shows them.
+ */
+function filterConstrucción(list) {
+  return (Array.isArray(list) ? list : []).filter((c) =>
+    c.modulos?.includes('CONSTRUCCION')
+  )
+}
+
 export function AuthProvider({ children }) {
   // Rehydrate from localStorage on first mount so a reload keeps the session.
   const [user, setUser] = useState(() => readJson(USER_KEY))
-  const [companies, setCompanies] = useState(() => readJson(COMPANIES_KEY) ?? [])
+  const [companies, setCompanies] = useState(() => filterConstrucción(readJson(COMPANIES_KEY)))
   const [activeCompanyId, setActiveCompanyId] = useState(() => {
     try {
-      return localStorage.getItem(ACTIVE_COMPANY_KEY)
+      const stored = localStorage.getItem(ACTIVE_COMPANY_KEY)
+      // If stored active points to a non-construction company (stale from a
+      // previous login or a company that had its module disabled), drop it —
+      // the boot effect below will pick a valid one.
+      const cached = filterConstrucción(readJson(COMPANIES_KEY))
+      if (stored && cached.some((c) => c.id === stored)) return stored
+      return cached[0]?.id ?? null
     } catch {
       return null
     }
@@ -85,18 +104,17 @@ export function AuthProvider({ children }) {
       skipAuth: true,
     })
 
+    const construccionCompanies = filterConstrucción(data.companies)
+
     tokenStorage.set(data.token)
     writeJson(USER_KEY, data.user)
-    writeJson(COMPANIES_KEY, data.companies)
+    writeJson(COMPANIES_KEY, construccionCompanies)
     setUser(data.user)
-    setCompanies(data.companies)
+    setCompanies(construccionCompanies)
 
-    // Default active = first company that has CONSTRUCCION enabled;
-    // fall back to first company if none do.
-    const withConstruccion = data.companies.find((c) =>
-      c.modulos?.includes('CONSTRUCCION')
-    )
-    const pick = withConstruccion ?? data.companies[0]
+    // Default active = first construcción-enabled company. If the user has
+    // none (shouldn't happen — backend should reject), clear active.
+    const pick = construccionCompanies[0]
     if (pick) {
       localStorage.setItem(ACTIVE_COMPANY_KEY, pick.id)
       setActiveCompanyId(pick.id)
