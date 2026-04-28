@@ -109,11 +109,13 @@ export default function Requisiciones() {
               <th>Folio</th>
               <th>Proyecto</th>
               <th>Estado</th>
+              <th>Forma pago</th>
+              <th>Entrega</th>
               <th style={{ textAlign: 'right' }}># líneas</th>
-              <th style={{ textAlign: 'right' }}># cotizaciones</th>
+              <th style={{ textAlign: 'right' }}># cotiz.</th>
               <th style={{ textAlign: 'right' }}>Total</th>
-              <th>Proveedor (ganador)</th>
-              <th>Fecha</th>
+              <th>Proveedor</th>
+              <th>Solicitada</th>
             </tr>
           </thead>
           <tbody>
@@ -124,8 +126,12 @@ export default function Requisiciones() {
                 <td>
                   <span className={`badge estado-${r.estado.toLowerCase()}`}>{ESTADO_LABEL[r.estado] ?? r.estado}</span>
                 </td>
+                <td className="small">
+                  {r.formaPago === 'CREDITO' ? 'Crédito' : r.formaPago === 'CONTADO' ? 'Contado' : <span className="muted">—</span>}
+                </td>
+                <td className="small">{r.fechaEntrega ? fmtDate(r.fechaEntrega) : <span className="muted">—</span>}</td>
                 <td style={{ textAlign: 'right' }}>{r._count?.partidas ?? 0}</td>
-                <td style={{ textAlign: 'right' }}>{r.cotizaciones?.length ?? 0}</td>
+                <td style={{ textAlign: 'right' }}>{r._count?.cotizaciones ?? r.cotizaciones?.length ?? 0}</td>
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(r.total)}</td>
                 <td className="small">{r.supplier?.razonSocial ?? <span className="muted">— sin elegir —</span>}</td>
                 <td className="small muted">{fmtDate(r.createdAt)}</td>
@@ -142,8 +148,13 @@ export default function Requisiciones() {
 // Lets Gerardo enter line items (materials he needs). Picks proyecto.
 // Skips supplier — that gets set when he picks a winning cotización later.
 function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
+  // Folio defaults to a sequential-looking REQ-YYYYMMDD-XXX. User can edit
+  // to match their existing convention (the partner Excel uses N° 10 / 11 / …).
   const [folio, setFolio] = useState(`REQ-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`)
   const [proyectoId, setProyectoId] = useState(proyectos[0]?.id ?? '')
+  const today = new Date().toISOString().slice(0, 10)
+  const [fechaEntrega, setFechaEntrega] = useState('')
+  const [formaPago, setFormaPago] = useState('CREDITO')
   const [notas, setNotas] = useState('')
   const [partidas, setPartidas] = useState([
     { descripcion: '', cantidad: '', unidad: '' },
@@ -163,7 +174,8 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
     const cleanLines = partidas
       .filter((p) => p.descripcion.trim() && Number(p.cantidad) > 0)
       .map((p) => ({
-        descripcion: p.descripcion.trim() + (p.unidad ? ` (${p.unidad})` : ''),
+        descripcion: p.descripcion.trim(),
+        unidad: p.unidad?.trim() || null,
         cantidad: Number(p.cantidad),
         precioUnitario: 0, // unknown until cotización lands
       }))
@@ -179,6 +191,8 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
           companyId,
           folio: folio.trim(),
           proyectoId: proyectoId || undefined,
+          fechaEntrega: fechaEntrega ? new Date(fechaEntrega + 'T12:00:00').toISOString() : null,
+          formaPago: formaPago || null,
           notas: notas.trim() || undefined,
           partidas: cleanLines,
         },
@@ -195,16 +209,39 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
     <form onSubmit={submit} className="req-form">
       <div className="row">
         <label>
-          <span>Folio</span>
+          <span>Folio / SOLICITUD N°</span>
           <input value={folio} onChange={(e) => setFolio(e.target.value)} required />
         </label>
         <label>
-          <span>Proyecto / Obra</span>
+          <span>Obra / Proyecto</span>
           <select value={proyectoId} onChange={(e) => setProyectoId(e.target.value)}>
             <option value="">— sin proyecto —</option>
             {proyectos.map((p) => (
               <option key={p.id} value={p.id}>{p.codigo} {p.nombre}</option>
             ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="row">
+        <label>
+          <span>Fecha de solicitud</span>
+          <input type="date" value={today} disabled />
+        </label>
+        <label>
+          <span>Fecha de entrega</span>
+          <input
+            type="date"
+            value={fechaEntrega}
+            onChange={(e) => setFechaEntrega(e.target.value)}
+            min={today}
+          />
+        </label>
+        <label>
+          <span>Forma de pago</span>
+          <select value={formaPago} onChange={(e) => setFormaPago(e.target.value)}>
+            <option value="CREDITO">Crédito</option>
+            <option value="CONTADO">Contado</option>
           </select>
         </label>
       </div>

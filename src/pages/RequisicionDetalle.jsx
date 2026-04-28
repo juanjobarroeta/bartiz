@@ -86,12 +86,32 @@ export default function RequisicionDetalle() {
 
       <header className="req-head">
         <div>
-          <div className="muted small">{data.proyecto?.codigo ?? 'Sin proyecto'}</div>
-          <h1>Requisición {data.folio}</h1>
-          <div>
+          <div className="muted small">
+            OBRA: {data.proyecto?.codigo ?? 'Sin proyecto'}
+            {data.proyecto?.nombre && <> · {data.proyecto.nombre}</>}
+          </div>
+          <h1>Solicitud N° {data.folio}</h1>
+          <div className="req-meta">
             <span className={`badge estado-${data.estado.toLowerCase()}`}>{data.estado}</span>
+            <span className="muted small">
+              Solicitada: {data.createdAt ? new Date(data.createdAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+            </span>
+            <span className="muted small">
+              Entrega:{' '}
+              {data.fechaEntrega ? (
+                new Date(data.fechaEntrega).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })
+              ) : (
+                <span className="muted">— sin definir —</span>
+              )}
+            </span>
+            <span className="muted small">
+              Forma de pago:{' '}
+              <strong>
+                {data.formaPago === 'CREDITO' ? 'Crédito' : data.formaPago === 'CONTADO' ? 'Contado' : '—'}
+              </strong>
+            </span>
             {data.supplier && (
-              <span className="muted small" style={{ marginLeft: '0.5rem' }}>
+              <span className="muted small">
                 Ganador: <strong>{data.supplier.razonSocial}</strong>
               </span>
             )}
@@ -132,6 +152,7 @@ export default function RequisicionDetalle() {
             <thead>
               <tr>
                 <th>Concepto</th>
+                <th>Unidad</th>
                 <th style={{ textAlign: 'right' }}>Cant.</th>
                 {data.cotizaciones.map((c) => (
                   <th key={c.id} className={c.isSelected ? 'cot-selected' : ''}>
@@ -162,6 +183,7 @@ export default function RequisicionDetalle() {
                       </div>
                     )}
                   </td>
+                  <td className="small mono">{partida.unidad ?? '—'}</td>
                   <td style={{ textAlign: 'right' }}>{partida.cantidad}</td>
                   {lines.map(({ cotizacionId, line, isSelected }) => {
                     const isCheapest = cheapest && cheapest.cotizacionId === cotizacionId
@@ -185,7 +207,7 @@ export default function RequisicionDetalle() {
               ))}
               {/* Footer totals */}
               <tr className="totals-row">
-                <td colSpan={2}><strong>Total cotización</strong></td>
+                <td colSpan={3}><strong>Total cotización</strong></td>
                 {data.cotizaciones.map((c) => (
                   <td key={c.id} className={c.isSelected ? 'cot-selected' : ''}>
                     <strong>{fmtMoney(c.total)}</strong>
@@ -278,6 +300,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       <div className="lines">
         <div className="lines-head">
           <span>Concepto</span>
+          <span style={{ width: 70 }}>Unidad</span>
           <span style={{ width: 80 }}>Cantidad</span>
           <span style={{ width: 100 }}>P. Unitario</span>
           <span style={{ width: 100, textAlign: 'right' }}>Importe</span>
@@ -287,6 +310,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
           return (
             <div key={p.id} className="line-row">
               <span>{p.descripcion}</span>
+              <span className="mono small" style={{ width: 70 }}>{p.unidad ?? '—'}</span>
               <span style={{ width: 80 }}>{p.cantidad}</span>
               <input
                 type="number"

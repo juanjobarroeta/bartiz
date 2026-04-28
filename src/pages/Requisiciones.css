@@ -100,6 +100,7 @@
   margin-bottom: 1rem;
 }
 .req-head h1 { margin: 0.2rem 0; font-size: 1.35rem; }
+.req-meta { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; margin-top: 0.4rem; }
 .req-totals { min-width: 220px; }
 .req-totals .row { display: flex; justify-content: space-between; padding: 0.15rem 0; font-size: 0.9rem; }
 .req-actions { margin-bottom: 1rem; }
