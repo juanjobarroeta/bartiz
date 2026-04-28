@@ -23,6 +23,7 @@ const ALL_NAV_ITEMS = [
   { path: '/proyectos',           label: 'Proyectos',     icon: '📋', ported: true },
   { path: '/catalogo',            label: 'Catálogo',      icon: '📚', ported: true },
   { path: '/requisiciones',       label: 'Requisiciones', icon: '📝', ported: true },
+  { path: '/proveedores-bartiz',  label: 'Proveedores',   icon: '🏢', ported: true },
   { path: '/gastos',              label: 'Gastos',        icon: '💸', ported: true },
   { path: '/caja-chica',          label: 'Caja Chica',    icon: '📦', ported: true },
   { path: '/destajo',             label: 'Destajo',       icon: '👷', ported: true },

@@ -16,9 +16,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import FileUpload from '../components/FileUpload'
+import SupplierPicker from '../components/SupplierPicker'
 import { confirmDialog, alertDialog } from '../components/Dialog'
+import { useAuth } from '../auth/AuthContext'
 import '../components/Modal.css'
 import '../components/FileUpload.css'
+import '../components/SupplierPicker.css'
 import './Requisiciones.css'
 
 const fmtMoney = (n) =>
@@ -224,7 +227,13 @@ export default function RequisicionDetalle() {
 
 // ── New cotización form ─────────────────────────────────────────────────────
 function NewCotizacionForm({ requisicion, onClose, onCreated }) {
-  const [supplierNombre, setSupplierNombre] = useState('')
+  const { activeCompany } = useAuth()
+  // Supplier flow has two modes: picked from catalog (preferred — gets a
+  // real Supplier row + RFC + history aggregation) OR a quick free-text
+  // fallback when the proveedor is one-off and not worth promoting.
+  const [supplier, setSupplier] = useState(null)
+  const [freeTextName, setFreeTextName] = useState('')
+  const [useFreeText, setUseFreeText] = useState(false)
   const [fechaCotizacion, setFecha] = useState(new Date().toISOString().slice(0, 10))
   const [vigenciaHasta, setVigencia] = useState('')
   const [notas, setNotas] = useState('')
@@ -246,7 +255,10 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
 
   const submit = async (e) => {
     e.preventDefault()
-    if (!supplierNombre.trim()) { alertDialog({ message: 'Falta nombre del proveedor' }); return }
+    const finalSupplierNombre = useFreeText
+      ? freeTextName.trim()
+      : supplier?.razonSocial?.trim() ?? ''
+    if (!finalSupplierNombre) { alertDialog({ message: 'Elige un proveedor del catálogo o escribe un nombre.' }); return }
     const lineas = requisicion.partidas
       .filter((p) => parseFloat(pus[p.id]) >= 0)
       .map((p) => ({
@@ -262,7 +274,11 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       await apiFetch(`/api/construccion/solicitudes-compra/${requisicion.id}/cotizaciones`, {
         method: 'POST',
         body: {
-          supplierNombre: supplierNombre.trim(),
+          // Send both: id when we have a Supplier row, plus the
+          // razonSocial as a fallback / display text. Backend stores
+          // both columns.
+          supplierId: useFreeText ? null : supplier?.id ?? null,
+          supplierNombre: finalSupplierNombre,
           fechaCotizacion: new Date(fechaCotizacion + 'T12:00:00').toISOString(),
           vigenciaHasta: vigenciaHasta ? new Date(vigenciaHasta + 'T12:00:00').toISOString() : null,
           notas: notas.trim() || null,
@@ -282,11 +298,43 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
 
   return (
     <form onSubmit={submit} className="req-form">
+      <label className="stack">
+        <span>Proveedor</span>
+        {useFreeText ? (
+          <div className="row" style={{ alignItems: 'center', gap: '0.4rem' }}>
+            <input
+              value={freeTextName}
+              onChange={(e) => setFreeTextName(e.target.value)}
+              placeholder="Nombre libre (no se guarda al catálogo)"
+              style={{ flex: 1, padding: '0.4rem 0.55rem', border: '1px solid #cbd5e1', borderRadius: 5, fontSize: '0.9rem' }}
+            />
+            <button type="button" className="link small" onClick={() => { setUseFreeText(false); setFreeTextName('') }}>
+              elegir del catálogo
+            </button>
+          </div>
+        ) : (
+          <>
+            <SupplierPicker
+              value={supplier}
+              onChange={setSupplier}
+              companyId={activeCompany?.id}
+              placeholder="Buscar proveedor por nombre o RFC…"
+            />
+            {!supplier && (
+              <button
+                type="button"
+                className="link small"
+                style={{ alignSelf: 'flex-start', marginTop: 4 }}
+                onClick={() => setUseFreeText(true)}
+              >
+                ¿Cotización de un solo uso? Usar nombre libre →
+              </button>
+            )}
+          </>
+        )}
+      </label>
+
       <div className="row">
-        <label>
-          <span>Proveedor</span>
-          <input value={supplierNombre} onChange={(e) => setSupplierNombre(e.target.value)} placeholder="RYSCO, BARAMAT…" />
-        </label>
         <label>
           <span>Fecha</span>
           <input type="date" value={fechaCotizacion} onChange={(e) => setFecha(e.target.value)} required />

@@ -1,0 +1,99 @@
+.prov-page { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+.prov-page header h1 { margin: 0 0 0.25rem; }
+.prov-page header p { margin: 0 0 1.25rem; }
+
+.prov-page .toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.prov-page .search {
+  flex: 1;
+  max-width: 400px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.prov-page .search:focus { outline: 2px solid #3b82f6; outline-offset: -1px; border-color: #3b82f6; }
+
+.prov-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
+.prov-table th, .prov-table td { padding: 0.55rem 0.75rem; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; }
+.prov-table thead th { background: #f8fafc; font-size: 0.72rem; text-transform: uppercase; color: #64748b; letter-spacing: 0.04em; }
+.prov-table tr.clickable { cursor: pointer; }
+.prov-table tr.clickable:hover { background: #f8fafc; }
+.prov-table.compact th, .prov-table.compact td { padding: 0.4rem 0.55rem; font-size: 0.82rem; }
+
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.badge.ganadora { background: #bbf7d0; color: #166534; }
+.badge.perdida  { background: #fecaca; color: #991b1b; }
+.badge.muted    { background: #e2e8f0; color: #475569; }
+.badge.estado-pendiente { background: #fef3c7; color: #78350f; }
+.badge.estado-aprobada  { background: #dbeafe; color: #1e3a8a; }
+.badge.estado-pagada    { background: #bbf7d0; color: #166534; }
+.badge.estado-rechazada { background: #fecaca; color: #991b1b; }
+.badge.estado-cancelada { background: #e2e8f0; color: #475569; }
+
+/* ── Form ── */
+.prov-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.prov-form .row { display: flex; gap: 0.6rem; }
+.prov-form label { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; }
+.prov-form label > span { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+.prov-form input {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+.prov-form input:focus { outline: 2px solid #3b82f6; outline-offset: -1px; border-color: #3b82f6; }
+
+/* ── Detail page ── */
+.prov-detalle { padding: 1.5rem; max-width: 1500px; margin: 0 auto; }
+.pd-back { background: transparent; border: none; color: #2563eb; cursor: pointer; font-size: 0.9rem; padding: 0 0 0.5rem 0; }
+.prov-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.prov-head h1 { margin: 0 0 0.4rem; font-size: 1.4rem; }
+.prov-stats { display: flex; gap: 1.25rem; }
+.prov-stats .stat { display: flex; flex-direction: column; gap: 0.15rem; min-width: 110px; }
+.prov-stats .stat strong { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+
+.prov-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.prov-section h2 { margin: 0 0 0.6rem; font-size: 0.95rem; }
+
+.prov-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 1100px) {
+  .prov-bottom { grid-template-columns: 1fr; }
+}
+
+.mono { font-family: ui-monospace, Menlo, monospace; }
+.small { font-size: 0.8rem; }
+.muted { color: #64748b; }
+.pd-empty { padding: 2rem; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px; }
