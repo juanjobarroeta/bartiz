@@ -272,9 +272,13 @@ function AvanceChart({ data }) {
 }
 
 // ── Curva Editor (sheets 4 + 5) ─────────────────────────────────────────────
-// Gantt-style table of capítulos × weeks. Each cell is a percentage editable
-// by Gerardo. Sums per row are highlighted (cliente curve = should be 1.0;
-// calendario interno can be ≤ 1.0).
+// Gantt-style table of capítulos × weeks. Cells display either:
+//   • Vista %  — editable porcentaje (Gerardo escribe 5 = 5%, no 0.05)
+//   • Vista $  — read-only money (importe × pct), to ver flujo real
+//
+// Cells with values get a blue tint (intensity proportional to value) like
+// Excel conditional formatting. Sums per row colored by validity (cliente
+// = 100%, calendario ≤ 100%). Total row at bottom shows per-week aggregate.
 function CurvaEditor({ mode, data, onChange }) {
   const rows = mode === 'cliente' ? data.curvasCliente : data.calendarioCierre
   const weekStartDates = data.weekStartDates ?? []
@@ -284,14 +288,16 @@ function CurvaEditor({ mode, data, onChange }) {
     [capitulos]
   )
 
-  const [pending, setPending] = useState({}) // { rowId: weeklyArray (edited) }
+  const [pending, setPending] = useState({})
   const [savingId, setSavingId] = useState(null)
+  const [view, setView] = useState('pct') // 'pct' | 'money'
 
   const setCell = (rowId, weekIdx, value) => {
     setPending((prev) => {
       const current = prev[rowId] ?? rows.find((r) => r.id === rowId).pesoPctSemanal ?? []
       const next = [...current]
-      next[weekIdx] = isFinite(value) ? value : 0
+      // value comes in as % (0-100). Store as fraction (0-1).
+      next[weekIdx] = isFinite(value) ? value / 100 : 0
       return { ...prev, [rowId]: next }
     })
   }
@@ -318,7 +324,6 @@ function CurvaEditor({ mode, data, onChange }) {
     }
   }
 
-  // Build month headers — group weeks by their starting month.
   const monthHeaders = useMemo(() => {
     if (weekStartDates.length === 0) return []
     const groups = []
@@ -341,22 +346,68 @@ function CurvaEditor({ mode, data, onChange }) {
     return arr.reduce((a, v) => a + (Number(v) || 0), 0)
   }
 
+  // Per-week totals across all capítulos, in $ — sum of (importe × pct).
+  const weeklyMoney = useMemo(() => {
+    const totals = new Array(weekStartDates.length).fill(0)
+    for (const row of rows) {
+      const arr = pending[row.id] ?? row.pesoPctSemanal ?? []
+      const imp = importeByCap.get(row.capituloCode) ?? 0
+      for (let w = 0; w < weekStartDates.length; w++) {
+        totals[w] += (arr[w] ?? 0) * imp
+      }
+    }
+    return totals
+  }, [rows, pending, weekStartDates, importeByCap])
+
+  // Cumulative for footer
+  const totalProgrammedMoney = weeklyMoney.reduce((a, v) => a + v, 0)
+  const grandImporte = capitulos.reduce((a, c) => a + c.importeContrato, 0)
+
+  // Format the cell-input value (% form, e.g. 0.05 → "5", 0.075 → "7.5")
+  const fmtCellPct = (v) => {
+    if (!v || v === 0) return ''
+    const pct = v * 100
+    return parseFloat(pct.toFixed(2)).toString()
+  }
+
+  // Color intensity: returns inline style for non-zero cells.
+  const cellColor = (v) => {
+    if (!v || v === 0) return undefined
+    // Map [0..0.30] → opacity [0.10..0.55]; clamp.
+    const a = Math.min(0.55, 0.10 + (v / 0.30) * 0.45)
+    return { backgroundColor: `rgba(37, 99, 235, ${a.toFixed(2)})` }
+  }
+
   return (
     <div className="curva-editor-wrap">
-      <div className="curva-editor-help">
-        {mode === 'cliente' ? (
-          <>
-            <strong>Curva cliente (sheet 5)</strong> — la distribución semanal
-            esperada por el cliente. Cada fila debe sumar 100%. Pre-cargada con
-            el estándar para vivienda 2R; edítala si tu contrato difiere.
-          </>
-        ) : (
-          <>
-            <strong>Calendario cierre (sheet 4)</strong> — tu planeación interna
-            de cashflow. Marca las semanas en las que esperas pagar/ejecutar
-            cada capítulo; la suma puede ser menor a 100%.
-          </>
-        )}
+      <div className="curva-editor-toolbar">
+        <div className="curva-editor-help">
+          {mode === 'cliente' ? (
+            <>
+              <strong>Curva cliente (sheet 5)</strong> — la distribución
+              semanal esperada por el cliente. Cada fila debe sumar 100%.
+            </>
+          ) : (
+            <>
+              <strong>Calendario cierre (sheet 4)</strong> — tu planeación
+              interna de cashflow. La suma por capítulo puede ser ≤ 100%.
+            </>
+          )}
+        </div>
+        <div className="curva-view-toggle">
+          <button
+            className={view === 'pct' ? 'active' : ''}
+            onClick={() => setView('pct')}
+          >
+            % editable
+          </button>
+          <button
+            className={view === 'money' ? 'active' : ''}
+            onClick={() => setView('money')}
+          >
+            $ flujo
+          </button>
+        </div>
       </div>
 
       <div className="curva-editor-scroll">
@@ -364,7 +415,7 @@ function CurvaEditor({ mode, data, onChange }) {
           <thead>
             <tr className="curva-month-row">
               <th rowSpan="2" style={{ minWidth: 220 }}>Capítulo</th>
-              <th rowSpan="2" style={{ minWidth: 120, textAlign: 'right' }}>Importe</th>
+              <th rowSpan="2" style={{ minWidth: 110, textAlign: 'right' }}>Importe</th>
               {monthHeaders.map((m) => (
                 <th key={m.key} colSpan={m.span} style={{ textAlign: 'center' }}>
                   {m.label}
@@ -389,6 +440,7 @@ function CurvaEditor({ mode, data, onChange }) {
               const sumOk = mode === 'cliente'
                 ? Math.abs(sum - 1) < 0.01
                 : sum <= 1.001
+              const importeRow = importeByCap.get(row.capituloCode) ?? 0
               return (
                 <tr key={row.id}>
                   <td>
@@ -396,18 +448,26 @@ function CurvaEditor({ mode, data, onChange }) {
                     <div className="muted small">{row.descripcion}</div>
                   </td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtMoney(importeByCap.get(row.capituloCode))}
+                    {fmtMoney(importeRow)}
                   </td>
                   {weekStartDates.map((_, w) => {
                     const v = arr[w] ?? 0
+                    if (view === 'money') {
+                      return (
+                        <td key={w} className="curva-cell money" style={cellColor(v)}>
+                          {v > 0 ? fmtMoneyShort(v * importeRow) : ''}
+                        </td>
+                      )
+                    }
                     return (
-                      <td key={w} className="curva-cell">
+                      <td key={w} className="curva-cell" style={cellColor(v)}>
                         <input
                           type="number"
                           min="0"
-                          max="1"
-                          step="0.01"
-                          value={v === 0 ? '' : v}
+                          max="100"
+                          step="0.5"
+                          inputMode="decimal"
+                          value={fmtCellPct(v)}
                           onChange={(e) => {
                             const num = parseFloat(e.target.value)
                             setCell(row.id, w, isFinite(num) ? num : 0)
@@ -416,7 +476,9 @@ function CurvaEditor({ mode, data, onChange }) {
                       </td>
                     )
                   })}
-                  <td className={`curva-sum ${sumOk ? '' : 'bad'}`}>{fmtPct(sum)}</td>
+                  <td className={`curva-sum ${sumOk ? '' : 'bad'}`}>
+                    {view === 'money' ? fmtMoneyShort(sum * importeRow) : fmtPct(sum)}
+                  </td>
                   <td>
                     {dirty && (
                       <button
@@ -433,8 +495,35 @@ function CurvaEditor({ mode, data, onChange }) {
               )
             })}
           </tbody>
+          <tfoot>
+            <tr className="curva-total-row">
+              <td><strong>Total semanal</strong></td>
+              <td style={{ textAlign: 'right' }}>
+                <strong>{fmtMoney(grandImporte)}</strong>
+              </td>
+              {weeklyMoney.map((m, w) => (
+                <td key={w} className="curva-total-cell">
+                  {m > 0 ? (view === 'money' ? fmtMoneyShort(m) : `${((m / grandImporte) * 100).toFixed(1)}%`) : ''}
+                </td>
+              ))}
+              <td style={{ textAlign: 'right' }}>
+                <strong>{view === 'money' ? fmtMoneyShort(totalProgrammedMoney) : fmtPct(totalProgrammedMoney / Math.max(grandImporte, 1))}</strong>
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
   )
+}
+
+// Compact money formatter for cells: "$45k", "$1.2M". Falls back to full
+// when the number is small.
+function fmtMoneyShort(n) {
+  if (n == null || n === 0) return ''
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`
+  if (abs >= 1_000) return `$${Math.round(n / 1_000)}k`
+  return `$${Math.round(n)}`
 }
