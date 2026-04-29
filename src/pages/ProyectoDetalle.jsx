@@ -184,7 +184,7 @@ export default function ProyectoDetalle() {
         {tab === 'consumo' && <ConsumoInsumosTab proyecto={proyecto} />}
         {tab === 'cuadrillas' && <CuadrillasTab proyecto={proyecto} />}
         {tab === 'rayas' && <RayasTab proyecto={proyecto} />}
-        {tab === 'estimaciones' && <EstimacionesTab proyecto={proyecto} navigate={navigate} />}
+        {tab === 'estimaciones' && <EstimacionesTab proyecto={proyecto} navigate={navigate} activeCompany={activeCompany} />}
         {tab === 'programa' && <ProgramaTab proyecto={proyecto} />}
         {tab === 'compras' && <ComprasTab proyecto={proyecto} />}
         {tab === 'pagos' && <PagosTab proyecto={proyecto} companyId={activeCompany?.id} onRefresh={cargar} />}
@@ -1344,7 +1344,7 @@ function defaultMonday() {
 //   • Empty + no presupuesto: "Importa el presupuesto primero".
 //   • Bartiz-mode (no template, but estimaciones exist as leaf-mode): shows
 //     legacy table + "Ver todas".
-function EstimacionesTab({ proyecto, navigate }) {
+function EstimacionesTab({ proyecto, navigate, activeCompany }) {
   const [template, setTemplate] = useState(null)
   const [estimaciones, setEstimaciones] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1407,117 +1407,227 @@ function EstimacionesTab({ proyecto, navigate }) {
     )
   }
 
-  // Dashboard summary (sheet 1 footer A/B/C/D/E/F equivalent)
+  // ─── Métricas para el dashboard estilo Excel sheet 1 ─────────────────────
   const monto = proyecto.montoContratado ?? 0
-  const anticipo = proyecto.anticipoMonto ?? 0
-  const cobrado = estimaciones
-    .filter(e => e.estado === 'PAGADA')
-    .reduce((a, e) => a + (e.total ?? 0), 0)
-  const facturado = estimaciones
-    .filter(e => e.estado === 'TIMBRADA' || e.estado === 'PAGADA')
-    .reduce((a, e) => a + (e.total ?? 0), 0)
-  const flujoPorPagar = monto - anticipo - cobrado
+  const anticipoMonto = proyecto.anticipoMonto ?? 0
+  const fondoGarantia = (proyecto.retencionPorc ?? 0) > 0
+    ? monto * ((proyecto.retencionPorc ?? 0) / 100)
+    : 0
+
+  // Estimaciones llevan estado normalizado (BORRADOR/APROBADA/TIMBRADA/PAGADA)
+  // y traen importes + amortización + retención. Para vivienda Decolsa los
+  // últimos 2 son típicamente 0.
+  const importeBy = (e) => e.subtotal ?? e.total ?? 0
+  const amortBy = (e) => e.amortizacionAnticipo ?? 0
+  const fgBy = (e) => e.retencionGarantia ?? 0
+  const netoBy = (e) => importeBy(e) - amortBy(e) - fgBy(e)
+
+  const sortedEsts = [...estimaciones].sort((a, b) => a.numero - b.numero)
+  let runningAcum = 0
+  const enrichedRows = sortedEsts.map((e) => {
+    const importe = importeBy(e)
+    runningAcum += importe
+    const pct = monto > 0 ? importe / monto : 0
+    const pctAcum = monto > 0 ? runningAcum / monto : 0
+    return {
+      ...e,
+      importe,
+      pct,
+      acumulado: runningAcum,
+      pctAcum,
+      amort: amortBy(e),
+      fg: fgBy(e),
+      neto: netoBy(e),
+      cobrado: (e.estado === 'PAGADA') ? netoBy(e) : 0,
+    }
+  })
+
+  const totalImporte = enrichedRows.reduce((a, r) => a + r.importe, 0)
+  const totalAmort = enrichedRows.reduce((a, r) => a + r.amort, 0)
+  const totalFG = enrichedRows.reduce((a, r) => a + r.fg, 0)
+  const totalNeto = enrichedRows.reduce((a, r) => a + r.neto, 0)
+  const totalCobrado = enrichedRows.reduce((a, r) => a + r.cobrado, 0)
+  const flujoPorPagar = monto - anticipoMonto - totalCobrado
+  const estimacionesPendientes = flujoPorPagar - fondoGarantia
+
+  // El último período captura el "NO. REPORTE" + "PERIODO DEL / CORTE AL"
+  const ultimaEst = sortedEsts[sortedEsts.length - 1]
 
   return (
-    <div>
-      {/* Dashboard header — equivalente a sheet 1 de Excel */}
-      <div className="est-dashboard">
-        <div className="est-meta">
-          <h3>{proyecto.nombre}</h3>
-          <div className="muted small">
-            {proyecto.codigo}
-            {proyecto.viviendasObjetivo && <> · {proyecto.viviendasObjetivo} viviendas</>}
-            {' · '}IVA {proyecto.aplicaIva ? 'aplica' : 'no aplica'}
-          </div>
+    <div className="est-excel">
+      {/* ── Header estilo Excel sheet 1 ───────────────────────────────────── */}
+      <div className="est-excel-header">
+        <div className="est-excel-meta">
+          <div className="row"><span className="lbl">CONTRATO:</span><span>{proyecto.numeroContrato ?? '—'} {proyecto.nombre}</span></div>
+          <div className="row"><span className="lbl">CONTRATISTA:</span><span>{activeCompany?.razonSocial ?? '—'}</span></div>
+          <div className="row"><span className="lbl">MONTO CONTRATADO {proyecto.aplicaIva ? '' : 'SIN IVA'}:</span><strong>{fmtMoney(monto)}</strong></div>
+          <div className="row"><span className="lbl">PORCENTAJE ANTICIPO:</span><span>{(proyecto.anticipoPorc ?? 0).toFixed(2)}%</span></div>
+          <div className="row"><span className="lbl">IMPORTE DE ANTICIPO:</span><span>{fmtMoney(anticipoMonto)}</span></div>
+          <div className="row"><span className="lbl">PORCENTAJE F.G.:</span><span>{(proyecto.retencionPorc ?? 0).toFixed(2)}%</span></div>
+          <div className="row"><span className="lbl">IMPORTE FONDO GARANTIA:</span><span>{fmtMoney(fondoGarantia)}</span></div>
+          <div className="row"><span className="lbl">NÚMERO DE VIVIENDAS:</span><span>{proyecto.viviendasObjetivo ?? '—'}</span></div>
+          <div className="row"><span className="lbl">INICIO DE OBRA:</span><span>{fmtDate(proyecto.fechaInicio)}</span></div>
+          <div className="row"><span className="lbl">TERMINACIÓN DE OBRA:</span><span>{fmtDate(proyecto.fechaFinPlan)}</span></div>
         </div>
-        <div className="est-summary">
-          <div>
-            <span className="muted small">A. Monto contrato</span>
-            <strong>{fmtMoney(monto)}</strong>
-          </div>
-          <div>
-            <span className="muted small">B. Anticipo</span>
-            <strong>{fmtMoney(anticipo)}</strong>
-          </div>
-          <div>
-            <span className="muted small">C. Estimaciones cobradas</span>
-            <strong>{fmtMoney(cobrado)}</strong>
-          </div>
-          <div className="est-summary-flujo">
-            <span className="muted small">D = A − B − C · Flujo por pagar</span>
-            <strong>{fmtMoney(flujoPorPagar)}</strong>
-          </div>
+
+        <div className="est-excel-meta-right">
+          {proyecto.customer?.razonSocial && (
+            <div className="est-cliente">{proyecto.customer.razonSocial}</div>
+          )}
+          {ultimaEst && (
+            <>
+              <div className="row"><span className="lbl">PERÍODO DEL:</span><span>{fmtDate(ultimaEst.periodoInicio)}</span></div>
+              <div className="row"><span className="lbl">CORTE AL:</span><span>{fmtDate(ultimaEst.fechaCorte ?? ultimaEst.periodoFin)}</span></div>
+              <div className="est-reporte-num">
+                <div className="lbl">NO. REPORTE</div>
+                <strong>{ultimaEst.numero}</strong>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="pd-pres-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
+      <div className="pd-pres-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0.5rem 0' }}>
         <span className="muted small">
-          {template.partidas?.length ?? 0} partidas en plantilla · {estimaciones.length} estimación(es)
-          {' · '}{fmtMoney(facturado)} facturado
+          {template.partidas?.length ?? 0} partidas en plantilla
         </span>
         <button className="primary" onClick={() => setNewOpen(true)}>
           + Nueva estimación
         </button>
       </div>
 
-      {estimaciones.length === 0 ? (
+      {/* ── Registro estilo Excel sheet 1 ──────────────────────────────────── */}
+      {enrichedRows.length === 0 ? (
         <div className="pd-empty">
           Aún no hay estimaciones. Crea la primera con el botón.
         </div>
       ) : (
-        <table className="pd-table est-register">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Período</th>
-              <th>Estado</th>
-              <th>Nº Fact</th>
-              <th>Fecha factura</th>
-              <th>Fecha pago</th>
-              <th>Pagada</th>
-              <th style={{ textAlign: 'right' }}>Importe</th>
-              <th style={{ textAlign: 'right' }}>%</th>
-              <th style={{ textAlign: 'right' }}>Acum</th>
-              <th style={{ textAlign: 'right' }}>% acum</th>
-            </tr>
-          </thead>
-          <tbody>
-            {estimaciones.map((e) => (
-              <tr key={e.id} className="clickable" onClick={() => navigate(`/estimacion-viviendas/${e.id}`)}>
-                <td><strong>EST. {e.numero}</strong></td>
-                <td className="small">
-                  {fmtDate(e.periodoInicio)} → {fmtDate(e.periodoFin)}
-                </td>
-                <td>
-                  <span className={`badge estado-${e.estado?.toLowerCase()}`}>
-                    {EST_ESTADO[e.estado] ?? e.estado}
-                  </span>
-                </td>
-                <td className="small mono">
-                  {e.invoice ? `${e.invoice.serie ?? ''}${e.invoice.folio}` : '—'}
-                </td>
-                <td className="small">{e.invoice ? fmtDate(e.invoice.fecha) : '—'}</td>
-                <td className="small">{e.bankTransaction ? fmtDate(e.bankTransaction.fecha) : '—'}</td>
-                <td className="small">
-                  {e.estado === 'PAGADA' ? <strong style={{ color: '#16a34a' }}>SÍ</strong> : '—'}
-                </td>
-                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMoney(e.total)}
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  {((e.pctPeriodo ?? 0) * 100).toFixed(2)}%
-                </td>
-                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtMoney(e.importeAcumulado)}
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  {((e.pctAcumulado ?? 0) * 100).toFixed(2)}%
-                </td>
+        <div className="est-excel-table-wrap">
+          <table className="est-excel-table">
+            <thead>
+              <tr>
+                <th rowSpan="2">NO.</th>
+                <th rowSpan="2">CONCEPTO</th>
+                <th rowSpan="2">PÓLIZA</th>
+                <th rowSpan="2">Nº DE FACT</th>
+                <th rowSpan="2">FECHA<br/>FACTURA</th>
+                <th rowSpan="2">FECHA<br/>DE PAGO</th>
+                <th rowSpan="2">PAGADA</th>
+                <th>IMPORTE</th>
+                <th>%</th>
+                <th>ESTIMACIÓN</th>
+                <th>PORCENTAJE</th>
+                <th>AMORT.</th>
+                <th>FONDO DE</th>
+                <th>NETO ESTIMADO</th>
+                <th>NETO COBRADO</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+              <tr>
+                <th>ESTIMACIÓN</th>
+                <th></th>
+                <th>ACUMULADA</th>
+                <th>ACUMULADO</th>
+                <th>ANTICIPO</th>
+                <th>GARANTÍA</th>
+                <th>{proyecto.aplicaIva ? '(SIN IVA)' : ''}</th>
+                <th>{proyecto.aplicaIva ? '(SIN IVA)' : ''}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {anticipoMonto > 0 && (
+                <tr className="est-anticipo-row">
+                  <td>1</td>
+                  <td><strong>ANTICIPO</strong></td>
+                  <td colSpan="6"></td>
+                  <td className="num"></td>
+                  <td className="num"></td>
+                  <td className="num">{fmtMoney(anticipoMonto)}</td>
+                  <td className="num">{((anticipoMonto / Math.max(monto, 1)) * 100).toFixed(2)}%</td>
+                  <td className="num"></td>
+                  <td className="num"></td>
+                  <td className="num">{fmtMoney(anticipoMonto)}</td>
+                  <td className="num">{fmtMoney(anticipoMonto)}</td>
+                </tr>
+              )}
+              {enrichedRows.map((r, i) => (
+                <tr
+                  key={r.id}
+                  className="clickable"
+                  onClick={() => navigate(`/estimacion-viviendas/${r.id}`)}
+                >
+                  <td>{i + 1}</td>
+                  <td><strong>EST. {r.numero}</strong></td>
+                  <td></td>
+                  <td className="mono">{r.invoice ? `${r.invoice.serie ?? ''}${r.invoice.folio}` : ''}</td>
+                  <td className="small">{r.invoice ? fmtDate(r.invoice.fecha) : ''}</td>
+                  <td className="small">{r.bankTransaction ? fmtDate(r.bankTransaction.fecha) : ''}</td>
+                  <td>
+                    {r.estado === 'PAGADA'
+                      ? <strong className="est-si">SÍ</strong>
+                      : (r.estado === 'APROBADA' || r.estado === 'TIMBRADA')
+                        ? <span className={`badge estado-${r.estado.toLowerCase()}`}>{EST_ESTADO[r.estado]}</span>
+                        : '—'}
+                  </td>
+                  <td className="num">{fmtMoney(r.importe)}</td>
+                  <td className="num">{(r.pct * 100).toFixed(2)}%</td>
+                  <td className="num">{fmtMoney(r.acumulado)}</td>
+                  <td className="num">{(r.pctAcum * 100).toFixed(2)}%</td>
+                  <td className="num">{fmtMoney(r.amort)}</td>
+                  <td className="num">{fmtMoney(r.fg)}</td>
+                  <td className="num">{fmtMoney(r.neto)}</td>
+                  <td className="num">{r.cobrado > 0 ? fmtMoney(r.cobrado) : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan="7" style={{ textAlign: 'right' }}><strong>Totales</strong></td>
+                <td className="num"><strong>{fmtMoney(totalImporte)}</strong></td>
+                <td className="num"><strong>{((totalImporte / Math.max(monto, 1)) * 100).toFixed(2)}%</strong></td>
+                <td colSpan="2"></td>
+                <td className="num"><strong>{fmtMoney(totalAmort)}</strong></td>
+                <td className="num"><strong>{fmtMoney(totalFG)}</strong></td>
+                <td className="num"><strong>{fmtMoney(totalNeto)}</strong></td>
+                <td className="num"><strong>{fmtMoney(totalCobrado)}</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
+
+      {/* ── Bloque inferior A/B/C/D/E/F ─────────────────────────────────────── */}
+      <div className="est-excel-summary">
+        <div className="est-excel-summary-row">
+          <span className="key">A</span>
+          <span className="lbl">MONTO CONTRATO</span>
+          <span className="val">{fmtMoney(monto)}</span>
+        </div>
+        <div className="est-excel-summary-row">
+          <span className="key">B</span>
+          <span className="lbl">ANTICIPO</span>
+          <span className="val">{fmtMoney(anticipoMonto)}</span>
+        </div>
+        <div className="est-excel-summary-row">
+          <span className="key">C</span>
+          <span className="lbl">ESTIMACIONES PAGADAS</span>
+          <span className="val">{fmtMoney(totalCobrado)}</span>
+        </div>
+        <div className="est-excel-summary-row highlight">
+          <span className="key">D</span>
+          <span className="lbl">FLUJO POR PAGAR (A − B − C)</span>
+          <span className="val">{fmtMoney(flujoPorPagar)}</span>
+        </div>
+        <div className="est-excel-summary-row">
+          <span className="key">E</span>
+          <span className="lbl">F.G.</span>
+          <span className="val">{fmtMoney(fondoGarantia)}</span>
+        </div>
+        <div className="est-excel-summary-row highlight">
+          <span className="key">F</span>
+          <span className="lbl">ESTIMACIONES PENDIENTES</span>
+          <span className="val">{fmtMoney(estimacionesPendientes)}</span>
+        </div>
+      </div>
 
       <NewEstimacionModal
         open={newOpen}

@@ -309,3 +309,160 @@
   cursor: pointer;
 }
 .pd-tabs-menu-list button:hover { background: #f1f5f9; }
+
+/* ── Estimaciones — vista estilo Excel sheet 1 ─────────────────────────── */
+.est-excel {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+}
+
+/* Header */
+.est-excel-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #1f2937;
+  margin-bottom: 1rem;
+}
+.est-excel-meta { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.est-excel-meta .row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  font-size: 0.85rem;
+  align-items: baseline;
+  padding: 0.15rem 0;
+}
+.est-excel-meta .lbl, .est-excel-meta-right .lbl {
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+.est-excel-meta strong { font-variant-numeric: tabular-nums; }
+
+.est-excel-meta-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: right;
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+.est-cliente {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1f2937;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+.est-excel-meta-right .row {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  align-items: baseline;
+}
+.est-reporte-num {
+  margin-top: 0.25rem;
+  border: 2px solid #1f2937;
+  padding: 0.5rem 1.5rem;
+  text-align: center;
+}
+.est-reporte-num .lbl { font-size: 0.72rem; color: #475569; }
+.est-reporte-num strong { font-size: 2rem; line-height: 1; display: block; }
+
+/* Table */
+.est-excel-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+.est-excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.est-excel-table thead th {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.est-excel-table tbody td {
+  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.55rem;
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+.est-excel-table td.num {
+  text-align: right;
+}
+.est-excel-table td.mono { font-family: ui-monospace, Menlo, monospace; }
+.est-excel-table td.small { font-size: 0.78rem; color: #475569; }
+
+.est-excel-table tbody tr.clickable { cursor: pointer; }
+.est-excel-table tbody tr.clickable:hover { background: #f8fafc; }
+
+.est-excel-table tbody tr.est-anticipo-row {
+  background: #fffbeb;
+  font-weight: 600;
+}
+
+.est-excel-table .est-si { color: #0d6e2c; }
+
+.est-excel-table tfoot td {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-top: 2px solid #1f2937;
+  padding: 0.5rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+/* Bottom summary block A/B/C/D/E/F */
+.est-excel-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 480px;
+  margin-left: auto;
+  margin-top: 1rem;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.est-excel-summary-row {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.95rem;
+}
+.est-excel-summary-row .key {
+  font-weight: 700;
+  color: #475569;
+  text-align: center;
+}
+.est-excel-summary-row .lbl {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+}
+.est-excel-summary-row .val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.est-excel-summary-row.highlight {
+  background: #f1f5f9;
+  border-radius: 4px;
+  border-top: 1px solid #cbd5e1;
+}
+.est-excel-summary-row.highlight .val {
+  color: #0c4a6e;
+  font-size: 1.05rem;
+}
