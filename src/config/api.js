@@ -107,12 +107,24 @@ export async function apiFetch(path, opts = {}) {
         window.location.href = '/login'
       }
     }
-    const err = new Error(
-      (data && typeof data === 'object' && data.error) ||
-        `Request failed: ${res.status}`
-    )
+    // Log to console with URL + body so failures are debuggable from
+    // devtools when the user hits something unexpected. The displayed
+    // alert message can stay short.
+    if (typeof console !== 'undefined') {
+      console.error(`[apiFetch] ${method} ${path} → ${res.status}`, {
+        body: typeof data === 'string' ? data.slice(0, 500) : data,
+      })
+    }
+    const friendlyMsg =
+      data && typeof data === 'object' && data.error
+        ? data.error
+        : `${method} ${path} → ${res.status}${
+            res.status === 404 ? ' (ruta no encontrada o no desplegada aún)' : ''
+          }`
+    const err = new Error(friendlyMsg)
     err.status = res.status
     err.data = data
+    err.url = path
     throw err
   }
 
