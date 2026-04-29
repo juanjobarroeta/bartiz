@@ -13,6 +13,7 @@ import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import ImportPresupuestoModal from '../components/ImportPresupuestoModal'
 import BootstrapTemplateModal from '../components/BootstrapTemplateModal'
+import ProgramaTab from '../components/ProgramaTab'
 import './ProyectoDetalle.css'
 
 const ESTADO_LABEL = {
@@ -47,6 +48,7 @@ const PRIMARY_TABS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'estimaciones', label: 'Estimaciones' },
+  { id: 'programa', label: 'Programa' },
   { id: 'compras', label: 'Compras' },
   { id: 'bitacora', label: 'Bitácora' },
 ]
@@ -183,6 +185,7 @@ export default function ProyectoDetalle() {
         {tab === 'cuadrillas' && <CuadrillasTab proyecto={proyecto} />}
         {tab === 'rayas' && <RayasTab proyecto={proyecto} />}
         {tab === 'estimaciones' && <EstimacionesTab proyecto={proyecto} navigate={navigate} />}
+        {tab === 'programa' && <ProgramaTab proyecto={proyecto} />}
         {tab === 'compras' && <ComprasTab proyecto={proyecto} />}
         {tab === 'pagos' && <PagosTab proyecto={proyecto} companyId={activeCompany?.id} onRefresh={cargar} />}
         {tab === 'bitacora' && <BitacoraTab proyecto={proyecto} ejecutado={ejecutado} onRefresh={cargar} />}

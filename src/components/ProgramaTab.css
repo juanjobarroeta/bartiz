@@ -1,0 +1,137 @@
+.programa-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Toolbar / segments */
+.programa-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+.programa-segments {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+}
+.programa-segments button {
+  background: transparent;
+  border: none;
+  padding: 0.45rem 0.95rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: #475569;
+}
+.programa-segments button.active {
+  background: white;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+/* ── Chart ────────────────────────────────────────────────────────────── */
+.programa-chart-wrap {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+.programa-chart-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.programa-chart-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.programa-chart-stats strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+.programa-chart {
+  width: 100%;
+  height: 420px;
+}
+
+/* ── Curva editor ─────────────────────────────────────────────────────── */
+.curva-editor-wrap {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+.curva-editor-help {
+  margin-bottom: 0.75rem;
+  font-size: 0.88rem;
+  color: #475569;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 0.6rem 0.85rem;
+}
+.curva-editor-scroll {
+  overflow-x: auto;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.curva-editor {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 100%;
+}
+.curva-editor thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  z-index: 2;
+}
+.curva-month-row th {
+  border-right: 1px solid #f1f5f9;
+}
+.curva-week-th {
+  font-weight: 400;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-align: center;
+  min-width: 38px;
+}
+.curva-editor tbody td {
+  padding: 0.3rem 0.55rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+.curva-cell { padding: 0.15rem; min-width: 38px; max-width: 50px; }
+.curva-cell input {
+  width: 38px;
+  padding: 0.2rem 0.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.curva-cell input:focus {
+  outline: 2px solid #f59e0b;
+  border-color: #f59e0b;
+}
+.curva-sum {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #16a34a;
+  padding: 0 0.6rem;
+}
+.curva-sum.bad { color: #dc2626; }
+
+.curva-editor tbody tr:hover { background: #fafbfd; }
