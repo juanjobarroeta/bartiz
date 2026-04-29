@@ -12,6 +12,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import ImportPresupuestoModal from '../components/ImportPresupuestoModal'
+import BootstrapTemplateModal from '../components/BootstrapTemplateModal'
 import './ProyectoDetalle.css'
 
 const ESTADO_LABEL = {
@@ -1287,30 +1288,223 @@ function defaultMonday() {
 
 // ── Estimaciones Tab ────────────────────────────────────────────────────────
 
+// EstimacionesTab — dual mode tab:
+//   • If proyecto has EstimacionTemplate (Decolsa): list por periodo, "Nueva
+//     estimación" button, click row → /estimacion-viviendas/:id grid editor.
+//   • Empty + presupuesto exists: "Configurar estimaciones" → BootstrapTemplateModal.
+//   • Empty + no presupuesto: "Importa el presupuesto primero".
+//   • Bartiz-mode (no template, but estimaciones exist as leaf-mode): shows
+//     legacy table + "Ver todas".
 function EstimacionesTab({ proyecto, navigate }) {
+  const [template, setTemplate] = useState(null)
+  const [estimaciones, setEstimaciones] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [bootstrapOpen, setBootstrapOpen] = useState(false)
+  const [newOpen, setNewOpen] = useState(false)
+
+  const reload = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [tpl, list] = await Promise.all([
+        apiFetch(`/api/construccion/proyectos/${proyecto.id}/estimacion-template`).catch(() => null),
+        apiFetch(`/api/construccion/proyectos/${proyecto.id}/estimaciones`).catch(() => []),
+      ])
+      setTemplate(tpl?.template ?? null)
+      setEstimaciones(Array.isArray(list) ? list : [])
+    } finally {
+      setLoading(false)
+    }
+  }, [proyecto.id])
+
+  useEffect(() => { reload() }, [reload])
+
+  const hasPresupuesto = (proyecto.presupuestos ?? []).length > 0
+  const hasTemplate = !!template
+
+  if (loading) return <div className="pd-empty">Cargando…</div>
+
+  // Empty states
+  if (!hasTemplate) {
+    if (!hasPresupuesto) {
+      return (
+        <div className="pd-empty">
+          Importa el presupuesto del proyecto primero para configurar las
+          estimaciones.
+        </div>
+      )
+    }
+    return (
+      <>
+        <div className="pd-pres-empty-import">
+          <div>
+            <h3>Configura estimaciones por avance de viviendas</h3>
+            <p className="muted small">
+              Crearemos la plantilla con la regla por defecto (capítulos 1-15
+              compactados, ≥16 abiertos a sub-capítulo). Editable después.
+            </p>
+          </div>
+          <button className="primary" onClick={() => setBootstrapOpen(true)}>
+            ⚙ Configurar estimaciones
+          </button>
+        </div>
+        <BootstrapTemplateModal
+          open={bootstrapOpen}
+          onClose={() => setBootstrapOpen(false)}
+          proyectoId={proyecto.id}
+          proyecto={proyecto}
+          onDone={reload}
+        />
+      </>
+    )
+  }
+
   return (
     <div>
-      {(proyecto.estimaciones ?? []).length === 0 ? (
-        <div className="pd-empty">No hay estimaciones aún.</div>
+      <div className="pd-pres-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span className="muted small">
+          {template.partidas?.length ?? 0} partidas en plantilla
+          {' · '}
+          {estimaciones.length} estimación(es)
+        </span>
+        <button className="primary" onClick={() => setNewOpen(true)}>
+          + Nueva estimación
+        </button>
+      </div>
+
+      {estimaciones.length === 0 ? (
+        <div className="pd-empty">
+          Aún no hay estimaciones. Crea la primera con el botón.
+        </div>
       ) : (
         <table className="pd-table">
-          <thead><tr><th>#</th><th>Período</th><th>Estado</th><th style={{textAlign:'right'}}>Subtotal</th><th style={{textAlign:'right'}}>Total</th></tr></thead>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Período</th>
+              <th>Estado</th>
+              <th>CFDI</th>
+              <th>Pagada</th>
+              <th style={{ textAlign: 'right' }}>Importe periodo</th>
+              <th style={{ textAlign: 'right' }}>% acum</th>
+            </tr>
+          </thead>
           <tbody>
-            {(proyecto.estimaciones ?? []).map(e => (
-              <tr key={e.id}>
-                <td>{e.numero}</td>
-                <td className="small">{fmtDate(e.periodoInicio)} → {fmtDate(e.periodoFin)}</td>
-                <td><span className={`badge estado-${e.estado?.toLowerCase()}`}>{EST_ESTADO[e.estado] ?? e.estado}</span></td>
-                <td style={{textAlign:'right'}}>{fmtMoney(e.subtotal)}</td>
-                <td style={{textAlign:'right'}}>{fmtMoney(e.total)}</td>
+            {estimaciones.map((e) => (
+              <tr key={e.id} className="clickable" onClick={() => navigate(`/estimacion-viviendas/${e.id}`)}>
+                <td><strong>EST. {e.numero}</strong></td>
+                <td className="small">
+                  {fmtDate(e.periodoInicio)} → {fmtDate(e.periodoFin)}
+                </td>
+                <td>
+                  <span className={`badge estado-${e.estado?.toLowerCase()}`}>
+                    {EST_ESTADO[e.estado] ?? e.estado}
+                  </span>
+                </td>
+                <td className="small mono">
+                  {e.invoice ? `${e.invoice.serie ?? ''}${e.invoice.folio}` : '—'}
+                </td>
+                <td className="small">
+                  {e.bankTransaction ? fmtDate(e.bankTransaction.fecha) : '—'}
+                </td>
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtMoney(e.total)}
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  {((e.pctAcumulado ?? 0) * 100).toFixed(2)}%
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      <button className="link" style={{ marginTop: '1rem' }} onClick={() => navigate(`/estimaciones/${proyecto.id}`)}>
-        Ver todas las estimaciones →
-      </button>
+
+      <NewEstimacionModal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        proyectoId={proyecto.id}
+        prevEstimacion={estimaciones[0]}
+        onCreated={(created) => {
+          setNewOpen(false)
+          navigate(`/estimacion-viviendas/${created.id}`)
+        }}
+      />
+    </div>
+  )
+}
+
+// Inline modal for creating a new estimación
+function NewEstimacionModal({ open, onClose, proyectoId, prevEstimacion, onCreated }) {
+  const [periodoInicio, setPeriodoInicio] = useState('')
+  const [periodoFin, setPeriodoFin] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    // Suggest period: day after prev's periodoFin → today
+    const today = new Date().toISOString().slice(0, 10)
+    if (prevEstimacion?.periodoFin) {
+      const next = new Date(prevEstimacion.periodoFin)
+      next.setDate(next.getDate() + 1)
+      setPeriodoInicio(next.toISOString().slice(0, 10))
+    } else {
+      setPeriodoInicio(today)
+    }
+    setPeriodoFin(today)
+  }, [open, prevEstimacion])
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!periodoInicio || !periodoFin) return
+    setBusy(true)
+    try {
+      const created = await apiFetch(
+        `/api/construccion/proyectos/${proyectoId}/estimaciones`,
+        {
+          method: 'POST',
+          body: {
+            periodoInicio: new Date(periodoInicio).toISOString(),
+            periodoFin: new Date(periodoFin).toISOString(),
+          },
+        },
+      )
+      onCreated?.(created)
+    } catch (err) {
+      window.alert(err.message || 'Error al crear estimación')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!open) return null
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+        <header className="modal-header">
+          <h2>Nueva estimación</h2>
+          <button onClick={onClose} aria-label="Cerrar">×</button>
+        </header>
+        <form onSubmit={submit}>
+          <div className="modal-body">
+            <p className="muted small">
+              {prevEstimacion
+                ? `Se clonará desde EST. ${prevEstimacion.numero}, arrastrando viviendas acumuladas.`
+                : 'Primera estimación del proyecto.'}
+            </p>
+            <label style={{ display: 'block', marginTop: '0.75rem' }}>
+              <span className="muted small">Período inicio</span>
+              <input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: 6 }} />
+            </label>
+            <label style={{ display: 'block', marginTop: '0.5rem' }}>
+              <span className="muted small">Período fin</span>
+              <input type="date" value={periodoFin} onChange={(e) => setPeriodoFin(e.target.value)} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: 6 }} />
+            </label>
+          </div>
+          <div className="modal-actions">
+            <button type="button" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="primary" disabled={busy}>{busy ? 'Creando…' : 'Crear estimación'}</button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

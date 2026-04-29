@@ -24,6 +24,7 @@ import Catalogo from './pages/Catalogo'
 import APU from './pages/APU'
 import PresupuestoDetalle from './pages/PresupuestoDetalle'
 import Estimaciones from './pages/Estimaciones'
+import EstimacionViviendasDetalle from './pages/EstimacionViviendasDetalle'
 import Compras from './pages/Compras'
 import SolicitudesCompra from './pages/SolicitudesCompra'
 import Gastos from './pages/Gastos'
@@ -81,6 +82,7 @@ function App() {
                     <Route path="/apu/:conceptoId" element={<APU />} />
                     <Route path="/presupuesto/:id" element={<PresupuestoDetalle />} />
                     <Route path="/estimaciones/:proyectoId" element={<Estimaciones />} />
+                    <Route path="/estimacion-viviendas/:id" element={<EstimacionViviendasDetalle />} />
                     <Route path="/compras" element={<Compras />} />
                     <Route path="/solicitudes-compra" element={<SolicitudesCompra />} />
                     <Route path="/gastos" element={<Gastos />} />
