@@ -42,15 +42,22 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('es-MX', { year: 'nume
 // Cuadrillas + Rayas now live at top-level /destajo (cross-project view).
 // Compras / Pagos will move to top-level /requisiciones + /tesoreria
 // in Sprint 2-3.
-const TABS = [
+// Tabs a mostrar siempre (orden = como aparecen en la UI)
+const PRIMARY_TABS = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'presupuestos', label: 'Presupuestos' },
-  { id: 'unidades', label: 'Unidades' },
-  { id: 'consumo', label: 'Explosión vs Real' },
   { id: 'estimaciones', label: 'Estimaciones' },
   { id: 'compras', label: 'Compras' },
-  { id: 'pagos', label: 'Pagos' },
   { id: 'bitacora', label: 'Bitácora' },
+]
+
+// Tabs avanzados — se muestran sólo cuando ya tienen datos. Si están vacíos
+// no aportan, así que no llenan la barra de navegación. Para crearlos, el
+// usuario abre el menú "+ más" (botón al final de la fila).
+const SECONDARY_TABS = [
+  { id: 'unidades', label: 'Unidades', hasData: (p) => (p.unidades ?? []).length > 0 },
+  { id: 'consumo', label: 'Explosión vs Real', hasData: (p) => (p.presupuestos ?? []).some(x => x.tipoPresupuesto === 'EJECUTADO') },
+  { id: 'pagos', label: 'Pagos', hasData: (p) => (p.pagos ?? []).length > 0 },
 ]
 
 export default function ProyectoDetalle() {
@@ -149,17 +156,27 @@ export default function ProyectoDetalle() {
       </div>
 
       <nav className="pd-tabs">
-        {TABS.filter(t => !t.flag || activeCompany?.modulos?.includes(t.flag)).map(t => (
+        {PRIMARY_TABS.map(t => (
           <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
             {t.label}
             {t.id === 'bitacora' && (proyecto.bitacora?.length > 0) && <span className="tab-count">{proyecto.bitacora.length}</span>}
+            {t.id === 'estimaciones' && (proyecto.estimaciones?.length > 0) && <span className="tab-count">{proyecto.estimaciones.length}</span>}
+          </button>
+        ))}
+        {SECONDARY_TABS.filter(t => t.hasData(proyecto) || tab === t.id).map(t => (
+          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
+            {t.label}
+            {t.id === 'unidades' && (proyecto.unidades?.length > 0) && <span className="tab-count">{proyecto.unidades.length}</span>}
             {t.id === 'pagos' && (proyecto.pagos?.length > 0) && <span className="tab-count">{proyecto.pagos.length}</span>}
           </button>
         ))}
+        <SecondaryTabsMenu hidden={SECONDARY_TABS.filter(t => !t.hasData(proyecto) && tab !== t.id)} onPick={setTab} />
       </nav>
 
       <div className="pd-tab-content">
         {tab === 'resumen' && <ResumenTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} />}
+        {tab === 'unidades' && <UnidadesTab proyecto={proyecto} onRefresh={cargar} />}
+        {tab === 'consumo' && <ConsumoInsumosTab proyecto={proyecto} />}
         {tab === 'presupuestos' && <PresupuestosTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} navigate={navigate} onRefresh={cargar} />}
         {tab === 'unidades' && <UnidadesTab proyecto={proyecto} onRefresh={cargar} />}
         {tab === 'consumo' && <ConsumoInsumosTab proyecto={proyecto} />}
@@ -170,6 +187,35 @@ export default function ProyectoDetalle() {
         {tab === 'pagos' && <PagosTab proyecto={proyecto} companyId={activeCompany?.id} onRefresh={cargar} />}
         {tab === 'bitacora' && <BitacoraTab proyecto={proyecto} ejecutado={ejecutado} onRefresh={cargar} />}
       </div>
+    </div>
+  )
+}
+
+// ── SecondaryTabsMenu ──────────────────────────────────────────────────────
+// Botón "+ más" que despliega los tabs avanzados ocultos. Sólo se renderiza
+// si hay al menos uno oculto.
+function SecondaryTabsMenu({ hidden, onPick }) {
+  const [open, setOpen] = useState(false)
+  if (hidden.length === 0) return null
+  return (
+    <div className="pd-tabs-menu">
+      <button
+        type="button"
+        className="pd-tabs-more"
+        onClick={() => setOpen(v => !v)}
+        title="Más vistas"
+      >
+        + más
+      </button>
+      {open && (
+        <div className="pd-tabs-menu-list" onMouseLeave={() => setOpen(false)}>
+          {hidden.map(t => (
+            <button key={t.id} onClick={() => { setOpen(false); onPick(t.id) }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -1358,13 +1404,53 @@ function EstimacionesTab({ proyecto, navigate }) {
     )
   }
 
+  // Dashboard summary (sheet 1 footer A/B/C/D/E/F equivalent)
+  const monto = proyecto.montoContratado ?? 0
+  const anticipo = proyecto.anticipoMonto ?? 0
+  const cobrado = estimaciones
+    .filter(e => e.estado === 'PAGADA')
+    .reduce((a, e) => a + (e.total ?? 0), 0)
+  const facturado = estimaciones
+    .filter(e => e.estado === 'TIMBRADA' || e.estado === 'PAGADA')
+    .reduce((a, e) => a + (e.total ?? 0), 0)
+  const flujoPorPagar = monto - anticipo - cobrado
+
   return (
     <div>
-      <div className="pd-pres-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Dashboard header — equivalente a sheet 1 de Excel */}
+      <div className="est-dashboard">
+        <div className="est-meta">
+          <h3>{proyecto.nombre}</h3>
+          <div className="muted small">
+            {proyecto.codigo}
+            {proyecto.viviendasObjetivo && <> · {proyecto.viviendasObjetivo} viviendas</>}
+            {' · '}IVA {proyecto.aplicaIva ? 'aplica' : 'no aplica'}
+          </div>
+        </div>
+        <div className="est-summary">
+          <div>
+            <span className="muted small">A. Monto contrato</span>
+            <strong>{fmtMoney(monto)}</strong>
+          </div>
+          <div>
+            <span className="muted small">B. Anticipo</span>
+            <strong>{fmtMoney(anticipo)}</strong>
+          </div>
+          <div>
+            <span className="muted small">C. Estimaciones cobradas</span>
+            <strong>{fmtMoney(cobrado)}</strong>
+          </div>
+          <div className="est-summary-flujo">
+            <span className="muted small">D = A − B − C · Flujo por pagar</span>
+            <strong>{fmtMoney(flujoPorPagar)}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="pd-pres-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
         <span className="muted small">
-          {template.partidas?.length ?? 0} partidas en plantilla
-          {' · '}
-          {estimaciones.length} estimación(es)
+          {template.partidas?.length ?? 0} partidas en plantilla · {estimaciones.length} estimación(es)
+          {' · '}{fmtMoney(facturado)} facturado
         </span>
         <button className="primary" onClick={() => setNewOpen(true)}>
           + Nueva estimación
@@ -1376,15 +1462,19 @@ function EstimacionesTab({ proyecto, navigate }) {
           Aún no hay estimaciones. Crea la primera con el botón.
         </div>
       ) : (
-        <table className="pd-table">
+        <table className="pd-table est-register">
           <thead>
             <tr>
               <th>#</th>
               <th>Período</th>
               <th>Estado</th>
-              <th>CFDI</th>
+              <th>Nº Fact</th>
+              <th>Fecha factura</th>
+              <th>Fecha pago</th>
               <th>Pagada</th>
-              <th style={{ textAlign: 'right' }}>Importe periodo</th>
+              <th style={{ textAlign: 'right' }}>Importe</th>
+              <th style={{ textAlign: 'right' }}>%</th>
+              <th style={{ textAlign: 'right' }}>Acum</th>
               <th style={{ textAlign: 'right' }}>% acum</th>
             </tr>
           </thead>
@@ -1403,11 +1493,19 @@ function EstimacionesTab({ proyecto, navigate }) {
                 <td className="small mono">
                   {e.invoice ? `${e.invoice.serie ?? ''}${e.invoice.folio}` : '—'}
                 </td>
+                <td className="small">{e.invoice ? fmtDate(e.invoice.fecha) : '—'}</td>
+                <td className="small">{e.bankTransaction ? fmtDate(e.bankTransaction.fecha) : '—'}</td>
                 <td className="small">
-                  {e.bankTransaction ? fmtDate(e.bankTransaction.fecha) : '—'}
+                  {e.estado === 'PAGADA' ? <strong style={{ color: '#16a34a' }}>SÍ</strong> : '—'}
                 </td>
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {fmtMoney(e.total)}
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  {((e.pctPeriodo ?? 0) * 100).toFixed(2)}%
+                </td>
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtMoney(e.importeAcumulado)}
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   {((e.pctAcumulado ?? 0) * 100).toFixed(2)}%
