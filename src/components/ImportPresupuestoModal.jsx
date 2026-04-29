@@ -41,6 +41,12 @@ export default function ImportPresupuestoModal({
   const [stage, setStage] = useState('pick') // pick | preview | importing | done
   const [importResult, setImportResult] = useState(null)
 
+  // Decolsa workflow extras — captured at import time, persisted on Proyecto.
+  const [viviendasObjetivo, setViviendasObjetivo] = useState('')
+  const [aplicaIva, setAplicaIva] = useState(false) // vivienda no causa IVA
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [fechaFinPlan, setFechaFinPlan] = useState('')
+
   const reset = () => {
     setFile(null)
     setScan(null)
@@ -111,6 +117,12 @@ export default function ImportPresupuestoModal({
       // computed) or rowIndex past the validation step, but stripping is
       // optional. We send the whole thing for parity with the scan response
       // shape — it's ~50KB.
+      // Compute weekCount from fechas if both provided. Round up to whole weeks.
+      let weekCount = null
+      if (fechaInicio && fechaFinPlan) {
+        const ms = new Date(fechaFinPlan).getTime() - new Date(fechaInicio).getTime()
+        if (ms > 0) weekCount = Math.ceil(ms / (1000 * 60 * 60 * 24 * 7))
+      }
       const payload = {
         parsed: {
           caratula: scan.caratula,
@@ -121,6 +133,11 @@ export default function ImportPresupuestoModal({
           totals: scan.totals,
         },
         filename: scan.filename ?? file?.name ?? null,
+        viviendasObjetivo: viviendasObjetivo ? parseInt(viviendasObjetivo, 10) : null,
+        aplicaIva,
+        weekCount,
+        fechaInicio: fechaInicio ? new Date(fechaInicio).toISOString() : null,
+        fechaFinPlan: fechaFinPlan ? new Date(fechaFinPlan).toISOString() : null,
         confirmed: true,
       }
       const result = await apiFetch(
@@ -234,6 +251,53 @@ export default function ImportPresupuestoModal({
               {scan.caratula.total != null && <> · total {fmtMoney(scan.caratula.total)}</>}
             </div>
           )}
+
+          {/* Datos del proyecto — alimentan el flujo de estimaciones */}
+          <fieldset className="imp-fieldset">
+            <legend>Configuración del proyecto</legend>
+            <p className="muted small" style={{ margin: '0 0 0.6rem' }}>
+              Estos campos se usan para calcular avance por vivienda y la curva
+              esperada del cliente. Editables después en el proyecto.
+            </p>
+            <div className="imp-grid">
+              <label>
+                <span>Viviendas totales</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={viviendasObjetivo}
+                  onChange={(e) => setViviendasObjetivo(e.target.value)}
+                  placeholder="48 (2 torres × 24)"
+                />
+              </label>
+              <label className="imp-check">
+                <input
+                  type="checkbox"
+                  checked={aplicaIva}
+                  onChange={(e) => setAplicaIva(e.target.checked)}
+                />
+                <span>Aplica IVA (vivienda no causa IVA)</span>
+              </label>
+              <label>
+                <span>Fecha de inicio de obra</span>
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                />
+              </label>
+              <label>
+                <span>Fecha planeada de término</span>
+                <input
+                  type="date"
+                  value={fechaFinPlan}
+                  onChange={(e) => setFechaFinPlan(e.target.value)}
+                />
+              </label>
+            </div>
+          </fieldset>
+
 
           {/* Capítulos preview */}
           <details open className="imp-details">
