@@ -384,13 +384,13 @@ function CurvaEditor({ mode, data, onChange }) {
         <div className="curva-editor-help">
           {mode === 'cliente' ? (
             <>
-              <strong>Curva cliente (sheet 5)</strong> — la distribución
-              semanal esperada por el cliente. Cada fila debe sumar 100%.
+              <strong>Curva cliente</strong> — la distribución semanal
+              esperada por el cliente. Cada fila debe sumar 100%.
             </>
           ) : (
             <>
-              <strong>Calendario cierre (sheet 4)</strong> — tu planeación
-              interna de cashflow. La suma por capítulo puede ser ≤ 100%.
+              <strong>Calendario cierre</strong> — tu planeación interna
+              de cashflow. La suma por capítulo puede ser ≤ 100%.
             </>
           )}
         </div>
