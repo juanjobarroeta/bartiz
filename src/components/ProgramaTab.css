@@ -141,28 +141,36 @@
 }
 .curva-cell {
   padding: 0.15rem;
-  min-width: 46px;
-  max-width: 60px;
+  min-width: 54px;
+  max-width: 70px;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   transition: background 0.1s;
 }
 .curva-cell.money {
   font-weight: 500;
   color: #0f172a;
   padding: 0.4rem 0.3rem;
+  white-space: nowrap;
 }
 .curva-cell input {
   width: 100%;
-  padding: 0.25rem 0.2rem;
+  padding: 0.3rem 0.4rem;
   border: 1px solid transparent;
   border-radius: 3px;
-  font-size: 0.78rem;
-  text-align: right;
+  font-size: 0.82rem;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   background: transparent;
   color: inherit;
+  /* Hide spinner arrows — they clip the digits in narrow cells */
+  -moz-appearance: textfield;
+}
+.curva-cell input::-webkit-outer-spin-button,
+.curva-cell input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .curva-cell input:hover { border-color: #cbd5e1; background: white; }
 .curva-cell input:focus {
