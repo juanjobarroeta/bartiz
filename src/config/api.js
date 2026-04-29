@@ -66,7 +66,12 @@ export async function apiFetch(path, opts = {}) {
     Accept: 'application/json',
     ...headers,
   }
-  if (body !== undefined) {
+  // FormData (binary uploads) is sent as-is so the browser can set the
+  // multipart boundary in Content-Type. JSON-shaped bodies still go through
+  // JSON.stringify with the default content-type.
+  const isFormData =
+    typeof FormData !== 'undefined' && body instanceof FormData
+  if (body !== undefined && !isFormData) {
     finalHeaders['Content-Type'] = 'application/json'
   }
   if (!skipAuth) {
@@ -77,7 +82,12 @@ export async function apiFetch(path, opts = {}) {
   const res = await fetch(api(path), {
     method,
     headers: finalHeaders,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body:
+      body === undefined
+        ? undefined
+        : isFormData
+        ? body
+        : JSON.stringify(body),
   })
 
   let data = null

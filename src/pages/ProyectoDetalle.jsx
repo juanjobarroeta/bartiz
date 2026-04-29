@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
+import ImportPresupuestoModal from '../components/ImportPresupuestoModal'
 import './ProyectoDetalle.css'
 
 const ESTADO_LABEL = {
@@ -463,6 +464,7 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
 
 function PresupuestosTab({ proyecto, contrato, ejecutado, navigate, onRefresh }) {
   const [creating, setCreating] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   const crearEjecutado = async () => {
     if (!contrato) { window.alert('Aprueba un contrato primero.'); return }
@@ -475,8 +477,43 @@ function PresupuestosTab({ proyecto, contrato, ejecutado, navigate, onRefresh })
     finally { setCreating(false) }
   }
 
+  const hasPresupuesto = (proyecto.presupuestos ?? []).length > 0
+
   return (
     <div>
+      {!hasPresupuesto && (
+        <div className="pd-pres-empty-import">
+          <div>
+            <h3>Aún no hay presupuesto</h3>
+            <p className="muted small">
+              Sube el Excel del template (PROTOTIPO 2R / 3R) y el sistema detecta
+              capítulos, conceptos e insumos automáticamente.
+            </p>
+          </div>
+          <button className="primary" onClick={() => setImportOpen(true)}>
+            📤 Importar presupuesto desde Excel
+          </button>
+        </div>
+      )}
+
+      {hasPresupuesto && (
+        <div className="pd-pres-toolbar">
+          <span className="muted small">
+            {proyecto.presupuestoImportadoAt && (
+              <>Importado el {fmtDate(proyecto.presupuestoImportadoAt)}
+              {proyecto.presupuestoSourceFile && <> · {proyecto.presupuestoSourceFile}</>}</>
+            )}
+          </span>
+        </div>
+      )}
+
+      <ImportPresupuestoModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        proyectoId={proyecto.id}
+        onImported={onRefresh}
+      />
+
       <div className="pd-pres-list">
         {(proyecto.presupuestos ?? []).map(p => (
           <div key={p.id} className={`pd-pres-card ${p.tipoPresupuesto === 'EJECUTADO' ? 'ejecutado' : ''}`}>

@@ -207,3 +207,33 @@
 .pd-bitacora-texto { margin: 0; font-size: 0.9rem; line-height: 1.5; color: #0f172a; white-space: pre-wrap; }
 .pd-bitacora-fotos { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
 .pd-bitacora-foto { font-size: 1.5rem; text-decoration: none; }
+
+/* ── Presupuesto import ──────────────────────────────────────────────────── */
+.pd-pres-empty-import {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.pd-pres-empty-import h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+.pd-pres-empty-import p { margin: 0; max-width: 560px; }
+.pd-pres-empty-import .primary {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pd-pres-empty-import .primary:hover { background: #1d4ed8; }
+
+.pd-pres-toolbar { padding: 0.4rem 0; margin-bottom: 0.4rem; }
+
