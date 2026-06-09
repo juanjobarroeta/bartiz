@@ -1,185 +1,102 @@
-.tesoreria-page { padding: 1.5rem; max-width: 1500px; margin: 0 auto; }
-.tesoreria-page header h1 { margin: 0 0 0.25rem; }
-.tesoreria-page header p { margin: 0 0 1.25rem; }
+/* Tesorería — built on the DECOLSA design system (styles/design-system.css).
+   Only the account-rail rows, group headers and the import-form chrome need
+   page-specific styling; everything else uses `.ds` component classes. */
 
-.teso-grid {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 1rem;
-}
-@media (max-width: 1100px) {
-  .teso-grid { grid-template-columns: 1fr; }
-}
-
-.teso-accounts {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
-}
-.teso-header {
-  display: flex;
-  flex-direction: column;
-  padding: 0.5rem 0.6rem;
-  background: #f0fdf4;
-  border-radius: 6px;
-}
-.teso-total { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
-
-.teso-group { display: flex; flex-direction: column; gap: 0.4rem; }
-.teso-group-head {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  color: #64748b;
-  letter-spacing: 0.04em;
-  padding: 0 0.3rem;
-}
-.teso-acc-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 0.55rem 0.7rem;
-  text-align: left;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-.teso-acc-card:hover { background: #f8fafc; }
-.teso-acc-card.active { background: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
-.teso-acc-figures {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-top: 0.25rem;
-}
-.teso-acc-figures strong {
-  font-size: 1rem;
-  font-variant-numeric: tabular-nums;
-}
-.teso-acc-figures strong.neg { color: #dc2626; }
-.teso-flow.up { color: #16a34a; }
-.teso-flow.down { color: #dc2626; }
-.teso-flow { font-size: 0.75rem; }
-
-.teso-txs {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.teso-tx-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-}
-.teso-tx-head h2 { margin: 0; font-size: 1rem; }
-.teso-tx-toolbar { display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end; }
-.teso-import-btn {
-  background: #0f172a;
-  color: white;
-  border: none;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.82rem;
-}
-.teso-import-btn:hover { background: #1e293b; }
-.teso-filters { display: flex; gap: 0.3rem; }
-.teso-filters button {
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 0.25rem 0.55rem;
-  border-radius: 4px;
-  font-size: 0.78rem;
-  cursor: pointer;
-  color: #64748b;
-}
-.teso-filters button:hover { background: #f1f5f9; color: #0f172a; }
-.teso-filters button.active { background: #0f172a; color: white; }
-
-.teso-tx-table { width: 100%; border-collapse: collapse; }
-.teso-tx-table th, .teso-tx-table td {
-  padding: 0.5rem 0.6rem;
-  text-align: left;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.85rem;
-  vertical-align: top;
-}
-.teso-tx-table thead th {
-  background: #f8fafc;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  color: #64748b;
-  letter-spacing: 0.04em;
-}
-
-.badge {
-  display: inline-block;
-  font-size: 0.65rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: #e2e8f0;
-  color: #475569;
-}
-.badge.status-unmatched { background: #fef3c7; color: #78350f; }
-.badge.status-matched   { background: #bbf7d0; color: #166534; }
-.badge.status-ignored   { background: #e2e8f0; color: #475569; }
-.badge.source-manual    { background: #fde68a; color: #78350f; cursor: help; }
-
-.mono { font-family: ui-monospace, Menlo, monospace; }
-.small { font-size: 0.8rem; }
-.muted { color: #64748b; }
-.pd-empty { padding: 2rem; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px; }
-
-/* ── Import form ── */
-.teso-import-form { display: flex; flex-direction: column; gap: 0.75rem; }
-.teso-import-form .file-btn {
-  background: #fff;
-  border: 1px dashed #cbd5e1;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #334155;
-  text-align: center;
-}
-.teso-import-form .file-btn:hover { border-color: #0f172a; background: #f8fafc; }
-.teso-import-form .file-chip-row {
+.ds .teso-group-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.6rem 0.75rem;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
-  font-size: 0.9rem;
+  padding: 12px var(--pad) 8px;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
 }
-.teso-import-form .link {
+.ds .teso-group-head .num {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.ds .teso-acc {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 13px var(--pad);
+  border: none;
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.ds .teso-acc:hover {
+  background: var(--surface-2);
+}
+.ds .teso-acc.active {
+  background: var(--brand-tint);
+  border-left-color: var(--brand);
+}
+.ds .teso-acc-main {
+  min-width: 0;
+  flex: 1;
+}
+.ds .teso-flow {
+  font-variant-numeric: tabular-nums;
+}
+.ds .teso-flow.up {
+  color: var(--pos);
+}
+.ds .teso-flow.down {
+  color: var(--neg);
+}
+
+/* ---------- Import form (inside Modal) ---------- */
+.ds.teso-import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ds .teso-file-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 500;
+}
+.ds .teso-link {
   background: none;
   border: none;
-  color: #2563eb;
+  color: var(--info);
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 0.8rem;
 }
-.import-result {
-  padding: 0.6rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.88rem;
+.ds .teso-import-ok {
+  background: var(--pos-soft);
+  color: var(--pos);
+  border: 1px solid var(--pos);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  font-size: 13px;
 }
-.import-result.ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
-.import-result.err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.ds .teso-import-ok .bank-meta {
+  color: var(--pos);
+  opacity: 0.85;
+}
+.ds .teso-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}

@@ -1046,6 +1046,100 @@
   color: var(--pos);
 }
 
+/* ---------- Forms ---------- */
+.ds .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.ds .field.grow {
+  flex: 1;
+}
+.ds .input,
+.ds select.input,
+.ds textarea.input {
+  width: 100%;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 9px 11px;
+  outline: none;
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.ds textarea.input {
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.45;
+}
+.ds .input:focus,
+.ds select.input:focus,
+.ds textarea.input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-tint);
+}
+.ds .form-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.ds .form-row .field {
+  flex: 1;
+  min-width: 160px;
+}
+.ds .error-banner {
+  background: var(--neg-soft);
+  color: var(--neg);
+  border: 1px solid var(--neg);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: var(--gap);
+}
+.ds .state-card {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+/* ---------- Filter / segmented controls ---------- */
+.ds .seg {
+  display: inline-flex;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  padding: 3px;
+  gap: 2px;
+}
+.ds .seg button {
+  border: none;
+  background: transparent;
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.ds .seg button:hover {
+  color: var(--ink);
+}
+.ds .seg button.active {
+  background: var(--surface);
+  color: var(--brand-strong);
+  box-shadow: var(--shadow-sm);
+}
+
 /* ---------- Misc ---------- */
 .ds .divider {
   height: 1px;
