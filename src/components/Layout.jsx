@@ -52,6 +52,8 @@ const ALL_NAV_ITEMS = [
 // render the shared topbar (instead of their own page header).
 const REDESIGNED_ROUTES = {
   '/': { title: 'Dashboard', sub: 'Portafolio · cartera y caja' },
+  '/proyectos': { title: 'Proyectos', sub: 'Cartera de obra · contabilidad-os' },
+  '/tesoreria-bartiz': { title: 'Tesorería', sub: 'Cuentas y movimientos de la empresa' },
 }
 
 const Layout = ({ children }) => {
