@@ -14,7 +14,15 @@ import { apiFetch } from '../config/api'
 import ImportPresupuestoModal from '../components/ImportPresupuestoModal'
 import BootstrapTemplateModal from '../components/BootstrapTemplateModal'
 import ProgramaTab from '../components/ProgramaTab'
+import { BADGE_COLORS } from '../data/dashboardSample'
 import './ProyectoDetalle.css'
+
+// Deterministic on-brand badge color from the project code/name.
+const badgeColor = (seed = '') => {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0
+  return BADGE_COLORS[h % BADGE_COLORS.length]
+}
 
 const ESTADO_LABEL = {
   PLANEACION: 'Planeación', EN_EJECUCION: 'En ejecución',
@@ -117,7 +125,10 @@ export default function ProyectoDetalle() {
       <button className="pd-back" onClick={() => navigate('/proyectos')}>← Proyectos</button>
 
       <header className="pd-header">
-        <div>
+        <div className="pd-badge" style={{ background: badgeColor(proyecto.codigo || proyecto.nombre) }}>
+          {(proyecto.nombre?.[0] ?? '·').toUpperCase()}
+        </div>
+        <div className="pd-header-main">
           <div className="pd-codigo">{proyecto.codigo}</div>
           <h1>{proyecto.nombre}</h1>
           <div className="pd-meta">
