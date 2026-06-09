@@ -216,7 +216,7 @@ function AvanceChart({ data }) {
       <div className="programa-chart">
         <ResponsiveContainer width="100%" height={420}>
           <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e7e1d7" />
             <XAxis
               dataKey="fecha"
               tick={{ fontSize: 11 }}
@@ -242,7 +242,7 @@ function AvanceChart({ data }) {
               type="monotone"
               dataKey="programadoPct"
               name="Programado (cliente)"
-              stroke="#2563eb"
+              stroke="#2a241f"
               strokeWidth={2}
               dot={false}
             />
@@ -250,7 +250,7 @@ function AvanceChart({ data }) {
               type="monotone"
               dataKey="planInternoPct"
               name="Plan interno"
-              stroke="#94a3b8"
+              stroke="#b8ae9e"
               strokeWidth={1.5}
               strokeDasharray="6 4"
               dot={false}
@@ -259,7 +259,7 @@ function AvanceChart({ data }) {
               type="monotone"
               dataKey="realPct"
               name="Real"
-              stroke="#16a34a"
+              stroke="#2f7d56"
               strokeWidth={2.5}
               dot={{ r: 3 }}
               connectNulls={false}
