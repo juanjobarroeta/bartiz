@@ -1,0 +1,1066 @@
+/* ============================================================
+   DECOLSA — Plataforma de Obra · Design System
+   Warm-neutral canvas, refined construction orange, engineered
+   grotesque type. Built for owner/director portfolio + money
+   clarity.
+
+   Everything here is scoped under `.ds` so it never collides with
+   the legacy global styles. Wrap any redesigned surface in a
+   `.ds` element and these component classes apply; legacy pages
+   that live outside `.ds` keep their old look untouched.
+   ============================================================ */
+
+:root {
+  /* warm neutral canvas system */
+  --canvas: #f2efe9;
+  --surface: #ffffff;
+  --surface-2: #faf8f4;
+  --surface-sunk: #f4f1eb;
+
+  /* warm ink scale */
+  --ink: #221d18;
+  --ink-2: #5e564d;
+  --ink-3: #8a8175;
+  --muted: #a8a093;
+
+  /* warm lines */
+  --line: #e7e1d7;
+  --line-2: #d9d2c5;
+  --line-strong: #c8c0b1;
+
+  /* brand — refined construction orange */
+  --brand: #e2571e;
+  --brand-strong: #c2470f;
+  --brand-soft: #fbede2;
+  --brand-tint: #fdf5ef;
+
+  /* deep architectural accent */
+  --deep: #2a241f;
+  --deep-2: #3b332c;
+
+  /* semantic */
+  --pos: #2f7d56;
+  --pos-soft: #e6f0e9;
+  --neg: #bf4329;
+  --neg-soft: #f8e9e4;
+  --warn: #b5820f;
+  --warn-soft: #f7efd8;
+  --info: #2c5da8;
+  --info-soft: #e7edf7;
+
+  /* data-viz */
+  --viz-plan: #b8ae9e;
+  --viz-real: #2f7d56;
+  --viz-sched: #2a241f;
+
+  /* geometry */
+  --r-sm: 7px;
+  --r-md: 11px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --shadow-sm: 0 1px 2px rgba(34, 29, 24, 0.04), 0 1px 3px rgba(34, 29, 24, 0.05);
+  --shadow-md: 0 2px 6px rgba(34, 29, 24, 0.05), 0 8px 24px rgba(34, 29, 24, 0.06);
+  --shadow-pop: 0 8px 30px rgba(34, 29, 24, 0.12), 0 2px 8px rgba(34, 29, 24, 0.08);
+
+  /* fonts */
+  --font-ui: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  /* density (regular — the chosen production default) */
+  --pad: 20px;
+  --row-h: 60px;
+  --gap: 18px;
+
+  --sidebar-w: 244px;
+}
+
+/* ---------- Scope root ---------- */
+.ds {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.ds *,
+.ds *::before,
+.ds *::after {
+  box-sizing: border-box;
+}
+.ds ::selection {
+  background: var(--brand-soft);
+}
+
+/* ---------- Type helpers ---------- */
+.ds .num {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.ds .mono {
+  font-family: var(--font-mono);
+}
+.ds .eyebrow {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.ds .spacer {
+  flex: 1;
+}
+
+/* ---------- Sidebar (inner bits; geometry lives in Layout.css) ---------- */
+.ds .brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 20px 18px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.ds .brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: linear-gradient(150deg, var(--brand) 10%, var(--brand-strong));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  box-shadow: 0 2px 6px rgba(226, 87, 30, 0.32);
+  flex-shrink: 0;
+}
+.ds .brand-txt {
+  min-width: 0;
+}
+.ds .brand-name {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.ds .brand-rfc {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-top: 3px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds .nav {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+}
+.ds .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 11px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  font-weight: 500;
+  font-size: 14px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  transition: background 0.14s, color 0.14s;
+  position: relative;
+}
+.ds .nav-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  stroke-width: 1.7;
+}
+.ds .nav-item:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.ds .nav-item.active {
+  background: var(--brand-tint);
+  color: var(--brand-strong);
+  font-weight: 600;
+}
+.ds .nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--brand);
+}
+.ds .nav-badge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: var(--surface-sunk);
+  color: var(--ink-3);
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+.ds .nav-item.active .nav-badge {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+.ds .sidebar-foot {
+  border-top: 1px solid var(--line);
+  padding: 14px 16px;
+}
+.ds .sidebar-foot .who {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds .sidebar-foot .link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--info);
+  margin-top: 8px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.ds .sidebar-foot .logout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-3);
+  margin-top: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.ds .sidebar-foot .logout:hover {
+  color: var(--neg);
+}
+.ds .sidebar-foot .logout svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- Topbar (inner bits; geometry in Layout.css) ---------- */
+.ds .topbar-title {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+  white-space: nowrap;
+}
+.ds .topbar-sub {
+  color: var(--ink-3);
+  font-size: 13px;
+  margin-left: 2px;
+  white-space: nowrap;
+}
+.ds .searchbox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  width: 280px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+}
+.ds .searchbox svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+.ds .searchbox kbd {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: var(--ink-3);
+}
+.ds .icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  position: relative;
+  transition: border-color 0.14s, color 0.14s;
+  cursor: pointer;
+}
+.ds .icon-btn:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.ds .icon-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+.ds .icon-btn .dot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+  border: 1.5px solid var(--surface);
+}
+.ds .avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--brand), var(--brand-strong));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* ---------- Page ---------- */
+.ds .page {
+  padding: 24px 30px 60px;
+}
+.ds .page-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.ds .daterange {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.ds .daterange svg {
+  width: 16px;
+  height: 16px;
+  color: var(--brand);
+  stroke-width: 1.8;
+}
+
+/* ---------- Buttons ---------- */
+.ds .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--r-md);
+  padding: 9px 15px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: background 0.14s, border-color 0.14s, transform 0.05s;
+  cursor: pointer;
+}
+.ds .btn:active {
+  transform: translateY(1px);
+}
+.ds .btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.9;
+}
+.ds .btn-ghost {
+  background: var(--surface);
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+.ds .btn-ghost:hover {
+  border-color: var(--line-strong);
+}
+.ds .btn-primary {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(226, 87, 30, 0.3);
+}
+.ds .btn-primary:hover {
+  background: var(--brand-strong);
+}
+.ds .btn-dark {
+  background: var(--deep);
+  color: #fff;
+}
+.ds .btn-dark:hover {
+  background: var(--deep-2);
+}
+
+/* ---------- Cards ---------- */
+.ds .card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  /* reset legacy global `.card` padding/margin so DS cards stay flush */
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.ds .card-pad {
+  padding: var(--pad);
+}
+.ds .card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px var(--pad);
+  border-bottom: 1px solid var(--line);
+}
+.ds .card-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.ds .card-head .hint {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/* ---------- KPI hero strip ---------- */
+.ds .kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+@media (max-width: 1240px) {
+  .ds .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 620px) {
+  .ds .kpi-row {
+    grid-template-columns: 1fr;
+  }
+}
+.ds .kpi {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 18px 20px 16px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+.ds .kpi.feature {
+  background: linear-gradient(160deg, var(--deep), #1d1813);
+  border-color: var(--deep);
+  color: #fff;
+}
+.ds .kpi-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+.ds .kpi-ic {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+.ds .kpi.feature .kpi-ic {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.ds .kpi-ic svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.9;
+}
+.ds .kpi-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  letter-spacing: 0.005em;
+}
+.ds .kpi.feature .kpi-label {
+  color: rgba(255, 255, 255, 0.72);
+}
+.ds .kpi-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 29px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ds .kpi-value .cents,
+.ds .kpi-value .small {
+  font-size: 18px;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.ds .kpi.feature .kpi-value .cents {
+  color: rgba(255, 255, 255, 0.55);
+}
+.ds .kpi-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  flex-wrap: wrap;
+}
+.ds .kpi.feature .kpi-sub {
+  color: rgba(255, 255, 255, 0.6);
+}
+.ds .delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 700;
+  font-size: 12px;
+  font-family: var(--font-display);
+}
+.ds .delta svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.4;
+}
+.ds .delta.up {
+  color: var(--pos);
+}
+.ds .delta.down {
+  color: var(--neg);
+}
+.ds .kpi.feature .delta.up {
+  color: #6fd79e;
+}
+.ds .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: var(--surface-sunk);
+  color: var(--ink-2);
+}
+.ds .pill.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.ds .pill.brand {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+
+/* ---------- Layout grid ---------- */
+.ds .grid-main {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: var(--gap);
+  align-items: start;
+}
+@media (max-width: 1180px) {
+  .ds .grid-main {
+    grid-template-columns: 1fr;
+  }
+}
+.ds .col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+/* ---------- Portfolio table ---------- */
+.ds .ptable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ds .ptable thead th {
+  text-align: left;
+  padding: 11px var(--pad);
+  font-size: 11px;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-3);
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.ds .ptable thead th.r {
+  text-align: right;
+}
+.ds .ptable tbody tr {
+  border-bottom: 1px solid var(--line);
+  transition: background 0.12s;
+  cursor: pointer;
+}
+.ds .ptable tbody tr:last-child {
+  border-bottom: none;
+}
+.ds .ptable tbody tr:hover {
+  background: var(--surface-2);
+}
+.ds .ptable td {
+  padding: 13px var(--pad);
+  vertical-align: middle;
+}
+.ds .ptable td.r {
+  text-align: right;
+}
+.ds .proj-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ds .proj-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+.ds .proj-name {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.ds .proj-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.ds .money {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.ds .money.big {
+  font-size: 15px;
+}
+.ds .money.muted {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.ds .progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 120px;
+}
+.ds .progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.ds .progress-top .pct {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+}
+.ds .progress-top .planpct {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.ds .track {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--surface-sunk);
+  position: relative;
+  overflow: hidden;
+}
+.ds .track .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+}
+.ds .track .plan-mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--ink-3);
+  opacity: 0.5;
+}
+.ds .status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: capitalize;
+}
+.ds .status .sdot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.ds .status.plan {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.ds .status.plan .sdot {
+  background: var(--info);
+}
+.ds .status.active {
+  background: var(--pos-soft);
+  color: var(--pos);
+}
+.ds .status.active .sdot {
+  background: var(--pos);
+}
+.ds .status.risk {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.ds .status.risk .sdot {
+  background: var(--warn);
+}
+.ds .row-go {
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+}
+.ds .ptable tbody tr:hover .row-go {
+  color: var(--brand);
+}
+.ds .row-go svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* ---------- Side panels ---------- */
+.ds .bank {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px var(--pad);
+  border-bottom: 1px solid var(--line);
+}
+.ds .bank:last-child {
+  border-bottom: none;
+}
+.ds .bank-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--surface-sunk);
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  flex-shrink: 0;
+}
+.ds .bank-ic svg {
+  width: 17px;
+  height: 17px;
+}
+.ds .bank-name {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+.ds .bank-meta {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+}
+.ds .bank-amt {
+  margin-left: auto;
+  text-align: right;
+}
+.ds .bank-amt .v {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.ds .bank-amt .v.neg {
+  color: var(--neg);
+}
+.ds .bank-amt .d {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.ds .saldo-hero {
+  padding: var(--pad);
+  background: linear-gradient(160deg, var(--pos-soft), #fff);
+  border-bottom: 1px solid var(--line);
+}
+.ds .saldo-hero .lbl {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.ds .saldo-hero .v {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* gauge */
+.ds .gauge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: var(--pad);
+}
+.ds .gauge {
+  position: relative;
+  width: 124px;
+  height: 124px;
+  flex-shrink: 0;
+}
+.ds .gauge .ctr {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.ds .gauge .ctr .g-pct {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 27px;
+  letter-spacing: -0.02em;
+}
+.ds .gauge .ctr .g-lbl {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.ds .gauge-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.ds .gl-item .gl-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.ds .gl-item .gl-top .sw {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+.ds .gl-item .gl-v {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* action list */
+.ds .action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px var(--pad);
+  border-bottom: 1px solid var(--line);
+  transition: background 0.12s;
+  cursor: pointer;
+}
+.ds .action:last-child {
+  border-bottom: none;
+}
+.ds .action:hover {
+  background: var(--surface-2);
+}
+.ds .action-ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ds .action-ic svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.9;
+}
+.ds .action-ic.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.ds .action-ic.brand {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+.ds .action-ic.info {
+  background: var(--info-soft);
+  color: var(--info);
+}
+.ds .action-txt {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.ds .action-txt b {
+  font-weight: 700;
+}
+.ds .action-sub {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.ds .action .cnt {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+/* ---------- Chart card (S-curve) ---------- */
+.ds .chart-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px var(--pad) 8px;
+}
+.ds .chart-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.ds .chart-head .hint {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.ds .chart-legend {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.ds .cl {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.ds .cl .ln {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+}
+.ds .cl .ln.dash {
+  background: repeating-linear-gradient(90deg, var(--viz-plan) 0 4px, transparent 4px 7px);
+}
+.ds .chart-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  padding: 0 var(--pad) 14px;
+}
+.ds .cstat {
+  padding: 8px 0;
+}
+.ds .cstat .cl2 {
+  font-size: 11px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+  font-family: var(--font-display);
+}
+.ds .cstat .cv {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.ds .cstat .cv.brand {
+  color: var(--brand-strong);
+}
+.ds .cstat .cv.green {
+  color: var(--pos);
+}
+
+/* ---------- Misc ---------- */
+.ds .divider {
+  height: 1px;
+  background: var(--line);
+  margin: 0;
+}
+.ds .empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 14px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--r-md);
+  margin: var(--pad);
+}
+.ds .scroll-x {
+  overflow-x: auto;
+}

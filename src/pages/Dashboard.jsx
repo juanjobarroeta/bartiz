@@ -1,376 +1,445 @@
-import { useEffect, useState } from 'react'
+/**
+ * Dashboard — owner/director portfolio + cash command center (DECOLSA
+ * redesign). Replaces the old "Dashboard feed" with a portfolio health
+ * table, an avance-de-cartera S-curve, a cash-position rail and a
+ * "pendientes" action list.
+ *
+ * Data sources:
+ *  - Portfolio table + contracted-value total come from the LIVE
+ *    `/api/construccion/proyectos` list (scoped to the active company).
+ *  - Bank balances, the S-curve, performance split and action items are not
+ *    exposed by that endpoint yet, so they come from the documented sample
+ *    block in `data/dashboardSample.js`. Swap each for a live fetch as the
+ *    contabilidad-os treasury/avance endpoints land.
+ */
+
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './Dashboard.css'
 import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
+import { Icon } from '../components/ds/Icon'
+import { SCurve, Gauge, Delta } from '../components/ds/Charts'
+import { money, compactMoney, MoneyParts } from '../lib/format'
+import {
+  BADGE_COLORS,
+  SAMPLE_PROJECTS,
+  SAMPLE_BANKS,
+  SAMPLE_SALDO_TOTAL,
+  SAMPLE_PERFORMANCE,
+  SAMPLE_ACCIONES,
+  SAMPLE_CURVE,
+  SAMPLE_FACTURADO,
+  SAMPLE_COBRADO,
+  SAMPLE_SIN_CONCILIAR,
+} from '../data/dashboardSample'
 
-// Simple Sparkline component
-const Sparkline = ({ data, color = 'var(--color-primary)', trend = 'up' }) => {
-  // Ensure we have at least 2 data points to avoid division by zero
-  if (!data || data.length < 2) {
-    return (
-      <svg width={120} height={40} className="sparkline">
-        <line x1="0" y1="20" x2="120" y2="20" stroke={color} strokeWidth="2" opacity="0.3" />
-      </svg>
-    )
+// Live `estado` → status chip tone + label.
+const ESTADO_META = {
+  PLANEACION: { cls: 'plan', label: 'Planeación' },
+  EN_EJECUCION: { cls: 'active', label: 'En obra' },
+  SUSPENDIDO: { cls: 'risk', label: 'Suspendido' },
+  TERMINADO: { cls: 'active', label: 'Terminado' },
+  CANCELADO: { cls: 'risk', label: 'Cancelado' },
+}
+
+const STATUS_LABEL = { active: 'En obra', plan: 'Planeación', risk: 'Riesgo' }
+
+// Map a live proyecto record to the portfolio-row shape the table renders.
+function toRow(p, i) {
+  const meta = ESTADO_META[p.estado] ?? { cls: 'plan', label: p.estado ?? '—' }
+  return {
+    id: p.id,
+    code: p.codigo,
+    name: p.nombre,
+    short: (p.nombre?.[0] ?? '·').toUpperCase(),
+    color: BADGE_COLORS[i % BADGE_COLORS.length],
+    location: p.ubicacion || '—',
+    status: meta.cls,
+    statusLabel: meta.label,
+    contratado: Number(p.montoContratado) || 0,
+    avance: Number(p.avancePct) || 0,
+    plan: 0, // planned-% not exposed by the list endpoint yet
+    porCobrar: 0, // receivable not exposed by the list endpoint yet
   }
-
-  const max = Math.max(...data)
-  const min = Math.min(...data)
-  const range = max - min || 1
-  const width = 120
-  const height = 40
-  const points = data.map((value, index) => {
-    const x = (index / (data.length - 1)) * width
-    const y = height - ((value - min) / range) * height
-    return `${x},${y}`
-  }).join(' ')
-
-  return (
-    <svg width={width} height={height} className="sparkline">
-      <polyline
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
-  )
-}
-
-// Bar Chart component
-const BarChart = ({ data }) => {
-  const maxValue = Math.max(...data.map(d => d.dev + d.sales))
-  const days = ['Sab', 'Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie']
-  
-  return (
-    <div className="bar-chart">
-      <div className="bar-chart-grid">
-        {[16, 8, 4, 2, 0].map(label => (
-          <div key={label} className="grid-line">
-            <span className="grid-label">{label}h</span>
-          </div>
-        ))}
-      </div>
-      <div className="bar-chart-bars">
-        {data.map((item, index) => (
-          <div key={index} className="bar-group">
-            <div className="bar-stack">
-              <div 
-                className="bar bar-dev" 
-                style={{ height: `${(item.dev / 16) * 100}%` }}
-              />
-              <div 
-                className="bar bar-sales" 
-                style={{ height: `${(item.sales / 16) * 100}%` }}
-              />
-            </div>
-            <span className={`bar-label ${index === 3 ? 'active' : ''}`}>{days[index]}</span>
-          </div>
-        ))}
-      </div>
-      <div className="chart-legend">
-        <span className="legend-item"><span className="legend-dot dev"></span> Obra: 12h 25min</span>
-        <span className="legend-item"><span className="legend-dot sales"></span> Oficina: 9h 12min</span>
-      </div>
-    </div>
-  )
-}
-
-// Donut Chart component
-const DonutChart = ({ planned, earned }) => {
-  const total = planned
-  const percentage = Math.round((earned / planned) * 100)
-  const circumference = 2 * Math.PI * 45
-  const offset = circumference - (percentage / 100) * circumference
-
-  return (
-    <div className="donut-chart">
-      <svg width="160" height="160" viewBox="0 0 100 100">
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          fill="none"
-          stroke="#E5E7EB"
-          strokeWidth="10"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r="45"
-          fill="none"
-          stroke="var(--color-secondary)"
-          strokeWidth="10"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          transform="rotate(-90 50 50)"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r="35"
-          fill="none"
-          stroke="var(--color-primary)"
-          strokeWidth="8"
-          strokeDasharray={circumference * 0.78}
-          strokeDashoffset={circumference * 0.78 * 0.1}
-          strokeLinecap="round"
-          transform="rotate(-90 50 50)"
-        />
-      </svg>
-      <div className="donut-center">
-        <span className="donut-value">{percentage}%</span>
-        <span className="donut-label">Rendimiento</span>
-      </div>
-    </div>
-  )
 }
 
 const Dashboard = () => {
+  const navigate = useNavigate()
   const { activeCompany } = useAuth()
-  const [stats, setStats] = useState({
-    moneySpent: 0,
-    projectStatus: 0,
-    completedProjects: 0
-  })
-
-  const [proyectos, setProyectos] = useState([])
-
-  // Generate sparkline data from actual stats (empty when no data)
-  const sparklineData1 = stats.moneySpent > 0 ? [20, 35, 28, 45, 38, 52, 48, 60, 55, 70] : [0]
-  const sparklineData2 = stats.projectStatus > 0 ? [60, 55, 65, 50, 58, 45, 52, 40, 48, 35] : [0]
-  const sparklineData3 = stats.completedProjects > 0 ? [15, 25, 20, 35, 30, 45, 40, 55, 50, 65] : [0]
-
-  const barChartData = [
-    { dev: 0, sales: 0 },
-    { dev: 0, sales: 0 },
-    { dev: 0, sales: 0 },
-    { dev: 0, sales: 0 },
-    { dev: 0, sales: 0 },
-    { dev: 0, sales: 0 },
-    { dev: 0, sales: 0 }
-  ]
+  const [rows, setRows] = useState([])
+  const [usingSample, setUsingSample] = useState(false)
+  const [sort, setSort] = useState('contratado')
 
   useEffect(() => {
-    // No company selected yet (fresh login / switcher hasn't hydrated) —
-    // skip the fetch instead of 401-ing against an empty companyId.
     if (!activeCompany?.id) {
-      setProyectos([])
-      setStats({ moneySpent: 0, projectStatus: 0, completedProjects: 0 })
+      // No company yet (fresh login / switcher not hydrated) — show the
+      // sample portfolio so the command center still renders.
+      setRows(SAMPLE_PROJECTS)
+      setUsingSample(true)
       return
     }
-
-    // Load projects (the top 4 most recent) via the construccion API. The
-    // legacy /api/stats + /api/proyectos endpoints never existed on
-    // contabilidad-os — we derive dashboard stats from the proyectos list.
-    apiFetch(
-      `/api/construccion/proyectos?companyId=${encodeURIComponent(activeCompany.id)}`
-    )
+    apiFetch(`/api/construccion/proyectos?companyId=${encodeURIComponent(activeCompany.id)}`)
       .then((data) => {
         const list = Array.isArray(data) ? data : []
-        setProyectos(list.slice(0, 4))
-
-        // Derive stats client-side: total gastado (montoContratado sum),
-        // progreso promedio (avg avance) and # proyectos CERRADOS.
-        const totalGastado = list.reduce(
-          (a, p) => a + (Number(p.montoContratado) || 0),
-          0
-        )
-        const concretos = list.filter((p) => typeof p.avancePct === 'number')
-        const progresoPromedio =
-          concretos.length > 0
-            ? concretos.reduce((a, p) => a + (p.avancePct || 0), 0) /
-              concretos.length
-            : 0
-        const completados = list.filter((p) => p.estado === 'CERRADO').length
-
-        setStats({
-          moneySpent: totalGastado,
-          projectStatus: Math.round(progresoPromedio),
-          completedProjects: completados,
-        })
+        if (list.length === 0) {
+          setRows(SAMPLE_PROJECTS)
+          setUsingSample(true)
+        } else {
+          setRows(list.map(toRow))
+          setUsingSample(false)
+        }
       })
-      .catch((err) => console.error('Error loading dashboard:', err))
+      .catch((err) => {
+        console.error('Error loading dashboard:', err)
+        setRows(SAMPLE_PROJECTS)
+        setUsingSample(true)
+      })
   }, [activeCompany?.id])
 
-  const getStatusClass = (estado) => {
-    switch(estado) {
-      case 'Progreso': return 'status-progress'
-      case 'Pendiente': return 'status-pending'
-      default: return 'status-default'
-    }
+  const projects = useMemo(
+    () => [...rows].sort((a, b) => (b[sort] || 0) - (a[sort] || 0)),
+    [rows, sort]
+  )
+
+  const totals = useMemo(() => {
+    const contratado = rows.reduce((s, p) => s + (p.contratado || 0), 0)
+    const activos = rows.filter((p) => p.contratado > 0).length
+    return { contratado, activos }
+  }, [rows])
+
+  const facturadoPct = totals.contratado > 0 ? (SAMPLE_FACTURADO / totals.contratado) * 100 : 0
+  const perf = SAMPLE_PERFORMANCE
+
+  const openProject = (row) => {
+    if (row.id) navigate(`/proyectos/${row.id}`)
   }
 
   return (
-    <div className="dashboard">
-      {/* Header */}
-      <header className="dashboard-header">
-        <h1>Dashboard</h1>
-        <div className="header-actions">
-          <div className="search-box">
-            <span className="search-icon">🔍</span>
-            <input type="text" placeholder="Buscar" className="search-input" />
-            <span className="search-shortcut">⌘K</span>
+    <div className="ds">
+      <div className="page">
+        {/* toolbar */}
+        <div className="page-toolbar">
+          <div className="daterange">
+            <Icon name="calendar" />
+            <span>10 Jun 2026 — 30 Jun 2026</span>
+            <Icon name="chevronDown" style={{ width: 15, height: 15, color: 'var(--ink-3)' }} />
           </div>
-          <button className="header-btn icon-btn">💬</button>
-          <button className="header-btn icon-btn">🔔</button>
-          <div className="user-avatar">JB</div>
+          <div className="spacer" />
+          <button className="btn btn-ghost">
+            <Icon name="link" />
+            Link público
+          </button>
+          <button className="btn btn-primary">
+            <Icon name="share" />
+            Compartir
+          </button>
         </div>
-      </header>
 
-      {/* Toolbar */}
-      <div className="dashboard-toolbar">
-        <div className="date-selector">
-          <span className="date-icon">📅</span>
-          <span>10 Junio 2024 - 30 Junio 2024</span>
-        </div>
-        <div className="toolbar-actions">
-          <button className="btn btn-outline">🔗 Link Público</button>
-          <button className="btn btn-primary">↗ Compartir</button>
-        </div>
-      </div>
-
-      {/* Main Grid */}
-      <div className="dashboard-grid">
-        {/* Left Column - Stats Cards */}
-        <div className="stats-column">
-          <div className="stat-card-new">
-            <div className="stat-header">
-              <span className="stat-title">Dinero Gastado</span>
-            </div>
-            <div className="stat-body">
-              <div className="stat-main">
-                <span className="stat-value">${stats.moneySpent.toLocaleString()}</span>
-                <span className="stat-change positive">↑ 18%</span>
+        {/* hero KPI strip */}
+        <div className="kpi-row">
+          <div className="kpi feature">
+            <div className="kpi-top">
+              <div className="kpi-ic">
+                <Icon name="briefcase" />
               </div>
-              <Sparkline data={sparklineData1} color="var(--color-secondary)" />
+              <div className="kpi-label">Valor de cartera · Contratado</div>
             </div>
-            <div className="stat-footer">Data por 6 Junio 2024</div>
+            <div className="kpi-value">
+              <MoneyParts value={totals.contratado} />
+            </div>
+            <div className="kpi-sub">
+              <Delta v={18} />
+              <span>vs. trimestre anterior</span>
+              <span style={{ marginLeft: 'auto' }}>{totals.activos} proyectos activos</span>
+            </div>
           </div>
 
-          <div className="stat-card-new">
-            <div className="stat-header">
-              <span className="stat-title">Estado General del Proyecto</span>
-            </div>
-            <div className="stat-body">
-              <div className="stat-main">
-                <span className="stat-value">{stats.projectStatus}%</span>
-                <span className="stat-change negative">↓ 18%</span>
+          <div className="kpi">
+            <div className="kpi-top">
+              <div className="kpi-ic">
+                <Icon name="receipt" />
               </div>
-              <Sparkline data={sparklineData2} color="#EF4444" />
+              <div className="kpi-label">Facturado de cartera</div>
             </div>
-            <div className="stat-footer">Data por 6 Junio 2024</div>
+            <div className="kpi-value">{money(SAMPLE_FACTURADO)}</div>
+            <div className="kpi-sub">
+              <span className="pill">{facturadoPct.toFixed(1)}% del contrato</span>
+              <span>· {money(SAMPLE_COBRADO)} cobrado</span>
+            </div>
           </div>
 
-          <div className="stat-card-new">
-            <div className="stat-header">
-              <span className="stat-title">Proyectos Completados</span>
-            </div>
-            <div className="stat-body">
-              <div className="stat-main">
-                <span className="stat-value">{stats.completedProjects}</span>
-                <span className="stat-change positive">↑ 18%</span>
+          <div className="kpi">
+            <div className="kpi-top">
+              <div className="kpi-ic" style={{ background: 'var(--pos-soft)', color: 'var(--pos)' }}>
+                <Icon name="bank" />
               </div>
-              <Sparkline data={sparklineData3} color="var(--color-secondary)" />
+              <div className="kpi-label">Saldo en bancos</div>
             </div>
-            <div className="stat-footer">Data por 6 Junio 2024</div>
+            <div className="kpi-value">
+              <MoneyParts value={SAMPLE_SALDO_TOTAL} />
+            </div>
+            <div className="kpi-sub">
+              <span>{SAMPLE_BANKS.length} cuentas operativas</span>
+              <span className="pill warn" style={{ marginLeft: 'auto' }}>
+                {SAMPLE_SIN_CONCILIAR} sin conciliar
+              </span>
+            </div>
+          </div>
+
+          <div className="kpi">
+            <div className="kpi-top">
+              <div className="kpi-ic" style={{ background: 'var(--info-soft)', color: 'var(--info)' }}>
+                <Icon name="target" />
+              </div>
+              <div className="kpi-label">Rendimiento de cartera</div>
+            </div>
+            <div className="kpi-value">{perf.rendimiento}%</div>
+            <div className="kpi-sub">
+              <span>Ganado {compactMoney(perf.valorGanado)}</span>
+              <span>· Plan {compactMoney(perf.valorPlaneado)}</span>
+            </div>
           </div>
         </div>
 
-        {/* Right Column - Work Hours Chart */}
-        <div className="chart-card">
-          <div className="chart-header">
-            <h3>Total Horas Trabajadas</h3>
-            <div className="chart-controls">
-              <select className="chart-select">
-                <option>Mensual</option>
-                <option>Semanal</option>
-              </select>
-              <button className="chart-menu">⋮</button>
+        {/* main two-column */}
+        <div className="grid-main">
+          <div className="col">
+            {/* Portfolio table — the redesigned feed */}
+            <div className="card">
+              <div className="card-head">
+                <h3>Cartera de proyectos</h3>
+                <span className="hint">Avance físico vs. programado · saldo por cobrar</span>
+                <div className="spacer" />
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: '7px 12px', fontSize: 12.5 }}
+                  onClick={() => setSort(sort === 'contratado' ? 'avance' : 'contratado')}
+                >
+                  <Icon name="filter" style={{ width: 14, height: 14 }} />
+                  Ordenar: {sort === 'contratado' ? 'Monto' : 'Avance'}
+                </button>
+              </div>
+              <div className="scroll-x">
+                <table className="ptable">
+                  <thead>
+                    <tr>
+                      <th>Proyecto</th>
+                      <th>Avance</th>
+                      <th className="r">Contratado</th>
+                      <th className="r">Por cobrar</th>
+                      <th>Estado</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projects.map((p) => (
+                      <tr key={p.id || p.code} onClick={() => openProject(p)}>
+                        <td>
+                          <div className="proj-cell">
+                            <div className="proj-badge" style={{ background: p.color }}>
+                              {p.short}
+                            </div>
+                            <div>
+                              <div className="proj-name">{p.name}</div>
+                              <div className="proj-code">
+                                {p.code} · {p.location}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="progress-wrap">
+                            <div className="progress-top">
+                              <span
+                                className="pct"
+                                style={{ color: p.avance > 0 ? 'var(--pos)' : 'var(--ink-3)' }}
+                              >
+                                {p.avance.toFixed(1)}%
+                              </span>
+                              {p.plan > 0 && <span className="planpct">plan {p.plan.toFixed(0)}%</span>}
+                            </div>
+                            <div className="track">
+                              <div
+                                className="fill"
+                                style={{
+                                  width: Math.max(p.avance, 1.5) + '%',
+                                  background: p.avance > 0 ? 'var(--pos)' : 'var(--line-2)',
+                                }}
+                              />
+                              {p.plan > 0 && <div className="plan-mark" style={{ left: p.plan + '%' }} />}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="r">
+                          <span className="money big">{p.contratado ? money(p.contratado) : '—'}</span>
+                        </td>
+                        <td className="r">
+                          {p.porCobrar > 0 ? (
+                            <span className="money big" style={{ color: 'var(--brand-strong)' }}>
+                              {money(p.porCobrar)}
+                            </span>
+                          ) : (
+                            <span className="money muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={'status ' + p.status}>
+                            <span className="sdot" />
+                            {p.statusLabel || STATUS_LABEL[p.status]}
+                          </span>
+                        </td>
+                        <td className="r">
+                          <span className="row-go">
+                            <Icon name="chevronRight" />
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-          <BarChart data={barChartData} />
-        </div>
-      </div>
 
-      {/* Bottom Grid */}
-      <div className="dashboard-bottom-grid">
-        {/* Projects Table */}
-        <div className="projects-card">
-          <div className="card-header">
-            <h3>Total proyectos</h3>
-            <div className="card-controls">
-              <button className="sort-btn">☰ Ordenar</button>
-              <button className="chart-menu">⋮</button>
+            {/* S-curve */}
+            <div className="card">
+              <div className="chart-head">
+                <div>
+                  <h3>Avance de cartera</h3>
+                  <span className="hint">Curva acumulada · programado (cliente) vs. real ejecutado</span>
+                </div>
+                <div className="chart-legend">
+                  <span className="cl">
+                    <span className="ln" style={{ background: '#2A241F' }} />
+                    Programado
+                  </span>
+                  <span className="cl">
+                    <span className="ln" style={{ background: '#2F7D56' }} />
+                    Real
+                  </span>
+                </div>
+              </div>
+              <div className="chart-stats">
+                <div className="cstat">
+                  <div className="cl2">Real acumulado</div>
+                  <div className="cv green">1.0%</div>
+                </div>
+                <div className="cstat">
+                  <div className="cl2">Programado</div>
+                  <div className="cv">72.0%</div>
+                </div>
+                <div className="cstat">
+                  <div className="cl2">Desviación</div>
+                  <div className="cv" style={{ color: 'var(--neg)' }}>
+                    −71.0%
+                  </div>
+                </div>
+                <div className="cstat">
+                  <div className="cl2">Total contrato</div>
+                  <div className="cv">{compactMoney(totals.contratado)}</div>
+                </div>
+              </div>
+              <div className="card-pad" style={{ paddingTop: 0 }}>
+                <SCurve curve={SAMPLE_CURVE} />
+              </div>
             </div>
           </div>
-          <table className="projects-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Ubicación</th>
-                <th>Responsable</th>
-                <th>Estado</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {proyectos.map(proyecto => (
-                <tr key={proyecto.id}>
-                  <td>
-                    <div className="project-name-cell">
-                      <div className="project-icon" style={{ background: proyecto.id % 2 === 0 ? '#EF4444' : 'var(--color-secondary)' }}>
-                        {proyecto.nombre[0]}
-                      </div>
-                      <span>{proyecto.nombre}</span>
+
+          {/* side column / rail */}
+          <div className="col">
+            {/* cash position */}
+            <div className="card">
+              <div className="saldo-hero">
+                <div className="lbl">Posición de efectivo</div>
+                <div className="v">
+                  <MoneyParts value={SAMPLE_SALDO_TOTAL} />
+                </div>
+              </div>
+              {SAMPLE_BANKS.map((b, i) => (
+                <div className="bank" key={i}>
+                  <div className="bank-ic">
+                    <Icon name="bank" />
+                  </div>
+                  <div>
+                    <div className="bank-name">
+                      {b.name}{' '}
+                      <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>{b.sub}</span>
                     </div>
-                  </td>
-                  <td>{proyecto.ubicacion}</td>
-                  <td>
-                    <div className="owner-cell">
-                      <div className="owner-avatar">{proyecto.avatar}</div>
-                      <span>{proyecto.responsable}</span>
+                    <div className="bank-meta">
+                      ··{b.acct.slice(-4)} · {b.mov} mov.
                     </div>
-                  </td>
-                  <td>
-                    <span className={`status-badge ${getStatusClass(proyecto.estado)}`}>
-                      {proyecto.estado}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="action-btn">⋮</button>
-                  </td>
-                </tr>
+                  </div>
+                  <div className="bank-amt">
+                    <div className={'v' + (b.balance < 0 ? ' neg' : '')}>
+                      {b.balance < 0 ? '−' : ''}
+                      {money(Math.abs(b.balance))}
+                    </div>
+                    <div className="d">30 días</div>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
 
-        {/* Performance Donut */}
-        <div className="performance-card">
-          <div className="card-header">
-            <h3>Rendimiento del Proyecto</h3>
-            <button className="chart-menu">⋮</button>
-          </div>
-          <div className="performance-content">
-            <DonutChart planned={72940.50} earned={64765.50} />
-            <div className="performance-legend">
-              <div className="legend-row">
-                <span className="legend-color blue"></span>
-                <span className="legend-text">Valor Planeado</span>
-                <span className="legend-value">$72,940.50</span>
+            {/* rendimiento gauge */}
+            <div className="card">
+              <div className="card-head">
+                <h3>Rendimiento del proyecto</h3>
               </div>
-              <div className="legend-row">
-                <span className="legend-color orange"></span>
-                <span className="legend-text">Valor Ganado</span>
-                <span className="legend-value">$64,765.50</span>
+              <div className="gauge-wrap">
+                <Gauge pct={perf.rendimiento} />
+                <div className="gauge-legend">
+                  <div className="gl-item">
+                    <div className="gl-top">
+                      <span className="sw" style={{ background: 'var(--brand)' }} />
+                      Valor ganado
+                    </div>
+                    <div className="gl-v">{money(perf.valorGanado)}</div>
+                  </div>
+                  <div className="gl-item">
+                    <div className="gl-top">
+                      <span className="sw" style={{ background: '#EFE9DF' }} />
+                      Valor planeado
+                    </div>
+                    <div className="gl-v" style={{ color: 'var(--ink-2)' }}>
+                      {money(perf.valorPlaneado)}
+                    </div>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            {/* pendientes / acciones */}
+            <div className="card">
+              <div className="card-head">
+                <h3>Pendientes</h3>
+                <span className="hint">Requiere tu atención</span>
+              </div>
+              {SAMPLE_ACCIONES.map((a, i) => (
+                <div className="action" key={i}>
+                  <div className={'action-ic ' + a.tone}>
+                    <Icon name={a.ic} />
+                  </div>
+                  <div>
+                    <div className="action-txt">
+                      <b>{a.n}</b> {a.txt}
+                    </div>
+                    <div className="action-sub">{a.sub}</div>
+                  </div>
+                  <span className="row-go" style={{ marginLeft: 'auto' }}>
+                    <Icon name="chevronRight" />
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+
+        {usingSample && (
+          <p className="ds-sample-note">
+            Mostrando datos de muestra de la cartera. Conecta una empresa con proyectos en
+            contabilidad-os para ver tu cartera real.
+          </p>
+        )}
       </div>
     </div>
   )
