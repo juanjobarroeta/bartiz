@@ -157,15 +157,56 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
   const [formaPago, setFormaPago] = useState('CREDITO')
   const [notas, setNotas] = useState('')
   const [partidas, setPartidas] = useState([
-    { descripcion: '', cantidad: '', unidad: '' },
+    { descripcion: '', cantidad: '', unidad: '', presupuestoPartidaId: null },
   ])
   const [busy, setBusy] = useState(false)
+
+  // Concept suggestions from the selected project's presupuesto. The on-site
+  // user can pick a budgeted concept (links presupuestoPartidaId + fills unit)
+  // or just type free text for anything not in the presupuesto.
+  const [conceptos, setConceptos] = useState([])
+  useEffect(() => {
+    let alive = true
+    if (!proyectoId) { setConceptos([]); return }
+    apiFetch(`/api/construccion/proyectos/${proyectoId}`)
+      .then((proy) => {
+        if (!alive) return
+        const out = []
+        const seen = new Set()
+        for (const pre of proy?.presupuestos ?? []) {
+          for (const part of pre.partidas ?? []) {
+            if (part.esRollup) continue
+            const c = part.concepto
+            const desc = c?.descripcion || part.descripcion
+            if (!desc) continue
+            const key = desc.toLowerCase()
+            if (seen.has(key)) continue
+            seen.add(key)
+            out.push({ id: part.id, descripcion: desc, unidad: c?.unidad || part.unidad || '', codigo: c?.codigo || part.codigo || '' })
+          }
+        }
+        setConceptos(out)
+      })
+      .catch(() => { if (alive) setConceptos([]) })
+    return () => { alive = false }
+  }, [proyectoId])
 
   const updatePart = (idx, field, val) => {
     setPartidas((arr) => arr.map((p, i) => (i === idx ? { ...p, [field]: val } : p)))
   }
+  // Resolve a typed/picked concept against the presupuesto: link the partida
+  // and auto-fill the unit when it matches a budgeted concept.
+  const onDescChange = (idx, val) => {
+    const match = conceptos.find((c) => c.descripcion.toLowerCase() === val.trim().toLowerCase())
+    setPartidas((arr) => arr.map((p, i) => (i === idx ? {
+      ...p,
+      descripcion: val,
+      presupuestoPartidaId: match ? match.id : null,
+      unidad: match && !p.unidad ? match.unidad : p.unidad,
+    } : p)))
+  }
   const addRow = () =>
-    setPartidas((arr) => [...arr, { descripcion: '', cantidad: '', unidad: '' }])
+    setPartidas((arr) => [...arr, { descripcion: '', cantidad: '', unidad: '', presupuestoPartidaId: null }])
   const removeRow = (idx) =>
     setPartidas((arr) => (arr.length > 1 ? arr.filter((_, i) => i !== idx) : arr))
 
@@ -178,6 +219,7 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
         unidad: p.unidad?.trim() || null,
         cantidad: Number(p.cantidad),
         precioUnitario: 0, // unknown until cotización lands
+        presupuestoPartidaId: p.presupuestoPartidaId || undefined, // link to budget concept when picked
       }))
     if (cleanLines.length === 0) {
       alertDialog({ message: 'Agrega al menos una línea con descripción y cantidad.' })
@@ -253,12 +295,18 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
           <span style={{ width: 80 }}>Unidad</span>
           <span style={{ width: 30 }}></span>
         </div>
+        <datalist id="req-conceptos">
+          {conceptos.map((c) => (
+            <option key={c.id} value={c.descripcion}>{c.codigo}</option>
+          ))}
+        </datalist>
         {partidas.map((p, idx) => (
           <div key={idx} className="line-row">
             <input
               value={p.descripcion}
-              onChange={(e) => updatePart(idx, 'descripcion', e.target.value)}
-              placeholder="ej. Cemento gris"
+              onChange={(e) => onDescChange(idx, e.target.value)}
+              placeholder="Escribe o elige del presupuesto…"
+              list="req-conceptos"
             />
             <input
               type="number"
@@ -279,9 +327,18 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
             </button>
           </div>
         ))}
-        <button type="button" className="link small" onClick={addRow}>
-          + agregar línea
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+          <button type="button" className="link small" onClick={addRow}>
+            + agregar línea
+          </button>
+          {proyectoId && (
+            <span className="muted small">
+              {conceptos.length > 0
+                ? `${conceptos.length} conceptos del presupuesto disponibles · escribe para buscar`
+                : 'Sin presupuesto aprobado en este proyecto — captura libre'}
+            </span>
+          )}
+        </div>
       </div>
 
       <label className="stack">
