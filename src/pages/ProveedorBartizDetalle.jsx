@@ -1,12 +1,9 @@
 /**
  * ProveedorBartizDetalle — supplier detail page.
  *
- * Three sections:
- *   1. Header with stats: cotizaciones submitted, ganadas, total
- *      cotizado, total spent (PAGADA OCs).
- *   2. Cotización history — every cotización this supplier has
- *      submitted, with win/loss badge and link to its requisición.
- *   3. SolicitudCompra OCs + recent BankTransactions side by side.
+ * Sections: header with stats + credit terms · condiciones de crédito ·
+ * datos bancarios · cotización history · OCs + recent BankTransactions.
+ * Reskinned onto the DECOLSA design tokens; credit-terms capture added.
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -14,6 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import { alertDialog } from '../components/Dialog'
+import { CreditChip } from './ProveedoresBartiz'
 import '../components/Modal.css'
 import './ProveedoresBartiz.css'
 
@@ -30,6 +28,7 @@ export default function ProveedorBartizDetalle() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [bankOpen, setBankOpen] = useState(false)
+  const [creditOpen, setCreditOpen] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -45,13 +44,14 @@ export default function ProveedorBartizDetalle() {
 
   useEffect(() => { reload() }, [reload])
 
-  if (loading) return <div className="pd-empty">Cargando…</div>
-  if (!data) return <div className="pd-empty">No encontrado.</div>
+  if (loading) return <div className="prov-detalle"><div className="pd-empty">Cargando…</div></div>
+  if (!data) return <div className="prov-detalle"><div className="pd-empty">No encontrado.</div></div>
 
   const winRate =
     data.cotizaciones.length > 0
       ? Math.round((data.stats.wonCount / data.cotizaciones.length) * 100)
       : 0
+  const hasCredit = data.diasCredito != null || data.tieneCredito != null
 
   return (
     <div className="prov-detalle">
@@ -65,28 +65,72 @@ export default function ProveedorBartizDetalle() {
             {data.regimenFiscal && <> · Régimen {data.regimenFiscal}</>}
             {data.email && <> · {data.email}</>}
           </div>
+          <div className="prov-head-tags">
+            <CreditChip supplier={data} />
+          </div>
         </div>
         <div className="prov-stats">
           <div className="stat">
-            <span className="muted small">Cotizaciones</span>
+            <span>Cotizaciones</span>
             <strong>{data.cotizaciones.length}</strong>
           </div>
           <div className="stat">
-            <span className="muted small">Ganadas</span>
-            <strong style={{ color: data.stats.wonCount > 0 ? '#16a34a' : '#64748b' }}>
+            <span>Ganadas</span>
+            <strong style={{ color: data.stats.wonCount > 0 ? 'var(--pos)' : 'var(--ink-3)' }}>
               {data.stats.wonCount} <span className="muted small">({winRate}%)</span>
             </strong>
           </div>
           <div className="stat">
-            <span className="muted small">Total cotizado</span>
+            <span>Total cotizado</span>
             <strong>{fmtMoney(data.stats.totalQuoted)}</strong>
           </div>
           <div className="stat">
-            <span className="muted small">Total pagado</span>
+            <span>Total pagado</span>
             <strong>{fmtMoney(data.stats.totalSpent)}</strong>
           </div>
         </div>
       </header>
+
+      {/* Condiciones de crédito */}
+      <section className="prov-section">
+        <div className="prov-section-head">
+          <h2>Condiciones de crédito</h2>
+          <button className="link" onClick={() => setCreditOpen(true)}>{hasCredit ? 'Editar' : '+ Capturar'}</button>
+        </div>
+        {hasCredit ? (
+          <div className="prov-kv-display">
+            <div>
+              <span>Modalidad</span>
+              <strong>{data.diasCredito > 0 ? 'Crédito' : 'Contado'}</strong>
+            </div>
+            {data.diasCredito > 0 && (
+              <div>
+                <span>Días de crédito</span>
+                <strong className="mono">{data.diasCredito} días</strong>
+              </div>
+            )}
+            {data.limiteCredito != null && data.limiteCredito > 0 && (
+              <div>
+                <span>Límite de crédito</span>
+                <strong>{fmtMoney(data.limiteCredito)}</strong>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="pd-empty small">
+            Sin condiciones capturadas. Indica si el proveedor nos da crédito y a cuántos
+            días — se usará para calcular vencimientos y flujo de pagos.
+          </div>
+        )}
+      </section>
+
+      <Modal open={creditOpen} onClose={() => setCreditOpen(false)} title="Condiciones de crédito">
+        <CreditInfoForm
+          supplier={data}
+          onClose={() => setCreditOpen(false)}
+          onSaved={() => { setCreditOpen(false); reload() }}
+        />
+      </Modal>
 
       {/* Datos bancarios para SPEI */}
       <section className="prov-section">
@@ -97,30 +141,18 @@ export default function ProveedorBartizDetalle() {
           </button>
         </div>
         {data.clabe || data.banco || data.cuentaBancaria || data.titularCuenta ? (
-          <div className="prov-bank-display">
+          <div className="prov-kv-display">
             {data.clabe && (
-              <div>
-                <span className="muted small">CLABE</span>
-                <strong className="mono">{data.clabe}</strong>
-              </div>
+              <div><span>CLABE</span><strong className="mono">{data.clabe}</strong></div>
             )}
             {data.banco && (
-              <div>
-                <span className="muted small">Banco</span>
-                <strong>{data.banco}</strong>
-              </div>
+              <div><span>Banco</span><strong>{data.banco}</strong></div>
             )}
             {data.cuentaBancaria && (
-              <div>
-                <span className="muted small">Cuenta</span>
-                <strong className="mono">{data.cuentaBancaria}</strong>
-              </div>
+              <div><span>Cuenta</span><strong className="mono">{data.cuentaBancaria}</strong></div>
             )}
             {data.titularCuenta && (
-              <div>
-                <span className="muted small">Titular</span>
-                <strong>{data.titularCuenta}</strong>
-              </div>
+              <div><span>Titular</span><strong>{data.titularCuenta}</strong></div>
             )}
           </div>
         ) : (
@@ -248,7 +280,7 @@ export default function ProveedorBartizDetalle() {
                       style={{
                         textAlign: 'right',
                         fontVariantNumeric: 'tabular-nums',
-                        color: t.monto > 0 ? '#16a34a' : '#dc2626',
+                        color: t.monto > 0 ? 'var(--pos)' : 'var(--neg)',
                       }}
                     >
                       {fmtMoneyDec(t.monto)}
@@ -261,6 +293,61 @@ export default function ProveedorBartizDetalle() {
         </section>
       </div>
     </div>
+  )
+}
+
+// ── Credit terms edit form ───────────────────────────────────────────────────
+function CreditInfoForm({ supplier, onClose, onSaved }) {
+  const [tieneCredito, setTieneCredito] = useState(supplier.diasCredito > 0 || supplier.tieneCredito === true)
+  const [diasCredito, setDiasCredito] = useState(String(supplier.diasCredito ?? 30))
+  const [limiteCredito, setLimiteCredito] = useState(supplier.limiteCredito != null ? String(supplier.limiteCredito) : '')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/suppliers/${supplier.id}`, {
+        method: 'PUT',
+        body: {
+          tieneCredito,
+          diasCredito: tieneCredito ? Number(diasCredito) || 0 : 0,
+          limiteCredito: tieneCredito && limiteCredito ? Number(limiteCredito) : null,
+        },
+      })
+      onSaved?.()
+    } catch (err) {
+      alertDialog({ message: err.message || 'Error al guardar' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="ds prov-form">
+      <label className="prov-credit-toggle" style={{ flexDirection: 'row' }}>
+        <input type="checkbox" checked={tieneCredito} onChange={(e) => setTieneCredito(e.target.checked)} />
+        <span>Este proveedor nos da crédito</span>
+      </label>
+      {tieneCredito ? (
+        <div className="row">
+          <label>
+            <span>Días de crédito</span>
+            <input type="number" min="0" max="365" value={diasCredito} onChange={(e) => setDiasCredito(e.target.value)} placeholder="30" style={{ fontFamily: 'var(--font-mono)' }} />
+          </label>
+          <label>
+            <span>Límite de crédito (opcional)</span>
+            <input type="number" min="0" step="0.01" value={limiteCredito} onChange={(e) => setLimiteCredito(e.target.value)} placeholder="0.00" style={{ fontFamily: 'var(--font-mono)' }} />
+          </label>
+        </div>
+      ) : (
+        <div className="muted small">Se marcará como proveedor de contado (pago inmediato).</div>
+      )}
+      <div className="modal-actions">
+        <button type="button" onClick={onClose}>Cancelar</button>
+        <button type="submit" className="primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
+      </div>
+    </form>
   )
 }
 
@@ -298,7 +385,7 @@ function BankInfoForm({ supplier, onClose, onSaved }) {
   }
 
   return (
-    <form onSubmit={submit} className="prov-form">
+    <form onSubmit={submit} className="ds prov-form">
       <label>
         <span>CLABE (18 dígitos)</span>
         <input
@@ -307,7 +394,7 @@ function BankInfoForm({ supplier, onClose, onSaved }) {
           placeholder="012345678901234567"
           maxLength={18}
           inputMode="numeric"
-          style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}
+          style={{ fontFamily: 'var(--font-mono)' }}
         />
       </label>
       <div className="row">
