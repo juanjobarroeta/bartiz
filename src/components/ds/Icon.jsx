@@ -175,6 +175,8 @@ export const ICONS = {
     </>
   ),
   filter: <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />,
+  menu: <path d="M3 6h18M3 12h18M3 18h18" />,
+  close: <path d="M18 6 6 18M6 6l12 12" />,
 }
 
 export function Icon({ name, style, className }) {

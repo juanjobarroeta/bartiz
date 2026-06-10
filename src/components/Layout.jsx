@@ -13,6 +13,7 @@
  * users manage those in contabilidad-os.
  */
 
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { Icon, BrandGlyph } from './ds/Icon'
@@ -60,6 +61,13 @@ const Layout = ({ children }) => {
   const location = useLocation()
   const { user, activeCompany, logout } = useAuth()
 
+  // On mobile the sidebar is an off-canvas drawer toggled by the hamburger.
+  // Close it on any navigation so tapping a nav item dismisses the drawer.
+  const [menuOpen, setMenuOpen] = useState(false)
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
   const visibleItems = ALL_NAV_ITEMS.filter((item) => !item.hidden && item.ported)
 
   // Keep "Proyectos" active when on a project-detail route.
@@ -84,7 +92,7 @@ const Layout = ({ children }) => {
 
   return (
     <div className="ds-layout">
-      <aside className="ds ds-sidebar">
+      <aside className={`ds ds-sidebar${menuOpen ? ' open' : ''}`}>
         <div className="brand">
           <div className="brand-mark">
             <BrandGlyph id={BRAND_LOGO} />
@@ -93,6 +101,13 @@ const Layout = ({ children }) => {
             <div className="brand-name">{companyName}</div>
             <div className="brand-rfc">{companySub}</div>
           </div>
+          <button
+            className="ds-drawer-close"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Cerrar menú"
+          >
+            <Icon name="close" />
+          </button>
         </div>
 
         <nav className="nav">
@@ -129,7 +144,29 @@ const Layout = ({ children }) => {
         </div>
       </aside>
 
+      {/* mobile-only scrim behind the drawer */}
+      <div
+        className={`ds-scrim${menuOpen ? ' open' : ''}`}
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+      />
+
       <div className="ds-main">
+        {/* mobile-only top bar: hamburger + brand (the only menu access on phones) */}
+        <header className="ds ds-mobilebar">
+          <button
+            className="ds-menu-btn"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Abrir menú"
+          >
+            <Icon name="menu" />
+          </button>
+          <div className="brand-mark ds-mobilebar-mark">
+            <BrandGlyph id={BRAND_LOGO} />
+          </div>
+          <div className="ds-mobilebar-name">{companyName}</div>
+        </header>
+
         {topbar && (
           <header className="ds ds-topbar">
             <div>

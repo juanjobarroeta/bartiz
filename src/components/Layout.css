@@ -47,6 +47,17 @@
   flex: 1;
 }
 
+/* Mobile-only chrome — hidden on desktop, shown in the narrow media query. */
+.ds-mobilebar {
+  display: none;
+}
+.ds-drawer-close {
+  display: none;
+}
+.ds-scrim {
+  display: none;
+}
+
 @media (max-width: 1080px) {
   .ds-topbar .topbar-sub {
     display: none;
@@ -66,49 +77,127 @@
   }
 }
 
-/* ---------- Narrow screens: stack the shell ---------- */
+/* ---------- Narrow screens: sidebar becomes an off-canvas drawer ---------- */
 @media (max-width: 768px) {
   .ds-layout {
     grid-template-columns: 1fr;
   }
+
+  /* Drawer: fixed off-canvas, slides in over the content. */
   .ds-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    width: 272px;
+    max-width: 84vw;
+    border-right: 1px solid var(--line);
+    transform: translateX(-100%);
+    transition: transform 0.26s ease;
+    z-index: 200;
+  }
+  .ds-sidebar.open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-pop);
+  }
+
+  /* Close (×) button in the drawer header. */
+  .ds-drawer-close {
+    display: grid;
+    place-items: center;
+    margin-left: auto;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .ds-drawer-close svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Backdrop behind the open drawer. */
+  .ds-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(34, 29, 24, 0.42);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.26s ease;
+    z-index: 150;
+  }
+  .ds-scrim.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Sticky mobile top bar with the hamburger — the menu access on phones. */
+  .ds-mobilebar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     position: sticky;
     top: 0;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
     z-index: 30;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
   }
-  .ds-sidebar .brand {
-    border-bottom: none;
-    padding: 12px 16px;
+  .ds-menu-btn {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
   }
-  .ds-sidebar .nav {
-    flex-direction: row;
-    overflow-x: auto;
-    padding: 10px;
+  .ds-menu-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.9;
+  }
+  .ds-mobilebar-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    font-size: 15px;
+  }
+  .ds-mobilebar-name {
     flex: 1;
-  }
-  .ds-sidebar .nav-item {
-    flex-direction: column;
-    gap: 4px;
-    min-width: 72px;
-    text-align: center;
-    font-size: 11px;
+    min-width: 0;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: -0.015em;
+    color: var(--ink);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .ds-sidebar .nav-item.active::before {
-    display: none;
-  }
-  .ds-sidebar .nav-badge {
-    display: none;
-  }
-  .ds-sidebar .sidebar-foot {
-    display: none;
-  }
+
+  /* On mobile the page-title topbar is not sticky (the mobilebar owns the
+     top); it reads as a plain page header that scrolls with content. */
   .ds-topbar {
-    padding: 12px 16px;
+    position: static;
+    padding: 12px 16px 6px;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: none;
+  }
+  /* The mobilebar already carries search/account affordances elsewhere;
+     keep the page header lean so it never overflows a phone width. */
+  .ds-topbar .searchbox,
+  .ds-topbar .icon-btn {
+    display: none;
   }
 }
