@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import { Icon } from '../components/ds/Icon'
@@ -125,10 +126,30 @@ function ApprovalSheet({ sheet, onClose, onCommit }) {
   )
 }
 
+// Secondary modules surfaced in "Más" — these route out to the desktop
+// layout (with the drawer) on mobile until they have their own mobile screens.
+const MAS_MODULES = [
+  ['catalog', 'Catálogo de conceptos', '/catalogo'],
+  ['proveedores', 'Proveedores', '/proveedores-bartiz'],
+  ['gastos', 'Gastos', '/gastos'],
+  ['cajachica', 'Caja Chica', '/caja-chica'],
+  ['destajo', 'Destajo', '/destajo'],
+  ['reportes', 'Reportes', '/reportes'],
+]
+
+// Initial tab from the entry route (deep links to /proyectos, /tesoreria).
+function tabForPath(pathname) {
+  if (pathname.startsWith('/tesoreria')) return 'tesoreria'
+  if (pathname.startsWith('/proyectos')) return 'proyectos'
+  return 'inicio'
+}
+
 export default function MobileApp() {
   const { user, activeCompany, logout } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  const [tab, setTab] = useState('inicio')
+  const [tab, setTab] = useState(() => tabForPath(location.pathname))
   const [project, setProject] = useState(null)
   const [sheet, setSheet] = useState(null)
   const [approved, setApproved] = useState({})
@@ -185,7 +206,15 @@ export default function MobileApp() {
   } else if (tab === 'tesoreria') {
     screen = <MTesoreria banks={DATA.banks} saldoTotal={DATA.saldoTotal} openSheet={setSheet} conciliated={conciliated} />
   } else {
-    screen = <MMas company={activeCompany} user={user} onLogout={logout} />
+    screen = (
+      <MMas
+        company={activeCompany}
+        user={user}
+        modules={MAS_MODULES}
+        onOpenModule={(route) => navigate(route)}
+        onLogout={logout}
+      />
+    )
   }
 
   return (

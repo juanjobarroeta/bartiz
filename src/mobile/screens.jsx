@@ -406,7 +406,7 @@ export function MPendientes({ openSheet, approved, go }) {
 }
 
 /* ============ MÁS ============ */
-export function MMas({ company, user, onLogout }) {
+export function MMas({ company, user, modules = [], onOpenModule, onLogout }) {
   const initials = (user?.name || user?.email || 'JB')
     .split(/[\s@.]+/)
     .filter(Boolean)
@@ -426,8 +426,17 @@ export function MMas({ company, user, onLogout }) {
           </div>
         </div>
         <div className="m-card" style={{ marginTop: 14 }}>
-          {[['catalog', 'Catálogo de conceptos'], ['proveedores', 'Proveedores'], ['gastos', 'Gastos'], ['cajachica', 'Caja Chica'], ['destajo', 'Destajo'], ['reportes', 'Reportes']].map(([ic, l]) => (
-            <div className="m-row" key={l}><div className="ric"><Icon name={ic} /></div><div className="rlbl">{l}</div><div className="rchev"><Icon name="chevronRight" /></div></div>
+          {modules.map(([ic, l, route], i) => (
+            <button
+              key={l}
+              className="m-row"
+              onClick={() => onOpenModule?.(route)}
+              style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', borderTop: i ? '1px solid var(--line)' : 'none' }}
+            >
+              <div className="ric"><Icon name={ic} /></div>
+              <div className="rlbl">{l}</div>
+              <div className="rchev"><Icon name="chevronRight" /></div>
+            </button>
           ))}
         </div>
         <div className="m-card" style={{ marginTop: 14 }}>

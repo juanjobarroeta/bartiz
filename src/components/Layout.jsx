@@ -51,6 +51,13 @@ const ALL_NAV_ITEMS = [
   { path: '/solicitudes-compra',  label: 'Solicitudes',   icon: 'requisiciones', ported: false, hidden: true },
 ]
 
+// Entry routes owned by the mobile PWA shell. On phones these mount the
+// dedicated mobile experience; every other route keeps the desktop layout
+// (with the off-canvas drawer) so the secondary modules stay reachable on
+// mobile too. The PWA handles its internal nav (tabs + project detail) in
+// component state, so only these entry paths need to be listed.
+const MOBILE_PWA_ROUTES = new Set(['/', '/proyectos', '/tesoreria-bartiz'])
+
 // Routes whose pages have been rebuilt on the design system and therefore
 // render the shared topbar (instead of their own page header).
 const REDESIGNED_ROUTES = {
@@ -72,8 +79,10 @@ const Layout = ({ children }) => {
   }, [location.pathname])
 
   // Phone viewports get the dedicated mobile PWA shell (bottom tab nav +
-  // approval flows) instead of the desktop sidebar layout.
-  if (isMobile) return <MobileApp />
+  // approval flows) on its core routes. Other routes (secondary modules,
+  // legacy pages) keep the desktop layout + drawer so they stay usable on
+  // mobile until they have their own mobile screens.
+  if (isMobile && MOBILE_PWA_ROUTES.has(location.pathname)) return <MobileApp />
 
   const visibleItems = ALL_NAV_ITEMS.filter((item) => !item.hidden && item.ported)
 
