@@ -17,6 +17,8 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { Icon, BrandGlyph } from './ds/Icon'
+import { useIsMobile } from '../lib/useIsMobile'
+import MobileApp from '../mobile/MobileApp'
 import './Layout.css'
 
 // Brand mark glyph (six are available in the design system; `tower` is the
@@ -60,6 +62,7 @@ const REDESIGNED_ROUTES = {
 const Layout = ({ children }) => {
   const location = useLocation()
   const { user, activeCompany, logout } = useAuth()
+  const isMobile = useIsMobile()
 
   // On mobile the sidebar is an off-canvas drawer toggled by the hamburger.
   // Close it on any navigation so tapping a nav item dismisses the drawer.
@@ -67,6 +70,10 @@ const Layout = ({ children }) => {
   useEffect(() => {
     setMenuOpen(false)
   }, [location.pathname])
+
+  // Phone viewports get the dedicated mobile PWA shell (bottom tab nav +
+  // approval flows) instead of the desktop sidebar layout.
+  if (isMobile) return <MobileApp />
 
   const visibleItems = ALL_NAV_ITEMS.filter((item) => !item.hidden && item.ported)
 
