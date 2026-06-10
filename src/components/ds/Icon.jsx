@@ -175,6 +175,22 @@ export const ICONS = {
     </>
   ),
   filter: <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />,
+  menu: <path d="M3 6h18M3 12h18M3 18h18" />,
+  close: <path d="M18 6 6 18M6 6l12 12" />,
+  check: <path d="M20 6 9 17l-5-5" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  moreH: (
+    <>
+      <circle cx="5" cy="12" r="1.4" />
+      <circle cx="12" cy="12" r="1.4" />
+      <circle cx="19" cy="12" r="1.4" />
+    </>
+  ),
 }
 
 export function Icon({ name, style, className }) {

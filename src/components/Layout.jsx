@@ -13,9 +13,12 @@
  * users manage those in contabilidad-os.
  */
 
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { Icon, BrandGlyph } from './ds/Icon'
+import { useIsMobile } from '../lib/useIsMobile'
+import MobileApp from '../mobile/MobileApp'
 import './Layout.css'
 
 // Brand mark glyph (six are available in the design system; `tower` is the
@@ -48,6 +51,13 @@ const ALL_NAV_ITEMS = [
   { path: '/solicitudes-compra',  label: 'Solicitudes',   icon: 'requisiciones', ported: false, hidden: true },
 ]
 
+// Entry routes owned by the mobile PWA shell. On phones these mount the
+// dedicated mobile experience; every other route keeps the desktop layout
+// (with the off-canvas drawer) so the secondary modules stay reachable on
+// mobile too. The PWA handles its internal nav (tabs + project detail) in
+// component state, so only these entry paths need to be listed.
+const MOBILE_PWA_ROUTES = new Set(['/', '/proyectos', '/tesoreria-bartiz'])
+
 // Routes whose pages have been rebuilt on the design system and therefore
 // render the shared topbar (instead of their own page header).
 const REDESIGNED_ROUTES = {
@@ -59,6 +69,20 @@ const REDESIGNED_ROUTES = {
 const Layout = ({ children }) => {
   const location = useLocation()
   const { user, activeCompany, logout } = useAuth()
+  const isMobile = useIsMobile()
+
+  // On mobile the sidebar is an off-canvas drawer toggled by the hamburger.
+  // Close it on any navigation so tapping a nav item dismisses the drawer.
+  const [menuOpen, setMenuOpen] = useState(false)
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  // Phone viewports get the dedicated mobile PWA shell (bottom tab nav +
+  // approval flows) on its core routes. Other routes (secondary modules,
+  // legacy pages) keep the desktop layout + drawer so they stay usable on
+  // mobile until they have their own mobile screens.
+  if (isMobile && MOBILE_PWA_ROUTES.has(location.pathname)) return <MobileApp />
 
   const visibleItems = ALL_NAV_ITEMS.filter((item) => !item.hidden && item.ported)
 
@@ -84,7 +108,7 @@ const Layout = ({ children }) => {
 
   return (
     <div className="ds-layout">
-      <aside className="ds ds-sidebar">
+      <aside className={`ds ds-sidebar${menuOpen ? ' open' : ''}`}>
         <div className="brand">
           <div className="brand-mark">
             <BrandGlyph id={BRAND_LOGO} />
@@ -93,6 +117,13 @@ const Layout = ({ children }) => {
             <div className="brand-name">{companyName}</div>
             <div className="brand-rfc">{companySub}</div>
           </div>
+          <button
+            className="ds-drawer-close"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Cerrar menú"
+          >
+            <Icon name="close" />
+          </button>
         </div>
 
         <nav className="nav">
@@ -129,7 +160,29 @@ const Layout = ({ children }) => {
         </div>
       </aside>
 
+      {/* mobile-only scrim behind the drawer */}
+      <div
+        className={`ds-scrim${menuOpen ? ' open' : ''}`}
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+      />
+
       <div className="ds-main">
+        {/* mobile-only top bar: hamburger + brand (the only menu access on phones) */}
+        <header className="ds ds-mobilebar">
+          <button
+            className="ds-menu-btn"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Abrir menú"
+          >
+            <Icon name="menu" />
+          </button>
+          <div className="brand-mark ds-mobilebar-mark">
+            <BrandGlyph id={BRAND_LOGO} />
+          </div>
+          <div className="ds-mobilebar-name">{companyName}</div>
+        </header>
+
         {topbar && (
           <header className="ds ds-topbar">
             <div>
