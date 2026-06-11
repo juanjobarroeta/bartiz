@@ -11,7 +11,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import { alertDialog } from '../components/Dialog'
-import { CreditChip } from './ProveedoresBartiz'
+import { CreditChip, readTerms, saveTerms } from './ProveedoresBartiz'
 import '../components/Modal.css'
 import './ProveedoresBartiz.css'
 
@@ -51,7 +51,8 @@ export default function ProveedorBartizDetalle() {
     data.cotizaciones.length > 0
       ? Math.round((data.stats.wonCount / data.cotizaciones.length) * 100)
       : 0
-  const hasCredit = data.diasCredito != null || data.tieneCredito != null
+  const terms = readTerms(data)
+  const hasCredit = terms.diasCredito != null || terms.tieneCredito != null
 
   return (
     <div className="prov-detalle">
@@ -101,18 +102,18 @@ export default function ProveedorBartizDetalle() {
           <div className="prov-kv-display">
             <div>
               <span>Modalidad</span>
-              <strong>{data.diasCredito > 0 ? 'Crédito' : 'Contado'}</strong>
+              <strong>{terms.diasCredito > 0 ? 'Crédito' : 'Contado'}</strong>
             </div>
-            {data.diasCredito > 0 && (
+            {terms.diasCredito > 0 && (
               <div>
                 <span>Días de crédito</span>
-                <strong className="mono">{data.diasCredito} días</strong>
+                <strong className="mono">{terms.diasCredito} días</strong>
               </div>
             )}
-            {data.limiteCredito != null && data.limiteCredito > 0 && (
+            {terms.limiteCredito != null && terms.limiteCredito > 0 && (
               <div>
                 <span>Límite de crédito</span>
-                <strong>{fmtMoney(data.limiteCredito)}</strong>
+                <strong>{fmtMoney(terms.limiteCredito)}</strong>
               </div>
             )}
           </div>
@@ -297,24 +298,20 @@ export default function ProveedorBartizDetalle() {
 }
 
 // ── Credit terms edit form ───────────────────────────────────────────────────
+// Credit terms are construcción-owned and saved to PUT /suppliers/:id/terms,
+// keeping the fiscal-core Supplier model clean.
 function CreditInfoForm({ supplier, onClose, onSaved }) {
-  const [tieneCredito, setTieneCredito] = useState(supplier.diasCredito > 0 || supplier.tieneCredito === true)
-  const [diasCredito, setDiasCredito] = useState(String(supplier.diasCredito ?? 30))
-  const [limiteCredito, setLimiteCredito] = useState(supplier.limiteCredito != null ? String(supplier.limiteCredito) : '')
+  const initial = readTerms(supplier)
+  const [tieneCredito, setTieneCredito] = useState(initial.diasCredito > 0 || initial.tieneCredito === true)
+  const [diasCredito, setDiasCredito] = useState(String(initial.diasCredito ?? 30))
+  const [limiteCredito, setLimiteCredito] = useState(initial.limiteCredito != null ? String(initial.limiteCredito) : '')
   const [busy, setBusy] = useState(false)
 
   const submit = async (e) => {
     e.preventDefault()
     setBusy(true)
     try {
-      await apiFetch(`/api/construccion/suppliers/${supplier.id}`, {
-        method: 'PUT',
-        body: {
-          tieneCredito,
-          diasCredito: tieneCredito ? Number(diasCredito) || 0 : 0,
-          limiteCredito: tieneCredito && limiteCredito ? Number(limiteCredito) : null,
-        },
-      })
+      await saveTerms(supplier.id, { tieneCredito, diasCredito, limiteCredito })
       onSaved?.()
     } catch (err) {
       alertDialog({ message: err.message || 'Error al guardar' })

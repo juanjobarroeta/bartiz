@@ -20,11 +20,36 @@ import { alertDialog } from '../components/Dialog'
 import '../components/Modal.css'
 import './ProveedoresBartiz.css'
 
+// Credit terms are construcción-owned operational data, kept OFF the fiscal
+// core Supplier model. The API exposes them as `supplier.terms` and accepts
+// writes at PUT /api/construccion/suppliers/:id/terms. We read a flattened
+// fallback too, so the UI still works if terms are inlined on the supplier.
+export function readTerms(s) {
+  const t = s?.terms ?? s ?? {}
+  return {
+    tieneCredito: t.tieneCredito ?? (t.diasCredito > 0 || null),
+    diasCredito: t.diasCredito ?? null,
+    limiteCredito: t.limiteCredito ?? null,
+  }
+}
+
+export async function saveTerms(supplierId, { tieneCredito, diasCredito, limiteCredito }) {
+  return apiFetch(`/api/construccion/suppliers/${supplierId}/terms`, {
+    method: 'PUT',
+    body: {
+      tieneCredito: !!tieneCredito,
+      diasCredito: tieneCredito ? Number(diasCredito) || 0 : 0,
+      limiteCredito: tieneCredito && limiteCredito ? Number(limiteCredito) : null,
+    },
+  })
+}
+
 // Credit-terms chip shared by the list + detail. `diasCredito > 0` → crédito;
 // explicit `tieneCredito === false` → contado; otherwise unknown (—).
-export function CreditChip({ supplier: s }) {
-  if (s?.diasCredito > 0) return <span className="prov-credit has">Crédito · {s.diasCredito} días</span>
-  if (s?.tieneCredito === false) return <span className="prov-credit cash">Contado</span>
+export function CreditChip({ supplier }) {
+  const t = readTerms(supplier)
+  if (t.diasCredito > 0) return <span className="prov-credit has">Crédito · {t.diasCredito} días</span>
+  if (t.tieneCredito === false) return <span className="prov-credit cash">Contado</span>
   return <span className="prov-credit none">—</span>
 }
 
@@ -178,6 +203,8 @@ export function NewProveedorForm({ companyId, defaultName = '', onClose, onCreat
     }
     setBusy(true)
     try {
+      // Create the fiscal-core supplier (no credit fields), then save the
+      // construcción-owned credit terms against it.
       const created = await apiFetch('/api/construccion/suppliers', {
         method: 'POST',
         body: {
@@ -190,11 +217,15 @@ export function NewProveedorForm({ companyId, defaultName = '', onClose, onCreat
           banco: banco.trim() || null,
           cuentaBancaria: cuentaBancaria.trim() || null,
           titularCuenta: titularCuenta.trim() || null,
-          tieneCredito,
-          diasCredito: tieneCredito ? Number(diasCredito) || 0 : 0,
-          limiteCredito: tieneCredito && limiteCredito ? Number(limiteCredito) : null,
         },
       })
+      if (created?.id && (tieneCredito || Number(diasCredito) > 0)) {
+        try {
+          await saveTerms(created.id, { tieneCredito, diasCredito, limiteCredito })
+        } catch (termsErr) {
+          console.error('No se pudieron guardar las condiciones de crédito:', termsErr)
+        }
+      }
       onCreated?.(created)
     } catch (err) {
       if (err.status === 409 && err.data?.existing) {
@@ -384,7 +415,7 @@ function ImportProveedoresForm({ companyId, onClose, onDone }) {
       const dias = parseInt(r.diasCredito, 10)
       const tieneCredito = Number.isFinite(dias) && dias > 0
       try {
-        await apiFetch('/api/construccion/suppliers', {
+        const created = await apiFetch('/api/construccion/suppliers', {
           method: 'POST',
           body: {
             companyId,
@@ -396,10 +427,11 @@ function ImportProveedoresForm({ companyId, onClose, onDone }) {
             banco: r.banco?.trim() || null,
             cuentaBancaria: r.cuentaBancaria?.trim() || null,
             titularCuenta: r.titularCuenta?.trim() || null,
-            tieneCredito,
-            diasCredito: tieneCredito ? dias : 0,
           },
         })
+        if (created?.id && tieneCredito) {
+          try { await saveTerms(created.id, { tieneCredito, diasCredito: dias }) } catch { /* terms optional */ }
+        }
         results.push({ name: r.razonSocial, status: 'ok', msg: 'creado' })
       } catch (err) {
         if (err.status === 409) results.push({ name: r.razonSocial, status: 'skip', msg: 'ya existe' })
