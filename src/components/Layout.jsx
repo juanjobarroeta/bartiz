@@ -37,6 +37,7 @@ const ALL_NAV_ITEMS = [
   { path: '/destajo',             label: 'Destajo',       icon: 'destajo',       ported: true },
   { path: '/tesoreria-bartiz',    label: 'Tesorería',     icon: 'tesoreria',     ported: true },
   { path: '/cuentas-por-pagar',   label: 'Cuentas por pagar', icon: 'receipt',   ported: true },
+  { path: '/facturas',            label: 'Facturas (CFDI)', icon: 'file',        ported: true },
   { path: '/reportes',            label: 'Reportes',      icon: 'reportes',      ported: true },
 
   // Permanently hidden — contabilidad-os native UI owns these.
@@ -66,6 +67,7 @@ const REDESIGNED_ROUTES = {
   '/proyectos': { title: 'Proyectos', sub: 'Cartera de obra · contabilidad-os' },
   '/tesoreria-bartiz': { title: 'Tesorería', sub: 'Cuentas y movimientos de la empresa' },
   '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Vencimientos y flujo de pagos' },
+  '/facturas': { title: 'Facturas (CFDI)', sub: 'Inbox y conciliación de comprobantes' },
 }
 
 const Layout = ({ children }) => {
