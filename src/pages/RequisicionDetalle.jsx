@@ -360,7 +360,7 @@ function BankLinkPicker({ solicitudId, onClose, onLinked }) {
                 {c.descripcion?.slice(0, 80)}
                 {c.referencia && <div className="muted small mono">Ref: {c.referencia}</div>}
               </td>
-              <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#dc2626' }}>
+              <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--neg)' }}>
                 {fmtMoney(c.monto)}
               </td>
               <td>
@@ -460,7 +460,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
               value={freeTextName}
               onChange={(e) => setFreeTextName(e.target.value)}
               placeholder="Nombre libre (no se guarda al catálogo)"
-              style={{ flex: 1, padding: '0.4rem 0.55rem', border: '1px solid #cbd5e1', borderRadius: 5, fontSize: '0.9rem' }}
+              style={{ flex: 1, padding: '9px 11px', border: '1px solid var(--line-2)', borderRadius: 'var(--r-sm)', fontSize: '0.9rem', fontFamily: 'var(--font-ui)' }}
             />
             <button type="button" className="link small" onClick={() => { setUseFreeText(false); setFreeTextName('') }}>
               elegir del catálogo
