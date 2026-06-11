@@ -36,6 +36,7 @@ const ALL_NAV_ITEMS = [
   { path: '/caja-chica',          label: 'Caja Chica',    icon: 'cajachica',     ported: true },
   { path: '/destajo',             label: 'Destajo',       icon: 'destajo',       ported: true },
   { path: '/tesoreria-bartiz',    label: 'Tesorería',     icon: 'tesoreria',     ported: true },
+  { path: '/cuentas-por-pagar',   label: 'Cuentas por pagar', icon: 'receipt',   ported: true },
   { path: '/reportes',            label: 'Reportes',      icon: 'reportes',      ported: true },
 
   // Permanently hidden — contabilidad-os native UI owns these.
@@ -64,6 +65,7 @@ const REDESIGNED_ROUTES = {
   '/': { title: 'Dashboard', sub: 'Portafolio · cartera y caja' },
   '/proyectos': { title: 'Proyectos', sub: 'Cartera de obra · contabilidad-os' },
   '/tesoreria-bartiz': { title: 'Tesorería', sub: 'Cuentas y movimientos de la empresa' },
+  '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Vencimientos y flujo de pagos' },
 }
 
 const Layout = ({ children }) => {

@@ -34,6 +34,7 @@ import Destajo from './pages/Destajo'
 import Requisiciones from './pages/Requisiciones'
 import RequisicionDetalle from './pages/RequisicionDetalle'
 import TesoreriaBartiz from './pages/TesoreriaBartiz'
+import CuentasPorPagar from './pages/CuentasPorPagar'
 import Reportes from './pages/Reportes'
 import ProveedoresBartiz from './pages/ProveedoresBartiz'
 import ProveedorBartizDetalle from './pages/ProveedorBartizDetalle'
@@ -94,6 +95,7 @@ function App() {
                     <Route path="/requisiciones" element={<Requisiciones />} />
                     <Route path="/requisiciones/:id" element={<RequisicionDetalle />} />
                     <Route path="/tesoreria-bartiz" element={<TesoreriaBartiz />} />
+                    <Route path="/cuentas-por-pagar" element={<CuentasPorPagar />} />
                     <Route path="/reportes" element={<Reportes />} />
                     <Route path="/proveedores-bartiz" element={<ProveedoresBartiz />} />
                     <Route path="/proveedores-bartiz/:id" element={<ProveedorBartizDetalle />} />
