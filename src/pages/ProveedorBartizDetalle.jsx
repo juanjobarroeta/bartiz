@@ -314,7 +314,15 @@ function CreditInfoForm({ supplier, onClose, onSaved }) {
       await saveTerms(supplier.id, { tieneCredito, diasCredito, limiteCredito })
       onSaved?.()
     } catch (err) {
-      alertDialog({ message: err.message || 'Error al guardar' })
+      // A network-level failure (Safari "Load failed" / Chrome "Failed to
+      // fetch") on this route means the construcción `/terms` endpoint isn't
+      // deployed yet — give an explanatory message instead of the raw error.
+      const isNetwork = /load failed|failed to fetch|networkerror/i.test(err?.message || '')
+      alertDialog({
+        message: isNetwork
+          ? 'No se pudieron guardar las condiciones de crédito: el servicio de crédito (endpoint /terms) aún no está disponible en el backend.'
+          : (err.message || 'Error al guardar'),
+      })
     } finally {
       setBusy(false)
     }

@@ -129,6 +129,7 @@ function ApprovalSheet({ sheet, onClose, onCommit }) {
 // Secondary modules surfaced in "Más" — these route out to the desktop
 // layout (with the drawer) on mobile until they have their own mobile screens.
 const MAS_MODULES = [
+  ['requisiciones', 'Requisiciones', '/requisiciones'],
   ['catalog', 'Catálogo de conceptos', '/catalogo'],
   ['proveedores', 'Proveedores', '/proveedores-bartiz'],
   ['gastos', 'Gastos', '/gastos'],
