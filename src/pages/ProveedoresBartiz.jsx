@@ -256,17 +256,6 @@ export function NewProveedorForm({ companyId, defaultName = '', onClose, onCreat
           style={{ fontFamily: 'var(--font-mono)' }}
         />
       </label>
-      <div className="row">
-        <label>
-          <span>Régimen fiscal (opcional)</span>
-          <input value={regimen} onChange={(e) => setRegimen(e.target.value)} placeholder="601, 612…" />
-        </label>
-        <label>
-          <span>Email (opcional)</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@proveedor.mx" />
-        </label>
-      </div>
-
       <fieldset className="prov-credit-fs">
         <legend>Condiciones de crédito</legend>
         <label className="prov-credit-toggle" style={{ flexDirection: 'row' }}>
@@ -294,6 +283,17 @@ export function NewProveedorForm({ companyId, defaultName = '', onClose, onCreat
           </div>
         )}
       </fieldset>
+
+      <div className="row">
+        <label>
+          <span>Régimen fiscal (opcional)</span>
+          <input value={regimen} onChange={(e) => setRegimen(e.target.value)} placeholder="601, 612…" />
+        </label>
+        <label>
+          <span>Email (opcional)</span>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@proveedor.mx" />
+        </label>
+      </div>
 
       <fieldset className="prov-bank">
         <legend>Datos bancarios para SPEI (opcional)</legend>

@@ -7,7 +7,7 @@
  * matrix.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
@@ -205,6 +205,16 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
       unidad: match && !p.unidad ? match.unidad : p.unidad,
     } : p)))
   }
+  // Picked an explicit concept from the dropdown: link the budget partida and
+  // pull its unit (overwriting an empty one).
+  const pickConcept = (idx, c) => {
+    setPartidas((arr) => arr.map((p, i) => (i === idx ? {
+      ...p,
+      descripcion: c.descripcion,
+      presupuestoPartidaId: c.id,
+      unidad: p.unidad || c.unidad || '',
+    } : p)))
+  }
   const addRow = () =>
     setPartidas((arr) => [...arr, { descripcion: '', cantidad: '', unidad: '', presupuestoPartidaId: null }])
   const removeRow = (idx) =>
@@ -295,18 +305,14 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
           <span style={{ width: 80 }}>Unidad</span>
           <span style={{ width: 30 }}></span>
         </div>
-        <datalist id="req-conceptos">
-          {conceptos.map((c) => (
-            <option key={c.id} value={c.descripcion}>{c.codigo}</option>
-          ))}
-        </datalist>
         {partidas.map((p, idx) => (
           <div key={idx} className="line-row">
-            <input
+            <ConceptoCombobox
               value={p.descripcion}
-              onChange={(e) => onDescChange(idx, e.target.value)}
-              placeholder="Escribe o elige del presupuesto…"
-              list="req-conceptos"
+              conceptos={conceptos}
+              linked={!!p.presupuestoPartidaId}
+              onText={(v) => onDescChange(idx, v)}
+              onPick={(c) => pickConcept(idx, c)}
             />
             <input
               type="number"
@@ -334,7 +340,7 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
           {proyectoId && (
             <span className="muted small">
               {conceptos.length > 0
-                ? `${conceptos.length} conceptos del presupuesto disponibles · escribe para buscar`
+                ? `${conceptos.length} conceptos del presupuesto · haz clic en un concepto para ver la lista`
                 : 'Sin presupuesto aprobado en este proyecto — captura libre'}
             </span>
           )}
@@ -351,5 +357,58 @@ function NewRequisicionForm({ companyId, proyectos, onClose, onCreated }) {
         <button type="submit" className="primary" disabled={busy}>{busy ? 'Creando…' : 'Crear requisición'}</button>
       </div>
     </form>
+  )
+}
+
+// ── Concepto combobox ────────────────────────────────────────────────────────
+// Visible, searchable picker over the project's presupuesto concepts. Opens a
+// dropdown on focus showing código · descripción · unidad. Picking one links
+// the budget partida; free text still works for anything off-budget.
+function ConceptoCombobox({ value, conceptos, linked, onText, onPick }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const fn = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [open])
+
+  const q = (value || '').trim().toLowerCase()
+  const matches = useMemo(() => {
+    if (!conceptos.length) return []
+    if (!q) return conceptos.slice(0, 60)
+    return conceptos
+      .filter((c) => c.descripcion.toLowerCase().includes(q) || (c.codigo || '').toLowerCase().includes(q))
+      .slice(0, 60)
+  }, [conceptos, q])
+
+  return (
+    <div className="concepto-combo" ref={wrapRef}>
+      <input
+        value={value}
+        onChange={(e) => { onText(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        placeholder={conceptos.length ? 'Escribe o elige del presupuesto…' : 'Captura libre…'}
+        autoComplete="off"
+      />
+      {linked && <span className="line-tag" title="Vinculado a un concepto del presupuesto">presupuesto</span>}
+      {open && conceptos.length > 0 && (
+        <div className="concepto-dropdown">
+          {matches.length === 0 ? (
+            <div className="concepto-empty">Sin coincidencias — se guardará como captura libre</div>
+          ) : (
+            matches.map((c) => (
+              <button type="button" key={c.id} className="concepto-item" onClick={() => { onPick(c); setOpen(false) }}>
+                {c.codigo && <span className="mono small cc-code">{c.codigo}</span>}
+                <span className="cc-desc">{c.descripcion}</span>
+                {c.unidad && <span className="muted small cc-unit">{c.unidad}</span>}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   )
 }
