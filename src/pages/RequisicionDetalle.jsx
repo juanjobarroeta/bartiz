@@ -34,6 +34,10 @@ export default function RequisicionDetalle() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [newCotOpen, setNewCotOpen] = useState(false)
+  // Per-concept award: { [partidaId]: cotizacionId }. Lets the buyer split one
+  // requisición across suppliers — concept A to vendor X, concept B to vendor Y.
+  const [awards, setAwards] = useState({})
+  const [awardLocalOnly, setAwardLocalOnly] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -66,6 +70,82 @@ export default function RequisicionDetalle() {
       return { partida: p, lines, cheapest }
     })
   }, [data])
+
+  // Seed awards from the backend (partida.cotizacionGanadoraId) when present;
+  // otherwise default to the whole-requisición winner so existing data keeps
+  // showing a sensible adjudicación the buyer can then refine per concept.
+  useEffect(() => {
+    if (!data) return
+    const cots = data.cotizaciones ?? []
+    const selected = cots.find((c) => c.isSelected)
+    const init = {}
+    for (const p of data.partidas) {
+      if (p.cotizacionGanadoraId) {
+        init[p.id] = p.cotizacionGanadoraId
+      } else if (selected?.partidas?.some((cp) => cp.solicitudPartidaId === p.id)) {
+        init[p.id] = selected.id
+      }
+    }
+    setAwards(init)
+    setAwardLocalOnly(false)
+  }, [data])
+
+  // Persist the full award map. Optimistic: if the endpoint isn't live yet we
+  // keep the local selection so the screen stays usable (same pattern as
+  // Facturas). The backend contract lives in BACKEND-SPLIT-AWARD.md.
+  const persistAwards = useCallback(async (map) => {
+    try {
+      await apiFetch(`/api/construccion/solicitudes-compra/${id}/adjudicaciones`, {
+        method: 'PUT',
+        body: { adjudicaciones: map },
+      })
+      setAwardLocalOnly(false)
+    } catch {
+      setAwardLocalOnly(true)
+    }
+  }, [id])
+
+  const award = (partidaId, cotizacionId) => {
+    const next = { ...awards }
+    if (next[partidaId] === cotizacionId) delete next[partidaId]
+    else next[partidaId] = cotizacionId
+    setAwards(next)
+    persistAwards(next)
+  }
+
+  const awardCheapestAll = () => {
+    const next = {}
+    for (const row of matrix ?? []) if (row.cheapest) next[row.partida.id] = row.cheapest.cotizacionId
+    setAwards(next)
+    persistAwards(next)
+  }
+
+  const clearAwards = () => { setAwards({}); persistAwards({}) }
+
+  // Group the awarded concepts by supplier for the summary: one purchase order
+  // per supplier, plus the combined cost of the split award.
+  const adjudicacion = useMemo(() => {
+    if (!data) return null
+    const cots = data.cotizaciones ?? []
+    const groups = new Map()
+    let total = 0
+    let assigned = 0
+    for (const p of data.partidas) {
+      const cotId = awards[p.id]
+      if (!cotId) continue
+      const c = cots.find((x) => x.id === cotId)
+      const ln = c?.partidas?.find((cp) => cp.solicitudPartidaId === p.id)
+      if (!c || !ln) continue
+      const importe = ln.importe ?? (Number(ln.precioUnitario) || 0) * (Number(p.cantidad) || 0)
+      assigned += 1
+      total += importe
+      if (!groups.has(cotId)) groups.set(cotId, { cotizacion: c, concepts: [], subtotal: 0 })
+      const g = groups.get(cotId)
+      g.concepts.push({ partida: p, line: ln, importe })
+      g.subtotal += importe
+    }
+    return { groups: [...groups.values()], total, assigned, totalConcepts: data.partidas.length }
+  }, [data, awards])
 
   const selectCot = async (cotId) => {
     if (!(await confirmDialog({ title: 'Elegir cotización ganadora', message: 'Se actualizarán precios y proveedor en la requisición. ¿Continuar?', okLabel: 'Sí, elegir' }))) return
@@ -154,6 +234,29 @@ export default function RequisicionDetalle() {
           Aún no hay cotizaciones. Agrega la primera con el botón arriba.
         </div>
       ) : (
+        <>
+        <div className="adjudicacion-bar">
+          <div>
+            <strong>Adjudicación por concepto</strong>
+            <div className="muted small">
+              Haz clic en una celda de precio para adjudicar ese concepto a ese proveedor.
+              Puedes repartir la requisición entre varios proveedores.
+              {awardLocalOnly && (
+                <span className="adj-local"> · guardado localmente (pendiente del backend)</span>
+              )}
+            </div>
+          </div>
+          <div className="aq-actions">
+            <button type="button" className="link small" onClick={awardCheapestAll}>
+              Adjudicar lo más barato
+            </button>
+            {adjudicacion?.assigned > 0 && (
+              <button type="button" className="link small danger" onClick={clearAwards}>
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
         <div className="matrix-scroll">
           <table className="matrix-table">
             <thead>
@@ -194,15 +297,20 @@ export default function RequisicionDetalle() {
                   <td style={{ textAlign: 'right' }}>{partida.cantidad}</td>
                   {lines.map(({ cotizacionId, line, isSelected }) => {
                     const isCheapest = cheapest && cheapest.cotizacionId === cotizacionId
+                    const isAwarded = awards[partida.id] === cotizacionId
                     return (
                       <td
                         key={cotizacionId}
-                        className={`${isSelected ? 'cot-selected' : ''} ${isCheapest ? 'cheapest' : ''}`}
+                        className={`matrix-cell ${isSelected ? 'cot-selected' : ''} ${isCheapest ? 'cheapest' : ''} ${isAwarded ? 'awarded' : ''}`}
+                        role={line ? 'button' : undefined}
+                        onClick={line ? () => award(partida.id, cotizacionId) : undefined}
+                        title={line ? (isAwarded ? 'Adjudicado a este proveedor — clic para quitar' : 'Adjudicar este concepto a este proveedor') : undefined}
                       >
                         {line ? (
                           <>
                             <div className="mono">{fmtMoney(line.precioUnitario)}/u</div>
                             <div className="muted small">= {fmtMoney(line.importe)}</div>
+                            {isAwarded && <div className="awarded-tag">✓ adjudicado</div>}
                           </>
                         ) : (
                           <span className="muted small">—</span>
@@ -224,6 +332,43 @@ export default function RequisicionDetalle() {
             </tbody>
           </table>
         </div>
+
+        {adjudicacion?.assigned > 0 && (
+          <div className="adjudicacion-summary">
+            <h3>Resumen de adjudicación</h3>
+            <p className="muted small">
+              {adjudicacion.assigned} de {adjudicacion.totalConcepts} conceptos adjudicados ·{' '}
+              {adjudicacion.groups.length} proveedor{adjudicacion.groups.length === 1 ? '' : 'es'}
+              {adjudicacion.groups.length > 1 && ' (se generaría una orden de compra por proveedor)'}
+            </p>
+            {adjudicacion.groups.map((g) => (
+              <div key={g.cotizacion.id} className="adj-supplier">
+                <div className="adj-supplier-head">
+                  <span>{g.cotizacion.supplierNombre}</span>
+                  <span className="num">{fmtMoney(g.subtotal)}</span>
+                </div>
+                <ul className="adj-concepts">
+                  {g.concepts.map(({ partida, importe }) => (
+                    <li key={partida.id}>
+                      <span>{partida.descripcion}</span>
+                      <span className="num">{fmtMoney(importe)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            <div className="adj-total-row">
+              <span>Total adjudicado</span>
+              <span className="num">{fmtMoney(adjudicacion.total)}</span>
+            </div>
+            {adjudicacion.assigned < adjudicacion.totalConcepts && (
+              <div className="adj-warn">
+                Faltan {adjudicacion.totalConcepts - adjudicacion.assigned} concepto(s) por adjudicar.
+              </div>
+            )}
+          </div>
+        )}
+        </>
       )}
     </div>
   )
