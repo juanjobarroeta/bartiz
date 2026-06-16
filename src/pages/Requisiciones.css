@@ -209,3 +209,40 @@
 .small { font-size: 0.8rem; }
 .muted { color: var(--ink-3); }
 .pd-empty { padding: 2rem; text-align: center; color: var(--ink-3); background: var(--surface-2); border: 1.5px dashed var(--line-2); border-radius: var(--r-md); }
+
+/* ── Ofertas de proveedores (precios por concepto, en alta de requisición) ── */
+.offers-block {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 0.6rem;
+}
+.offers-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.5rem; }
+.offers-empty { padding: 0.5rem 0.1rem; }
+.offers-scroll { overflow-x: auto; }
+.offers-table { border-collapse: collapse; width: 100%; min-width: 360px; }
+.offers-table th, .offers-table td { border-bottom: 1px solid var(--line); padding: 0.4rem 0.5rem; vertical-align: top; text-align: left; }
+.offers-table th.oc-concept, .offers-table td.oc-concept { min-width: 160px; }
+.offers-table .oc-qty { width: 70px; white-space: nowrap; color: var(--ink-3); }
+.offers-table th.oc-supplier { min-width: 180px; }
+.offers-table td.oc-price { width: 120px; }
+.offers-table td.oc-price input {
+  width: 100%; padding: 7px 9px; border: 1px solid var(--line-2); border-radius: var(--r-sm);
+  font-size: 0.85rem; font-family: var(--font-ui); background: var(--surface); color: var(--ink);
+}
+.offers-table td.oc-price input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-tint); }
+.offers-total-row td { border-bottom: none; padding-top: 0.55rem; }
+
+.offer-supplier-head { display: flex; flex-direction: column; gap: 4px; }
+.ofs-pick, .ofs-freetext { display: flex; flex-direction: column; gap: 3px; }
+.ofs-freetext > input {
+  padding: 7px 9px; border: 1px solid var(--line-2); border-radius: var(--r-sm);
+  font-size: 0.85rem; font-family: var(--font-ui); background: var(--surface); color: var(--ink);
+}
+.ofs-freetext > input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-tint); }
+.ofs-picked { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.ofs-picked > strong { font-size: 0.85rem; }
+.ofs-credit { font-size: 10px; font-weight: 700; border-radius: 5px; padding: 1px 5px; white-space: nowrap; }
+.ofs-credit.has { background: var(--pos-soft); color: var(--pos); }
+.ofs-credit.cash { background: var(--surface-3, var(--surface)); color: var(--ink-3); border: 1px solid var(--line-2); }
+.ofs-remove { align-self: flex-start; }
