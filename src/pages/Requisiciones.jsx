@@ -6,12 +6,13 @@
  * Each row click → /requisiciones/:id detail with the multi-vendor
  * matrix.
  *
- * Creating a requisición now captures supplier offers inline: pick the
+ * Creating a requisición captures supplier offers inline: pick the
  * concepts (from the presupuesto) and add one column per proveedor with
- * their price per concept. On "Enviar a autorización" it creates the
- * requisición plus one cotización per supplier, ready for Gerardo to
- * adjudicate concept-by-concept. The half-filled form can be parked as a
- * local "borrador" and resumed later (kept in the browser, per company).
+ * their price per concept. "Enviar a autorización" creates the requisición
+ * (PENDIENTE) plus one cotización per supplier, ready for Gerardo to
+ * adjudicate concept-by-concept. "Guardar borrador" saves it server-side as
+ * a BORRADOR — shared across users — so anyone can resume it and finish
+ * capturing prices before sending.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -21,7 +22,7 @@ import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import SupplierPicker from '../components/SupplierPicker'
 import { readTerms } from './ProveedoresBartiz'
-import { alertDialog } from '../components/Dialog'
+import { alertDialog, confirmDialog } from '../components/Dialog'
 import '../components/Modal.css'
 import '../components/SupplierPicker.css'
 import './Requisiciones.css'
@@ -34,6 +35,7 @@ const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('es-MX', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
 const ESTADO_LABEL = {
+  BORRADOR: 'Borrador',
   PENDIENTE: 'Pendiente',
   APROBADA: 'Aprobada',
   PAGADA: 'Pagada',
@@ -43,37 +45,44 @@ const ESTADO_LABEL = {
 let _uidSeq = 0
 const uid = () => `k${Date.now().toString(36)}${(_uidSeq++).toString(36)}`
 
-// ── Local (browser) drafts ───────────────────────────────────────────────────
-// Half-filled requisiciones live in localStorage per company until the user
-// sends them for authorization (which creates the real server-side rows). This
-// keeps "guardar y continuar después" working without a server draft state.
-const draftsKey = (companyId) => `bartiz:reqDrafts:${companyId}`
-function loadDrafts(companyId) {
-  if (!companyId) return []
-  try {
-    const raw = localStorage.getItem(draftsKey(companyId))
-    const arr = raw ? JSON.parse(raw) : []
-    return Array.isArray(arr) ? arr : []
-  } catch {
-    return []
+// Map a server requisición (detail shape) back into editable form state so a
+// BORRADOR can be reopened and finished. Concept rows get fresh local keys;
+// each cotización becomes an offer column with prices keyed by concept.
+function formFromSolicitud(sol) {
+  const partidas = (sol.partidas ?? []).map((p) => ({
+    key: uid(),
+    descripcion: p.descripcion ?? '',
+    cantidad: p.cantidad != null ? String(p.cantidad) : '',
+    unidad: p.unidad ?? '',
+    presupuestoPartidaId: p.presupuestoPartidaId ?? null,
+    _serverId: p.id,
+  }))
+  const idToKey = {}
+  partidas.forEach((p) => { idToKey[p._serverId] = p.key })
+  const offers = (sol.cotizaciones ?? []).map((c) => {
+    const prices = {}
+    for (const cp of c.partidas ?? []) {
+      const k = idToKey[cp.solicitudPartidaId]
+      if (k) prices[k] = String(cp.precioUnitario)
+    }
+    return {
+      key: uid(),
+      supplier: c.supplier ? { id: c.supplier.id, razonSocial: c.supplier.razonSocial, rfc: c.supplier.rfc } : null,
+      freeText: c.supplierId ? '' : (c.supplierNombre ?? ''),
+      useFreeText: !c.supplierId,
+      prices,
+    }
+  })
+  return {
+    id: sol.id,
+    folio: sol.folio,
+    proyectoId: sol.proyectoId ?? sol.proyecto?.id ?? '',
+    fechaEntrega: sol.fechaEntrega ? new Date(sol.fechaEntrega).toISOString().slice(0, 10) : '',
+    formaPago: sol.formaPago ?? 'CREDITO',
+    notas: sol.notas ?? '',
+    partidas,
+    offers,
   }
-}
-function writeDrafts(companyId, drafts) {
-  try {
-    localStorage.setItem(draftsKey(companyId), JSON.stringify(drafts))
-  } catch { /* quota / private mode — non-fatal */ }
-}
-function upsertDraft(companyId, draft) {
-  const drafts = loadDrafts(companyId)
-  const idx = drafts.findIndex((d) => d.id === draft.id)
-  const next = { ...draft, savedAt: new Date().toISOString() }
-  if (idx >= 0) drafts[idx] = next
-  else drafts.unshift(next)
-  writeDrafts(companyId, drafts)
-  return next
-}
-function removeDraft(companyId, draftId) {
-  writeDrafts(companyId, loadDrafts(companyId).filter((d) => d.id !== draftId))
 }
 
 export default function Requisiciones() {
@@ -87,13 +96,8 @@ export default function Requisiciones() {
   const [filter, setFilter] = useState('ALL')
   const [newOpen, setNewOpen] = useState(false)
   const [draftsOpen, setDraftsOpen] = useState(false)
-  const [drafts, setDrafts] = useState([])
-  // The draft currently loaded into the create form (null = brand-new form).
+  // The draft (form state) currently loaded into the create form (null = new).
   const [editingDraft, setEditingDraft] = useState(null)
-
-  const refreshDrafts = useCallback(() => {
-    setDrafts(loadDrafts(companyId))
-  }, [companyId])
 
   const reload = useCallback(async () => {
     if (!companyId) return
@@ -113,16 +117,39 @@ export default function Requisiciones() {
   }, [companyId])
 
   useEffect(() => { reload() }, [reload])
-  useEffect(() => { refreshDrafts() }, [refreshDrafts])
 
+  // Borradores are server-side now; derive them from the list. They stay out of
+  // the main table (work in progress) and surface via the "Borradores" button.
+  const drafts = useMemo(() => rows.filter((r) => r.estado === 'BORRADOR'), [rows])
+  const visibleRows = useMemo(() => rows.filter((r) => r.estado !== 'BORRADOR'), [rows])
   const filtered = useMemo(() => {
-    if (filter === 'ALL') return rows
-    return rows.filter((r) => r.estado === filter)
-  }, [rows, filter])
+    if (filter === 'ALL') return visibleRows
+    return visibleRows.filter((r) => r.estado === filter)
+  }, [visibleRows, filter])
 
   const openNew = () => { setEditingDraft(null); setNewOpen(true) }
-  const continueDraft = (draft) => { setEditingDraft(draft); setDraftsOpen(false); setNewOpen(true) }
   const closeForm = () => { setNewOpen(false); setEditingDraft(null) }
+
+  const continueDraft = async (draftRow) => {
+    try {
+      const sol = await apiFetch(`/api/construccion/solicitudes-compra/${draftRow.id}`)
+      setEditingDraft(formFromSolicitud(sol))
+      setDraftsOpen(false)
+      setNewOpen(true)
+    } catch (err) {
+      alertDialog({ message: err.message || 'No se pudo abrir el borrador' })
+    }
+  }
+
+  const deleteDraft = async (id) => {
+    if (!(await confirmDialog({ title: 'Eliminar borrador', message: '¿Eliminar este borrador? No se puede deshacer.', okLabel: 'Eliminar' }))) return
+    try {
+      await apiFetch(`/api/construccion/solicitudes-compra/${id}`, { method: 'DELETE' })
+      reload()
+    } catch (err) {
+      alertDialog({ message: err.message || 'No se pudo eliminar' })
+    }
+  }
 
   if (!companyId) return <div className="pd-empty">Selecciona una empresa.</div>
 
@@ -161,17 +188,16 @@ export default function Requisiciones() {
           proyectos={proyectos}
           initialDraft={editingDraft}
           onClose={closeForm}
-          onCreated={(id) => { closeForm(); refreshDrafts(); navigate(`/requisiciones/${id}`) }}
-          onDraftSaved={() => { closeForm(); refreshDrafts() }}
+          onCreated={(id) => { closeForm(); reload(); navigate(`/requisiciones/${id}`) }}
+          onDraftSaved={() => { closeForm(); reload() }}
         />
       </Modal>
 
       <Modal open={draftsOpen} onClose={() => setDraftsOpen(false)} title="Borradores de requisición" size="md">
         <DraftsList
           drafts={drafts}
-          proyectos={proyectos}
           onContinue={continueDraft}
-          onDelete={(id) => { removeDraft(companyId, id); refreshDrafts() }}
+          onDelete={deleteDraft}
           onClose={() => setDraftsOpen(false)}
         />
       </Modal>
@@ -180,7 +206,7 @@ export default function Requisiciones() {
         <div className="pd-empty">Cargando…</div>
       ) : filtered.length === 0 ? (
         <div className="pd-empty">
-          {rows.length === 0 ? 'No hay requisiciones aún. Crea la primera con "Nueva requisición".' : 'Nada en este filtro.'}
+          {visibleRows.length === 0 ? 'No hay requisiciones aún. Crea la primera con "Nueva requisición".' : 'Nada en este filtro.'}
         </div>
       ) : (
         <table className="reqs-table">
@@ -224,25 +250,21 @@ export default function Requisiciones() {
   )
 }
 
-// ── Drafts list ──────────────────────────────────────────────────────────────
-function DraftsList({ drafts, proyectos, onContinue, onDelete, onClose }) {
+// ── Drafts list (server-side BORRADOR requisiciones) ─────────────────────────
+function DraftsList({ drafts, onContinue, onDelete, onClose }) {
   if (drafts.length === 0) {
     return (
       <div>
-        <div className="pd-empty">No hay borradores guardados.</div>
+        <div className="pd-empty">No hay borradores.</div>
         <div className="modal-actions"><button onClick={onClose}>Cerrar</button></div>
       </div>
     )
   }
-  const proyName = (id) => {
-    const p = proyectos.find((x) => x.id === id)
-    return p ? `${p.codigo} ${p.nombre}` : '— sin proyecto —'
-  }
   return (
     <div>
       <p className="muted small">
-        Borradores guardados en este navegador. Continúa para terminar de
-        capturar precios y enviar a autorización.
+        Borradores compartidos: cualquiera puede continuar capturando precios y
+        enviarlos a autorización.
       </p>
       <table className="reqs-table">
         <thead>
@@ -251,7 +273,7 @@ function DraftsList({ drafts, proyectos, onContinue, onDelete, onClose }) {
             <th>Proyecto</th>
             <th style={{ textAlign: 'right' }}># líneas</th>
             <th style={{ textAlign: 'right' }}># ofertas</th>
-            <th>Guardado</th>
+            <th>Actualizado</th>
             <th></th>
           </tr>
         </thead>
@@ -259,10 +281,10 @@ function DraftsList({ drafts, proyectos, onContinue, onDelete, onClose }) {
           {drafts.map((d) => (
             <tr key={d.id}>
               <td className="mono">{d.folio}</td>
-              <td className="small">{proyName(d.proyectoId)}</td>
-              <td style={{ textAlign: 'right' }}>{(d.partidas ?? []).filter((p) => p.descripcion?.trim()).length}</td>
-              <td style={{ textAlign: 'right' }}>{(d.offers ?? []).length}</td>
-              <td className="small muted">{d.savedAt ? fmtDate(d.savedAt) : '—'}</td>
+              <td className="small">{d.proyecto?.codigo ?? '— sin proyecto —'}</td>
+              <td style={{ textAlign: 'right' }}>{d._count?.partidas ?? 0}</td>
+              <td style={{ textAlign: 'right' }}>{d._count?.cotizaciones ?? 0}</td>
+              <td className="small muted">{fmtDate(d.updatedAt ?? d.createdAt)}</td>
               <td style={{ whiteSpace: 'nowrap' }}>
                 <button className="link small" onClick={() => onContinue(d)}>Continuar</button>
                 <button className="link small danger" onClick={() => onDelete(d.id)}>Eliminar</button>
@@ -277,11 +299,12 @@ function DraftsList({ drafts, proyectos, onContinue, onDelete, onClose }) {
 }
 
 // ── Nueva requisición form ───────────────────────────────────────────────────
-// Captures the requested concepts AND each proveedor's price per concept. On
-// submit it creates the requisición then one cotización per supplier so the
-// adjudicación matrix is ready immediately. Can be parked as a local borrador.
+// Captures the requested concepts AND each proveedor's price per concept, then
+// creates the requisición + one cotización per supplier in a single request.
+// Can be parked as a shared server-side borrador (BORRADOR) and resumed.
 function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCreated, onDraftSaved }) {
-  const [draftId] = useState(() => initialDraft?.id ?? uid())
+  // Server id when editing an existing borrador; null for a brand-new form.
+  const serverId = initialDraft?.id ?? null
   const [folio, setFolio] = useState(
     () => initialDraft?.folio ?? `REQ-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`
   )
@@ -353,7 +376,6 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
     setPartidas((arr) => {
       if (arr.length <= 1) return arr
       const removed = arr[idx]
-      // Drop this concept's price from every offer.
       setOffers((ofs) => ofs.map((o) => {
         const prices = { ...o.prices }
         delete prices[removed.key]
@@ -376,97 +398,70 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
   const offerTotal = (o) =>
     partidas.reduce((sum, p) => sum + (parseFloat(o.prices[p.key]) || 0) * (Number(p.cantidad) || 0), 0)
 
-  const snapshot = () => ({
-    id: draftId,
-    folio: folio.trim(),
-    proyectoId,
-    fechaEntrega,
-    formaPago,
-    notas,
-    partidas,
-    offers,
-  })
-
   const validLines = () =>
     partidas.filter((p) => p.descripcion.trim() && Number(p.cantidad) > 0)
 
-  const saveDraft = () => {
-    upsertDraft(companyId, snapshot())
-    onDraftSaved?.()
-  }
+  // Build the create/update payload. Offers reference partidas by index into
+  // `lines` (the backend maps those to the persisted partida ids).
+  const buildPayload = (lines, estado) => ({
+    companyId, // ignored by PUT, required by POST
+    folio: folio.trim(),
+    proyectoId: proyectoId || undefined,
+    fechaEntrega: fechaEntrega ? new Date(fechaEntrega + 'T12:00:00').toISOString() : null,
+    formaPago: formaPago || null,
+    notas: notas.trim() || undefined,
+    estado,
+    partidas: lines.map((p) => ({
+      descripcion: p.descripcion.trim(),
+      unidad: p.unidad?.trim() || null,
+      cantidad: Number(p.cantidad),
+      presupuestoPartidaId: p.presupuestoPartidaId || undefined,
+    })),
+    offers: offers
+      .filter((o) => offerName(o))
+      .map((o) => ({
+        supplierId: o.useFreeText ? null : o.supplier?.id ?? null,
+        supplierNombre: offerName(o),
+        lineas: lines
+          .map((p, idx) => ({ partidaIndex: idx, precioUnitario: parseFloat(o.prices[p.key]) || 0 }))
+          .filter((l) => l.precioUnitario > 0),
+      }))
+      .filter((o) => o.lineas.length > 0),
+  })
 
-  // Create the requisición + one cotización per priced supplier.
-  const submit = async (e) => {
-    e.preventDefault()
+  const persist = async (estado) => {
     const lines = validLines()
     if (lines.length === 0) {
       alertDialog({ message: 'Agrega al menos una línea con descripción y cantidad.' })
-      return
+      return null
     }
-    // Offers must name a supplier; warn if a column is blank but priced.
-    const namedOffers = offers.filter((o) => offerName(o))
+    const payload = buildPayload(lines, estado)
+    const url = serverId
+      ? `/api/construccion/solicitudes-compra/${serverId}`
+      : '/api/construccion/solicitudes-compra'
+    return apiFetch(url, { method: serverId ? 'PUT' : 'POST', body: payload })
+  }
+
+  const saveDraft = async () => {
     setBusy(true)
     try {
-      const created = await apiFetch('/api/construccion/solicitudes-compra', {
-        method: 'POST',
-        body: {
-          companyId,
-          folio: folio.trim(),
-          proyectoId: proyectoId || undefined,
-          fechaEntrega: fechaEntrega ? new Date(fechaEntrega + 'T12:00:00').toISOString() : null,
-          formaPago: formaPago || null,
-          notas: notas.trim() || undefined,
-          partidas: lines.map((p) => ({
-            descripcion: p.descripcion.trim(),
-            unidad: p.unidad?.trim() || null,
-            cantidad: Number(p.cantidad),
-            precioUnitario: 0, // unknown until a cotización wins
-            presupuestoPartidaId: p.presupuestoPartidaId || undefined,
-          })),
-        },
-      })
-
-      // Map each local concept row → the persisted partida id. Match on
-      // descripción + cantidad + unidad (consuming matches so duplicate
-      // concepts pair off in order); fall back to remaining order. This avoids
-      // relying on the backend returning nested rows in input order.
-      const pool = [...(created.partidas ?? [])]
-      const keyToId = {}
-      for (const p of lines) {
-        const desc = p.descripcion.trim()
-        const cant = Number(p.cantidad)
-        const uni = p.unidad?.trim() || null
-        let mi = pool.findIndex((cp) => cp.descripcion === desc && Number(cp.cantidad) === cant && (cp.unidad ?? null) === uni)
-        if (mi === -1) mi = pool.findIndex((cp) => cp.descripcion === desc)
-        if (mi === -1) mi = 0
-        if (pool[mi]) { keyToId[p.key] = pool[mi].id; pool.splice(mi, 1) }
-      }
-
-      // One cotización per named supplier offer that has at least one price.
-      for (const o of namedOffers) {
-        const lineas = lines
-          .map((p) => ({ solicitudPartidaId: keyToId[p.key], precioUnitario: parseFloat(o.prices[p.key]) || 0 }))
-          .filter((l) => l.solicitudPartidaId && l.precioUnitario > 0)
-        if (lineas.length === 0) continue
-        try {
-          await apiFetch(`/api/construccion/solicitudes-compra/${created.id}/cotizaciones`, {
-            method: 'POST',
-            body: {
-              supplierId: o.useFreeText ? null : o.supplier?.id ?? null,
-              supplierNombre: offerName(o),
-              fechaCotizacion: new Date().toISOString(),
-              lineas,
-            },
-          })
-        } catch (cotErr) {
-          console.error('No se pudo guardar la oferta de', offerName(o), cotErr)
-        }
-      }
-
-      removeDraft(companyId, draftId)
-      onCreated?.(created.id)
+      const saved = await persist('BORRADOR')
+      if (saved) onDraftSaved?.()
     } catch (err) {
-      alertDialog({ message: err.message || 'Error al crear requisición' })
+      alertDialog({ message: err.message || 'Error al guardar el borrador' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      const saved = await persist('PENDIENTE')
+      if (saved) onCreated?.(saved.id ?? serverId)
+    } catch (err) {
+      alertDialog({ message: err.message || 'Error al enviar la requisición' })
     } finally {
       setBusy(false)
     }
@@ -567,7 +562,6 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
         companyId={companyId}
         partidas={partidas}
         offers={offers}
-        offerName={offerName}
         offerTotal={offerTotal}
         addOffer={addOffer}
         removeOffer={removeOffer}
@@ -594,7 +588,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 }
 
 // ── Offers section (suppliers × concepts price grid) ─────────────────────────
-function OffersSection({ companyId, partidas, offers, offerName, offerTotal, addOffer, removeOffer, updateOffer, setOfferPrice }) {
+function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, removeOffer, updateOffer, setOfferPrice }) {
   const conceptRows = partidas.filter((p) => p.descripcion.trim())
 
   return (

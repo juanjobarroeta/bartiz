@@ -49,6 +49,7 @@
   background: var(--surface-sunk);
   color: var(--ink-2);
 }
+.badge.estado-borrador   { background: var(--surface-sunk); color: var(--ink-3); border: 1px dashed var(--line-2); }
 .badge.estado-pendiente  { background: var(--warn-soft); color: var(--warn); }
 .badge.estado-aprobada   { background: var(--info-soft); color: var(--info); }
 .badge.estado-pagada     { background: var(--pos-soft); color: var(--pos); }
