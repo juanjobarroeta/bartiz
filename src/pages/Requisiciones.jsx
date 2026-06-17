@@ -70,6 +70,7 @@ function formFromSolicitud(sol) {
       supplier: c.supplier ? { id: c.supplier.id, razonSocial: c.supplier.razonSocial, rfc: c.supplier.rfc } : null,
       freeText: c.supplierId ? '' : (c.supplierNombre ?? ''),
       useFreeText: !c.supplierId,
+      credito: !!c.tieneCredito,
       prices,
     }
   })
@@ -78,7 +79,6 @@ function formFromSolicitud(sol) {
     folio: sol.folio,
     proyectoId: sol.proyectoId ?? sol.proyecto?.id ?? '',
     fechaEntrega: sol.fechaEntrega ? new Date(sol.fechaEntrega).toISOString().slice(0, 10) : '',
-    formaPago: sol.formaPago ?? 'CREDITO',
     notas: sol.notas ?? '',
     partidas,
     offers,
@@ -311,7 +311,6 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
   const [proyectoId, setProyectoId] = useState(initialDraft?.proyectoId ?? proyectos[0]?.id ?? '')
   const today = new Date().toISOString().slice(0, 10)
   const [fechaEntrega, setFechaEntrega] = useState(initialDraft?.fechaEntrega ?? '')
-  const [formaPago, setFormaPago] = useState(initialDraft?.formaPago ?? 'CREDITO')
   const [notas, setNotas] = useState(initialDraft?.notas ?? '')
   // Each partida carries a stable `key` so supplier offer prices map to the
   // right concept even as rows are added/removed.
@@ -386,7 +385,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
   // ── Offers (proveedor columns) ──
   const addOffer = () =>
-    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', useFreeText: false, prices: {} }])
+    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', useFreeText: false, credito: false, prices: {} }])
   const removeOffer = (idx) =>
     setOffers((arr) => arr.filter((_, i) => i !== idx))
   const updateOffer = (idx, patch) =>
@@ -422,6 +421,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
       .map((o) => ({
         supplierId: o.useFreeText ? null : o.supplier?.id ?? null,
         supplierNombre: offerName(o),
+        tieneCredito: !!o.credito,
         lineas: lines
           .map((p, idx) => ({ partidaIndex: idx, precioUnitario: parseFloat(o.prices[p.key]) || 0 }))
           .filter((l) => l.precioUnitario > 0),
@@ -498,13 +498,6 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
             onChange={(e) => setFechaEntrega(e.target.value)}
             min={today}
           />
-        </label>
-        <label>
-          <span>Forma de pago</span>
-          <select value={formaPago} onChange={(e) => setFormaPago(e.target.value)}>
-            <option value="CREDITO">Crédito</option>
-            <option value="CONTADO">Contado</option>
-          </select>
         </label>
       </div>
 
@@ -668,10 +661,18 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
   )
 }
 
-// One proveedor column header: supplier picker (with crédito/contado tag) or a
-// free-text name for one-off vendors.
+// Default forma de pago for an offer = the supplier's saved terms (crédito if
+// it has credit days or the flag is on), preloaded when the supplier is picked.
+function defaultCredito(supplier) {
+  if (!supplier) return false
+  const t = readTerms(supplier)
+  return t.tieneCredito === true || t.diasCredito > 0
+}
+
+// One proveedor column header: supplier picker + a forma-de-pago toggle that
+// preloads from the supplier's terms and can be checked/unchecked per offer.
 function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
-  const terms = offer.supplier ? readTerms(offer.supplier) : null
+  const named = offer.useFreeText ? offer.freeText.trim() : offer.supplier
   return (
     <div className="offer-supplier-head">
       {offer.useFreeText ? (
@@ -688,18 +689,13 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
       ) : offer.supplier ? (
         <div className="ofs-picked">
           <strong>{offer.supplier.razonSocial}</strong>
-          {terms && (terms.diasCredito > 0
-            ? <span className="ofs-credit has">Crédito {terms.diasCredito}d</span>
-            : terms.tieneCredito === false
-              ? <span className="ofs-credit cash">Contado</span>
-              : null)}
           <button type="button" className="link small" onClick={() => onChange({ supplier: null })}>cambiar</button>
         </div>
       ) : (
         <div className="ofs-pick">
           <SupplierPicker
             value={null}
-            onChange={(s) => onChange({ supplier: s })}
+            onChange={(s) => onChange({ supplier: s, credito: defaultCredito(s) })}
             companyId={companyId}
             placeholder="Proveedor…"
           />
@@ -707,6 +703,16 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
             nombre libre
           </button>
         </div>
+      )}
+      {named && (
+        <label className="ofs-credito" title="Precargado de las condiciones del proveedor; ajustable">
+          <input
+            type="checkbox"
+            checked={!!offer.credito}
+            onChange={(e) => onChange({ credito: e.target.checked })}
+          />
+          <span>{offer.credito ? 'A crédito' : 'Contado'}</span>
+        </label>
       )}
       <button type="button" className="link small danger ofs-remove" onClick={onRemove} title="Quitar proveedor">× quitar</button>
     </div>

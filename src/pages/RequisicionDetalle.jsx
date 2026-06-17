@@ -17,6 +17,7 @@ import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import FileUpload from '../components/FileUpload'
 import SupplierPicker from '../components/SupplierPicker'
+import { readTerms } from './ProveedoresBartiz'
 import { confirmDialog, alertDialog } from '../components/Dialog'
 import { useAuth } from '../auth/AuthContext'
 import '../components/Modal.css'
@@ -187,12 +188,6 @@ export default function RequisicionDetalle() {
                 <span className="muted">— sin definir —</span>
               )}
             </span>
-            <span className="muted small">
-              Forma de pago:{' '}
-              <strong>
-                {data.formaPago === 'CREDITO' ? 'Crédito' : data.formaPago === 'CONTADO' ? 'Contado' : '—'}
-              </strong>
-            </span>
             {data.supplier && (
               <span className="muted small">
                 Ganador: <strong>{data.supplier.razonSocial}</strong>
@@ -228,10 +223,41 @@ export default function RequisicionDetalle() {
         />
       </Modal>
 
+      {/* Requested concepts — always visible, even before any quote lands so
+          the buyer can see what was requested. */}
+      <div className="req-conceptos">
+        <h3>Conceptos solicitados</h3>
+        {(data.partidas ?? []).length === 0 ? (
+          <div className="muted small">Esta requisición no tiene conceptos.</div>
+        ) : (
+          <table className="reqs-table compact">
+            <thead>
+              <tr>
+                <th>Concepto</th>
+                <th>Unidad</th>
+                <th style={{ textAlign: 'right' }}>Cantidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.partidas.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    {p.descripcion}
+                    {p.insumo && <span className="muted small"> · <span className="mono">{p.insumo.codigo}</span></span>}
+                  </td>
+                  <td className="small mono">{p.unidad ?? '—'}</td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{p.cantidad}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
       {/* Matrix */}
       {(data.cotizaciones ?? []).length === 0 ? (
         <div className="pd-empty">
-          Aún no hay cotizaciones. Agrega la primera con el botón arriba.
+          Aún no hay cotizaciones. Agrega la primera con "Agregar cotización" para comparar proveedores y adjudicar por concepto.
         </div>
       ) : (
         <>
@@ -277,7 +303,12 @@ export default function RequisicionDetalle() {
                         {c.isSelected ? '✓ ganadora' : 'elegir'}
                       </button>
                     </div>
-                    <div className="muted small">Total {fmtMoney(c.total)}</div>
+                    <div className="muted small">
+                      <span className={c.tieneCredito ? 'cot-credit has' : 'cot-credit cash'}>
+                        {c.tieneCredito ? 'Crédito' : 'Contado'}
+                      </span>
+                      {' · '}Total {fmtMoney(c.total)}
+                    </div>
                   </th>
                 ))}
               </tr>
@@ -533,6 +564,15 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
   const [supplier, setSupplier] = useState(null)
   const [freeTextName, setFreeTextName] = useState('')
   const [useFreeText, setUseFreeText] = useState(false)
+  // Forma de pago de la oferta: precargada de las condiciones del proveedor.
+  const [credito, setCredito] = useState(false)
+  const pickSupplier = (s) => {
+    setSupplier(s)
+    if (s) {
+      const t = readTerms(s)
+      setCredito(t.tieneCredito === true || t.diasCredito > 0)
+    }
+  }
   const [fechaCotizacion, setFecha] = useState(new Date().toISOString().slice(0, 10))
   const [vigenciaHasta, setVigencia] = useState('')
   const [notas, setNotas] = useState('')
@@ -578,6 +618,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
           // both columns.
           supplierId: useFreeText ? null : supplier?.id ?? null,
           supplierNombre: finalSupplierNombre,
+          tieneCredito: credito,
           fechaCotizacion: new Date(fechaCotizacion + 'T12:00:00').toISOString(),
           vigenciaHasta: vigenciaHasta ? new Date(vigenciaHasta + 'T12:00:00').toISOString() : null,
           notas: notas.trim() || null,
@@ -615,7 +656,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
           <>
             <SupplierPicker
               value={supplier}
-              onChange={setSupplier}
+              onChange={pickSupplier}
               companyId={activeCompany?.id}
               placeholder="Buscar proveedor por nombre o RFC…"
             />
@@ -631,6 +672,11 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
             )}
           </>
         )}
+      </label>
+
+      <label className="ofs-credito" title="Precargado de las condiciones del proveedor; ajustable" style={{ alignSelf: 'flex-start' }}>
+        <input type="checkbox" checked={credito} onChange={(e) => setCredito(e.target.checked)} />
+        <span>{credito ? 'A crédito' : 'Contado'}</span>
       </label>
 
       <div className="row">
