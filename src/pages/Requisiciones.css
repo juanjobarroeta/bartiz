@@ -49,6 +49,7 @@
   background: var(--surface-sunk);
   color: var(--ink-2);
 }
+.badge.estado-borrador   { background: var(--surface-sunk); color: var(--ink-3); border: 1px dashed var(--line-2); }
 .badge.estado-pendiente  { background: var(--warn-soft); color: var(--warn); }
 .badge.estado-aprobada   { background: var(--info-soft); color: var(--info); }
 .badge.estado-pagada     { background: var(--pos-soft); color: var(--pos); }
@@ -242,7 +243,17 @@
 .ofs-freetext > input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-tint); }
 .ofs-picked { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .ofs-picked > strong { font-size: 0.85rem; }
-.ofs-credit { font-size: 10px; font-weight: 700; border-radius: 5px; padding: 1px 5px; white-space: nowrap; }
-.ofs-credit.has { background: var(--pos-soft); color: var(--pos); }
-.ofs-credit.cash { background: var(--surface-3, var(--surface)); color: var(--ink-3); border: 1px solid var(--line-2); }
+/* Forma de pago toggle per offer (preloaded from supplier terms). */
+.ofs-credito { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.ofs-credito input { width: auto; margin: 0; }
 .ofs-remove { align-self: flex-start; }
+
+/* Crédito/contado per cotización column (detalle matrix header). */
+.cot-credit { font-weight: 700; }
+.cot-credit.has { color: var(--pos); }
+.cot-credit.cash { color: var(--ink-3); }
+
+/* ── Conceptos solicitados (detalle, siempre visible) ── */
+.req-conceptos { margin: 1rem 0; }
+.req-conceptos h3 { font-family: var(--font-display); font-size: 0.95rem; margin: 0 0 0.5rem; color: var(--ink); }
+.reqs-table.compact th, .reqs-table.compact td { padding: 0.4rem 0.6rem; }
