@@ -104,6 +104,25 @@ export default function ProyectoDetalle() {
     [proyecto]
   )
 
+  const [deleting, setDeleting] = useState(false)
+  const eliminarProyecto = async () => {
+    if (!proyecto) return
+    const ok = window.confirm(
+      `¿Eliminar el proyecto "${proyecto.nombre}" (${proyecto.codigo})?\n\n` +
+      'Se borrará todo lo asociado: presupuestos, insumos, estimaciones, ' +
+      'requisiciones, gastos, reembolsos y bitácora. Esta acción no se puede deshacer.'
+    )
+    if (!ok) return
+    setDeleting(true)
+    try {
+      await apiFetch(`/api/construccion/proyectos/${encodeURIComponent(id)}?confirm=true`, { method: 'DELETE' })
+      navigate('/proyectos')
+    } catch (err) {
+      alert(`No se pudo eliminar: ${err.message}`)
+      setDeleting(false)
+    }
+  }
+
   if (loading) return <div className="pd-page"><div className="pd-state">Cargando proyecto…</div></div>
   if (error || !proyecto) return (
     <div className="pd-page">
@@ -138,6 +157,14 @@ export default function ProyectoDetalle() {
             {proyecto.ubicacion && <span className="pd-meta-item">📍 {proyecto.ubicacion}</span>}
           </div>
         </div>
+        <button
+          className="pd-delete-btn"
+          onClick={eliminarProyecto}
+          disabled={deleting}
+          title="Eliminar proyecto y todos sus datos"
+        >
+          {deleting ? 'Eliminando…' : '🗑 Eliminar'}
+        </button>
       </header>
 
       <div className="pd-kpis">

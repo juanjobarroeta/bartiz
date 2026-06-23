@@ -52,6 +52,25 @@
   box-shadow: var(--shadow-sm);
 }
 .pd-header-main { min-width: 0; }
+.pd-delete-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--border, #e5e1da);
+  color: var(--danger, #dc2626);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.pd-delete-btn:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: var(--danger, #dc2626);
+}
+.pd-delete-btn:disabled { opacity: 0.6; cursor: default; }
 .pd-codigo {
   font-family: var(--font-mono);
   font-size: 0.75rem;
