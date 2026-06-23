@@ -307,6 +307,7 @@ export default function RequisicionDetalle() {
                       <span className={c.tieneCredito ? 'cot-credit has' : 'cot-credit cash'}>
                         {c.tieneCredito ? 'Crédito' : 'Contado'}
                       </span>
+                      {c.diasEntrega != null && ` · ${c.diasEntrega} d entrega`}
                       {' · '}Total {fmtMoney(c.total)}
                     </div>
                   </th>
@@ -575,6 +576,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
   }
   const [fechaCotizacion, setFecha] = useState(new Date().toISOString().slice(0, 10))
   const [vigenciaHasta, setVigencia] = useState('')
+  const [diasEntrega, setDiasEntrega] = useState('')
   const [notas, setNotas] = useState('')
   const [archivo, setArchivo] = useState(null)
   // Per-line PUs keyed by partidaId
@@ -619,6 +621,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
           supplierId: useFreeText ? null : supplier?.id ?? null,
           supplierNombre: finalSupplierNombre,
           tieneCredito: credito,
+          diasEntrega: diasEntrega !== '' ? parseInt(diasEntrega, 10) : null,
           fechaCotizacion: new Date(fechaCotizacion + 'T12:00:00').toISOString(),
           vigenciaHasta: vigenciaHasta ? new Date(vigenciaHasta + 'T12:00:00').toISOString() : null,
           notas: notas.trim() || null,
@@ -674,10 +677,16 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
         )}
       </label>
 
-      <label className="ofs-credito" title="Precargado de las condiciones del proveedor; ajustable" style={{ alignSelf: 'flex-start' }}>
-        <input type="checkbox" checked={credito} onChange={(e) => setCredito(e.target.checked)} />
-        <span>{credito ? 'A crédito' : 'Contado'}</span>
-      </label>
+      <div className="ofs-terms" style={{ alignSelf: 'flex-start' }}>
+        <label className="ofs-credito" title="Precargado de las condiciones del proveedor; ajustable">
+          <input type="checkbox" checked={credito} onChange={(e) => setCredito(e.target.checked)} />
+          <span>{credito ? 'A crédito' : 'Contado'}</span>
+        </label>
+        <label className="ofs-entrega" title="Días de entrega prometidos por este proveedor">
+          <input type="number" min="0" step="1" value={diasEntrega} onChange={(e) => setDiasEntrega(e.target.value)} placeholder="—" />
+          <span>días entrega</span>
+        </label>
+      </div>
 
       <div className="row">
         <label>

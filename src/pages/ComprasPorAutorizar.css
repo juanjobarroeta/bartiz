@@ -1,0 +1,92 @@
+.cpa { max-width: 1180px; margin: 0 auto; padding-bottom: 40px; }
+.cpa-state { padding: 40px; text-align: center; color: var(--ink-3); }
+
+.cpa-intro { margin-bottom: 18px; }
+.cpa-intro h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; margin: 0 0 4px; }
+.cpa-intro p { margin: 0; font-size: 0.9rem; max-width: 720px; }
+
+.cpa-error {
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid var(--danger, #dc2626);
+  color: var(--danger, #dc2626);
+  padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 0.85rem;
+}
+
+.cpa-empty {
+  text-align: center; padding: 60px 20px;
+  border: 1px dashed var(--border, #e5e1da); border-radius: 14px; background: var(--surface, #fff);
+}
+.cpa-empty-title { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; margin-bottom: 4px; }
+
+/* ── Requisición card ───────────────────────────────────────────── */
+.cpa-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e1da);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.cpa-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border, #efeae1);
+  flex-wrap: wrap;
+}
+.cpa-card-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cpa-folio {
+  font-family: var(--font-mono, monospace); font-weight: 700; font-size: 0.95rem;
+  background: none; border: none; cursor: pointer; color: var(--brand, #e2571e); padding: 0; text-align: left;
+}
+.cpa-folio:hover { text-decoration: underline; }
+.cpa-card-actions { display: flex; align-items: center; gap: 8px; }
+
+.cpa-noquotes { padding: 18px 16px; font-size: 0.88rem; }
+
+/* ── Comparison matrix ──────────────────────────────────────────── */
+.cpa-matrix-scroll { overflow-x: auto; }
+.cpa-matrix { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.cpa-matrix th, .cpa-matrix td { padding: 8px 10px; border-bottom: 1px solid var(--border, #f0ece4); text-align: left; vertical-align: top; }
+.cpa-concept { min-width: 220px; max-width: 320px; }
+.cpa-qty { width: 80px; white-space: nowrap; color: var(--ink-2); }
+.cpa-sup { min-width: 130px; }
+.cpa-sup-name { font-weight: 700; }
+.cpa-sup-meta { display: flex; align-items: center; gap: 6px; margin: 3px 0; flex-wrap: wrap; }
+.cpa-dias { font-size: 0.72rem; color: var(--ink-3); }
+.cpa-sup-total { font-size: 0.78rem; color: var(--ink-2); }
+
+.pill { font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.pill-credito { background: rgba(47, 125, 86, 0.12); color: #2f7d56; }
+.pill-contado { background: var(--surface-sunk, #f0ece4); color: var(--ink-2, #6b6258); }
+
+.cpa-cell { text-align: right; white-space: nowrap; }
+.cpa-empty-cell { color: var(--ink-3); text-align: center; }
+.cpa-cell-pick { cursor: pointer; position: relative; border-radius: 6px; }
+.cpa-cell-pick:hover { background: rgba(226, 87, 30, 0.06); }
+.cpa-cell-pick.cheap { background: rgba(47, 125, 86, 0.06); }
+.cpa-cell-pick.won { background: rgba(226, 87, 30, 0.14); box-shadow: inset 0 0 0 2px var(--brand, #e2571e); }
+.cpa-pu { font-weight: 700; }
+.cpa-u { font-size: 0.7rem; color: var(--ink-3); font-weight: 400; }
+.cpa-imp { margin-top: 1px; }
+.cpa-check { position: absolute; top: 4px; right: 6px; color: var(--brand, #e2571e); font-weight: 700; }
+
+/* ── Per-supplier award summary ─────────────────────────────────── */
+.cpa-summary { padding: 12px 16px; background: var(--surface-sunk, #faf7f1); border-top: 1px solid var(--border, #efeae1); }
+.cpa-summary-title { font-weight: 700; font-size: 0.82rem; margin-bottom: 8px; }
+.cpa-summary-rows { display: flex; flex-direction: column; gap: 5px; }
+.cpa-summary-row { display: flex; align-items: center; gap: 10px; font-size: 0.84rem; }
+.cpa-summary-sup { font-weight: 600; min-width: 140px; }
+.cpa-summary-total { margin-left: auto; font-weight: 700; }
+.cpa-grand {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border, #e5e1da);
+  font-weight: 700; font-size: 0.92rem;
+}
+.cpa-partial { margin-top: 6px; font-size: 0.78rem; color: var(--warn, #b5820f); }
+
+/* shared small buttons */
+.cpa .btn-primary.small, .cpa .btn-ghost.small {
+  font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+}
+.cpa .btn-primary.small { background: var(--ink, #2a241f); color: #fff; border: none; }
+.cpa .btn-primary.small:disabled { opacity: 0.5; cursor: default; }
+.cpa .btn-ghost.small { background: transparent; border: 1px solid var(--border, #e5e1da); color: var(--ink, #2a241f); }
+.cpa .btn-ghost.small:disabled { opacity: 0.5; cursor: default; }
