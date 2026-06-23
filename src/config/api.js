@@ -15,6 +15,30 @@ const API_URL =
 
 const TOKEN_KEY = 'cadmin.token'
 
+// All localStorage keys that make up a session. Kept here (the lowest-level
+// auth module) so the 401 handler can wipe the ENTIRE session, not just the
+// token. AuthContext owns the user/companies/activeCompany keys but mirrors
+// these exact names. If only the token is cleared, the cached user survives,
+// `isAuthenticated` stays true, and the /login → / redirect bounces back into
+// an authenticated route that immediately 401s again — an infinite reload loop.
+const SESSION_KEYS = [
+  TOKEN_KEY,
+  'cadmin.user',
+  'cadmin.companies',
+  'cadmin.activeCompanyId',
+]
+
+/** Wipe every session key from localStorage. Used on logout and on any 401. */
+export function clearSession() {
+  for (const k of SESSION_KEYS) {
+    try {
+      localStorage.removeItem(k)
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 // ── Token storage ────────────────────────────────────────────────────────
 export const tokenStorage = {
   get: () => {
@@ -102,7 +126,10 @@ export async function apiFetch(path, opts = {}) {
 
   if (!res.ok) {
     if (res.status === 401 && !skipAuth) {
-      tokenStorage.clear()
+      // Clear the WHOLE session (not just the token). Leaving the cached
+      // user/companies behind keeps `isAuthenticated` true, so /login bounces
+      // back to an authenticated route that 401s again → infinite reload loop.
+      clearSession()
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = '/login'
       }

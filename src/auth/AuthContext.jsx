@@ -22,7 +22,7 @@ import {
   useMemo,
   useState,
 } from 'react'
-import { apiFetch, tokenStorage } from '../config/api'
+import { apiFetch, clearSession, tokenStorage } from '../config/api'
 
 const ACTIVE_COMPANY_KEY = 'cadmin.activeCompanyId'
 const USER_KEY = 'cadmin.user'
@@ -127,10 +127,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const logout = useCallback(() => {
-    tokenStorage.clear()
-    localStorage.removeItem(ACTIVE_COMPANY_KEY)
-    writeJson(USER_KEY, null)
-    writeJson(COMPANIES_KEY, null)
+    clearSession() // wipes token + user + companies + activeCompany keys
     setUser(null)
     setCompanies([])
     setActiveCompanyId(null)
