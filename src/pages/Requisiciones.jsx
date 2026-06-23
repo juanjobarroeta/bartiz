@@ -54,7 +54,7 @@ function formFromSolicitud(sol) {
     descripcion: p.descripcion ?? '',
     cantidad: p.cantidad != null ? String(p.cantidad) : '',
     unidad: p.unidad ?? '',
-    presupuestoPartidaId: p.presupuestoPartidaId ?? null,
+    insumoId: p.insumoId ?? null,
     _serverId: p.id,
   }))
   const idToKey = {}
@@ -315,37 +315,43 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
   // Each partida carries a stable `key` so supplier offer prices map to the
   // right concept even as rows are added/removed.
   const [partidas, setPartidas] = useState(
-    () => initialDraft?.partidas ?? [{ key: uid(), descripcion: '', cantidad: '', unidad: '', presupuestoPartidaId: null }]
+    () => initialDraft?.partidas ?? [{ key: uid(), descripcion: '', cantidad: '', unidad: '', insumoId: null }]
   )
   // offers: one per proveedor column. prices keyed by partida.key.
   const [offers, setOffers] = useState(() => initialDraft?.offers ?? [])
   const [busy, setBusy] = useState(false)
 
-  // Concept suggestions from the selected project's presupuesto.
-  const [conceptos, setConceptos] = useState([])
+  // Material suggestions from the selected project's explosión de insumos.
+  // A requisición de material is a request for insumos (cemento, acero, …),
+  // so the picker lists the project's insumos — not the work conceptos.
+  const [insumos, setInsumos] = useState([])
   useEffect(() => {
     let alive = true
-    if (!proyectoId) { setConceptos([]); return }
-    apiFetch(`/api/construccion/proyectos/${proyectoId}`)
-      .then((proy) => {
+    if (!proyectoId) { setInsumos([]); return }
+    ;(async () => {
+      try {
+        const proy = await apiFetch(`/api/construccion/proyectos/${proyectoId}`)
+        const presups = proy?.presupuestos ?? []
+        // Same basis selection as the consumo view: prefer EJECUTADO, then an
+        // approved/in-progress contrato, else the first presupuesto.
+        const basis =
+          presups.find((p) => p.tipoPresupuesto === 'EJECUTADO') ??
+          presups.find((p) => p.estado === 'APROBADO' || p.estado === 'EN_EJECUCION') ??
+          presups[0]
+        if (!basis) { if (alive) setInsumos([]); return }
+        const data = await apiFetch(`/api/construccion/presupuestos/${basis.id}/explosion`)
         if (!alive) return
-        const out = []
-        const seen = new Set()
-        for (const pre of proy?.presupuestos ?? []) {
-          for (const part of pre.partidas ?? []) {
-            if (part.esRollup) continue
-            const c = part.concepto
-            const desc = c?.descripcion || part.descripcion
-            if (!desc) continue
-            const key = desc.toLowerCase()
-            if (seen.has(key)) continue
-            seen.add(key)
-            out.push({ id: part.id, descripcion: desc, unidad: c?.unidad || part.unidad || '', codigo: c?.codigo || part.codigo || '' })
-          }
-        }
-        setConceptos(out)
-      })
-      .catch(() => { if (alive) setConceptos([]) })
+        const out = (data?.explosion ?? []).map((e) => ({
+          id: e.insumoId,
+          descripcion: e.descripcion,
+          unidad: e.unidad || '',
+          codigo: e.codigo || '',
+        }))
+        setInsumos(out)
+      } catch {
+        if (alive) setInsumos([])
+      }
+    })()
     return () => { alive = false }
   }, [proyectoId])
 
@@ -353,11 +359,11 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
     setPartidas((arr) => arr.map((p, i) => (i === idx ? { ...p, [field]: val } : p)))
   }
   const onDescChange = (idx, val) => {
-    const match = conceptos.find((c) => c.descripcion.toLowerCase() === val.trim().toLowerCase())
+    const match = insumos.find((c) => c.descripcion.toLowerCase() === val.trim().toLowerCase())
     setPartidas((arr) => arr.map((p, i) => (i === idx ? {
       ...p,
       descripcion: val,
-      presupuestoPartidaId: match ? match.id : null,
+      insumoId: match ? match.id : null,
       unidad: match && !p.unidad ? match.unidad : p.unidad,
     } : p)))
   }
@@ -365,12 +371,12 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
     setPartidas((arr) => arr.map((p, i) => (i === idx ? {
       ...p,
       descripcion: c.descripcion,
-      presupuestoPartidaId: c.id,
+      insumoId: c.id,
       unidad: p.unidad || c.unidad || '',
     } : p)))
   }
   const addRow = () =>
-    setPartidas((arr) => [...arr, { key: uid(), descripcion: '', cantidad: '', unidad: '', presupuestoPartidaId: null }])
+    setPartidas((arr) => [...arr, { key: uid(), descripcion: '', cantidad: '', unidad: '', insumoId: null }])
   const removeRow = (idx) =>
     setPartidas((arr) => {
       if (arr.length <= 1) return arr
@@ -414,7 +420,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
       descripcion: p.descripcion.trim(),
       unidad: p.unidad?.trim() || null,
       cantidad: Number(p.cantidad),
-      presupuestoPartidaId: p.presupuestoPartidaId || undefined,
+      insumoId: p.insumoId || undefined,
     })),
     offers: offers
       .filter((o) => offerName(o))
@@ -512,8 +518,8 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
           <div key={p.key} className="line-row">
             <ConceptoCombobox
               value={p.descripcion}
-              conceptos={conceptos}
-              linked={!!p.presupuestoPartidaId}
+              conceptos={insumos}
+              linked={!!p.insumoId}
               onText={(v) => onDescChange(idx, v)}
               onPick={(c) => pickConcept(idx, c)}
             />
@@ -542,9 +548,9 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
           </button>
           {proyectoId && (
             <span className="muted small">
-              {conceptos.length > 0
-                ? `${conceptos.length} conceptos del presupuesto · haz clic en un concepto para ver la lista`
-                : 'Sin presupuesto aprobado en este proyecto — captura libre'}
+              {insumos.length > 0
+                ? `${insumos.length} insumos en la explosión · haz clic para ver la lista`
+                : 'Sin explosión de insumos en este proyecto — captura libre'}
             </span>
           )}
         </div>
@@ -720,9 +726,9 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
 }
 
 // ── Concepto combobox ────────────────────────────────────────────────────────
-// Visible, searchable picker over the project's presupuesto concepts. Opens a
+// Visible, searchable picker over the project's explosión de insumos. Opens a
 // dropdown on focus showing código · descripción · unidad. Picking one links
-// the budget partida; free text still works for anything off-budget.
+// the insumo; free text still works for anything off-budget.
 function ConceptoCombobox({ value, conceptos, linked, onText, onPick }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef(null)
@@ -749,10 +755,10 @@ function ConceptoCombobox({ value, conceptos, linked, onText, onPick }) {
         value={value}
         onChange={(e) => { onText(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
-        placeholder={conceptos.length ? 'Escribe o elige del presupuesto…' : 'Captura libre…'}
+        placeholder={conceptos.length ? 'Escribe o elige un insumo…' : 'Captura libre…'}
         autoComplete="off"
       />
-      {linked && <span className="line-tag" title="Vinculado a un concepto del presupuesto">presupuesto</span>}
+      {linked && <span className="line-tag" title="Vinculado a un insumo de la explosión">insumo</span>}
       {open && conceptos.length > 0 && (
         <div className="concepto-dropdown">
           {matches.length === 0 ? (
