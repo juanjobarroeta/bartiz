@@ -248,6 +248,14 @@
 .ofs-credito input { width: auto; margin: 0; }
 .ofs-remove { align-self: flex-start; }
 
+/* Per-supplier terms: crédito toggle + delivery days, side by side. */
+.ofs-terms { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ofs-entrega { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 600; color: var(--ink-2); }
+.ofs-entrega input { width: 52px; margin: 0; text-align: right; }
+
+/* Compact request-meta line replacing the old solicitud/entrega date row. */
+.req-meta-line { margin: -2px 0 6px; }
+
 /* Crédito/contado per cotización column (detalle matrix header). */
 .cot-credit { font-weight: 700; }
 .cot-credit.has { color: var(--pos); }

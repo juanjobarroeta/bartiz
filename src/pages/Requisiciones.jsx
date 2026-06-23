@@ -71,6 +71,7 @@ function formFromSolicitud(sol) {
       freeText: c.supplierId ? '' : (c.supplierNombre ?? ''),
       useFreeText: !c.supplierId,
       credito: !!c.tieneCredito,
+      diasEntrega: c.diasEntrega != null ? String(c.diasEntrega) : '',
       prices,
     }
   })
@@ -391,7 +392,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
   // ── Offers (proveedor columns) ──
   const addOffer = () =>
-    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', useFreeText: false, credito: false, prices: {} }])
+    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', useFreeText: false, credito: false, diasEntrega: '', prices: {} }])
   const removeOffer = (idx) =>
     setOffers((arr) => arr.filter((_, i) => i !== idx))
   const updateOffer = (idx, patch) =>
@@ -412,7 +413,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
     companyId, // ignored by PUT, required by POST
     folio: folio.trim(),
     proyectoId: proyectoId || undefined,
-    fechaEntrega: fechaEntrega ? new Date(fechaEntrega + 'T12:00:00').toISOString() : null,
+    // Delivery is per-supplier now (offer.diasEntrega), so no header fecha.
     formaPago: formaPago || null,
     notas: notas.trim() || undefined,
     estado,
@@ -428,6 +429,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
         supplierId: o.useFreeText ? null : o.supplier?.id ?? null,
         supplierNombre: offerName(o),
         tieneCredito: !!o.credito,
+        diasEntrega: o.diasEntrega !== '' && o.diasEntrega != null ? parseInt(o.diasEntrega, 10) : null,
         lineas: lines
           .map((p, idx) => ({ partidaIndex: idx, precioUnitario: parseFloat(o.prices[p.key]) || 0 }))
           .filter((l) => l.precioUnitario > 0),
@@ -491,20 +493,9 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
         </label>
       </div>
 
-      <div className="row">
-        <label>
-          <span>Fecha de solicitud</span>
-          <input type="date" value={today} disabled />
-        </label>
-        <label>
-          <span>Fecha de entrega</span>
-          <input
-            type="date"
-            value={fechaEntrega}
-            onChange={(e) => setFechaEntrega(e.target.value)}
-            min={today}
-          />
-        </label>
+      <div className="req-meta-line muted small">
+        Solicitud creada el {fmtDate(today)}. La fecha de entrega la define cada
+        proveedor en su oferta — distintos proveedores, distintos plazos.
       </div>
 
       <div className="lines">
@@ -711,14 +702,27 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
         </div>
       )}
       {named && (
-        <label className="ofs-credito" title="Precargado de las condiciones del proveedor; ajustable">
-          <input
-            type="checkbox"
-            checked={!!offer.credito}
-            onChange={(e) => onChange({ credito: e.target.checked })}
-          />
-          <span>{offer.credito ? 'A crédito' : 'Contado'}</span>
-        </label>
+        <div className="ofs-terms">
+          <label className="ofs-credito" title="Precargado de las condiciones del proveedor; ajustable">
+            <input
+              type="checkbox"
+              checked={!!offer.credito}
+              onChange={(e) => onChange({ credito: e.target.checked })}
+            />
+            <span>{offer.credito ? 'A crédito' : 'Contado'}</span>
+          </label>
+          <label className="ofs-entrega" title="Días de entrega prometidos por este proveedor">
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={offer.diasEntrega ?? ''}
+              onChange={(e) => onChange({ diasEntrega: e.target.value })}
+              placeholder="—"
+            />
+            <span>días entrega</span>
+          </label>
+        </div>
       )}
       <button type="button" className="link small danger ofs-remove" onClick={onRemove} title="Quitar proveedor">× quitar</button>
     </div>

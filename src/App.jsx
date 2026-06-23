@@ -33,6 +33,7 @@ import ReembolsoDetalle from './pages/ReembolsoDetalle'
 import Destajo from './pages/Destajo'
 import Requisiciones from './pages/Requisiciones'
 import RequisicionDetalle from './pages/RequisicionDetalle'
+import ComprasPorAutorizar from './pages/ComprasPorAutorizar'
 import TesoreriaBartiz from './pages/TesoreriaBartiz'
 import CuentasPorPagar from './pages/CuentasPorPagar'
 import Facturas from './pages/Facturas'
@@ -95,6 +96,7 @@ function App() {
                     <Route path="/destajo" element={<Destajo />} />
                     <Route path="/requisiciones" element={<Requisiciones />} />
                     <Route path="/requisiciones/:id" element={<RequisicionDetalle />} />
+                    <Route path="/compras-por-autorizar" element={<ComprasPorAutorizar />} />
                     <Route path="/tesoreria-bartiz" element={<TesoreriaBartiz />} />
                     <Route path="/cuentas-por-pagar" element={<CuentasPorPagar />} />
                     <Route path="/facturas" element={<Facturas />} />

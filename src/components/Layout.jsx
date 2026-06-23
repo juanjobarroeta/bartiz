@@ -31,6 +31,7 @@ const ALL_NAV_ITEMS = [
   { path: '/proyectos',           label: 'Proyectos',     icon: 'projects',      ported: true },
   { path: '/catalogo',            label: 'Catálogo',      icon: 'catalog',       ported: true },
   { path: '/requisiciones',       label: 'Requisiciones', icon: 'requisiciones', ported: true },
+  { path: '/compras-por-autorizar', label: 'Compras por autorizar', icon: 'requisiciones', ported: true },
   { path: '/proveedores-bartiz',  label: 'Proveedores',   icon: 'proveedores',   ported: true },
   { path: '/gastos',              label: 'Gastos',        icon: 'gastos',        ported: true },
   { path: '/caja-chica',          label: 'Caja Chica',    icon: 'cajachica',     ported: true },
@@ -67,6 +68,7 @@ const REDESIGNED_ROUTES = {
   '/proyectos': { title: 'Proyectos', sub: 'Cartera de obra · contabilidad-os' },
   '/tesoreria-bartiz': { title: 'Tesorería', sub: 'Cuentas y movimientos de la empresa' },
   '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Vencimientos y flujo de pagos' },
+  '/compras-por-autorizar': { title: 'Compras por autorizar', sub: 'Compara proveedores y autoriza' },
   '/facturas': { title: 'Facturas (CFDI)', sub: 'Inbox y conciliación de comprobantes' },
 }
 
