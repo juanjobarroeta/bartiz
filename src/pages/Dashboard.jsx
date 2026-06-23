@@ -70,6 +70,14 @@ const Dashboard = () => {
   const [rows, setRows] = useState([])
   const [usingSample, setUsingSample] = useState(false)
   const [sort, setSort] = useState('contratado')
+  const [cfdiResumen, setCfdiResumen] = useState(null)
+
+  useEffect(() => {
+    if (!activeCompany?.id) return
+    apiFetch(`/api/construccion/cfdis/resumen?companyId=${encodeURIComponent(activeCompany.id)}`)
+      .then((d) => { if (d && typeof d.porVincular === 'number') setCfdiResumen(d) })
+      .catch(() => {})
+  }, [activeCompany?.id])
 
   useEffect(() => {
     if (!activeCompany?.id) {
@@ -430,6 +438,26 @@ const Dashboard = () => {
                   </span>
                 </div>
               ))}
+              {cfdiResumen && cfdiResumen.porVincular > 0 && (
+                <button className="action" style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => navigate('/facturas')}>
+                  <div className="action-ic brand">
+                    <Icon name="file" />
+                  </div>
+                  <div>
+                    <div className="action-txt">
+                      <b>{cfdiResumen.porVincular}</b> {cfdiResumen.porVincular === 1 ? 'factura' : 'facturas'} por vincular
+                    </div>
+                    <div className="action-sub">
+                      {cfdiResumen.recibidas.porVincular > 0 && `${cfdiResumen.recibidas.porVincular} recibidas`}
+                      {cfdiResumen.recibidas.porVincular > 0 && cfdiResumen.emitidas.porVincular > 0 && ' · '}
+                      {cfdiResumen.emitidas.porVincular > 0 && `${cfdiResumen.emitidas.porVincular} emitidas`}
+                    </div>
+                  </div>
+                  <span className="row-go" style={{ marginLeft: 'auto' }}>
+                    <Icon name="chevronRight" />
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>
