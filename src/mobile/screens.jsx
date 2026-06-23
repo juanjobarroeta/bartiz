@@ -329,7 +329,7 @@ export function MTesoreria({ banks, saldoTotal, openSheet, conciliated }) {
 }
 
 /* ============ PENDIENTES (approvals inbox) ============ */
-export function MPendientes({ openSheet, approved, go }) {
+export function MPendientes({ openSheet, approved, go, cfdiResumen, navigate }) {
   const items = [
     { id: 'pre-platino', kind: 'pre', ic: 'file', tone: 'brand', title: 'Presupuesto — Platino 2br', sub: '2,090 partidas · V1', amount: 12734752, approveName: 'Presupuesto Platino 2br' },
     { id: 'pre-tp01', kind: 'pre', ic: 'file', tone: 'brand', title: 'Presupuesto — Torres Platino', sub: '1,840 partidas · V1', amount: 15515510, approveName: 'Presupuesto Torres Platino' },
@@ -369,6 +369,25 @@ export function MPendientes({ openSheet, approved, go }) {
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18 }}>Todo al día</div>
             <div style={{ color: 'var(--ink-3)', fontSize: 13.5, marginTop: 4 }}>No hay aprobaciones pendientes.</div>
           </div>
+        )}
+
+        {cfdiResumen && cfdiResumen.porVincular > 0 && (
+          <>
+            <div className="m-sec"><h2>Facturas (CFDI)</h2></div>
+            <button className="m-attn" style={{ width: '100%', textAlign: 'left' }} onClick={() => navigate && navigate('/facturas')}>
+              <span className="aic" style={{ background: 'var(--brand-soft, #EEF2FF)', color: 'var(--brand)' }}><Icon name="file" /></span>
+              <span>
+                <div className="atxt"><b>{cfdiResumen.porVincular}</b> {cfdiResumen.porVincular === 1 ? 'factura' : 'facturas'} por vincular</div>
+                <div className="asub">
+                  {[
+                    cfdiResumen.recibidas.porVincular > 0 && `${cfdiResumen.recibidas.porVincular} de proveedor`,
+                    cfdiResumen.emitidas.porVincular > 0 && `${cfdiResumen.emitidas.porVincular} emitidas`,
+                  ].filter(Boolean).join(' · ')}
+                </div>
+              </span>
+              <span className="ago"><Icon name="arrowRight" /></span>
+            </button>
+          </>
         )}
 
         <div className="m-sec"><h2>Conciliación bancaria</h2></div>

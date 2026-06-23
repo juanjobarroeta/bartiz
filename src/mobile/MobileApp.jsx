@@ -157,6 +157,7 @@ export default function MobileApp() {
   const [conciliated, setConciliated] = useState({})
 
   const [liveProjects, setLiveProjects] = useState(null)
+  const [cfdiResumen, setCfdiResumen] = useState(null)
 
   useEffect(() => {
     if (!activeCompany?.id) return
@@ -169,6 +170,13 @@ export default function MobileApp() {
         console.error('Error loading mobile projects:', err)
         setLiveProjects(null)
       })
+  }, [activeCompany?.id])
+
+  useEffect(() => {
+    if (!activeCompany?.id) return
+    apiFetch(`/api/construccion/cfdis/resumen?companyId=${encodeURIComponent(activeCompany.id)}`)
+      .then((d) => { if (d && typeof d.porVincular === 'number') setCfdiResumen(d) })
+      .catch(() => {})
   }, [activeCompany?.id])
 
   const projects = liveProjects ?? DATA.projects
@@ -192,7 +200,9 @@ export default function MobileApp() {
     else setApproved((a) => ({ ...a, [s.id]: true }))
   }
 
-  const pendCount = ['pre-platino', 'pre-tp01', 'est-2'].filter((id) => !approved[id]).length
+  const pendCount =
+    ['pre-platino', 'pre-tp01', 'est-2'].filter((id) => !approved[id]).length +
+    (cfdiResumen?.porVincular ?? 0)
   const greetName = (user?.name || '').split(' ')[0] || undefined
 
   let screen
@@ -203,7 +213,7 @@ export default function MobileApp() {
   } else if (tab === 'proyectos') {
     screen = <MProyectos projects={projects} openProject={openProject} />
   } else if (tab === 'pendientes') {
-    screen = <MPendientes openSheet={setSheet} approved={approved} go={go} />
+    screen = <MPendientes openSheet={setSheet} approved={approved} go={go} cfdiResumen={cfdiResumen} navigate={navigate} />
   } else if (tab === 'tesoreria') {
     screen = <MTesoreria banks={DATA.banks} saldoTotal={DATA.saldoTotal} openSheet={setSheet} conciliated={conciliated} />
   } else {
