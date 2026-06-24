@@ -311,7 +311,6 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
   )
   const [proyectoId, setProyectoId] = useState(initialDraft?.proyectoId ?? proyectos[0]?.id ?? '')
   const today = new Date().toISOString().slice(0, 10)
-  const [fechaEntrega, setFechaEntrega] = useState(initialDraft?.fechaEntrega ?? '')
   const [notas, setNotas] = useState(initialDraft?.notas ?? '')
   // Each partida carries a stable `key` so supplier offer prices map to the
   // right concept even as rows are added/removed.
@@ -424,8 +423,8 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
     companyId, // ignored by PUT, required by POST
     folio: folio.trim(),
     proyectoId: proyectoId || undefined,
-    // Delivery is per-supplier now (offer.diasEntrega), so no header fecha.
-    formaPago: formaPago || null,
+    // Delivery AND payment terms are per-supplier now (offer.diasEntrega /
+    // offer.credito), so there's no header fecha or formaPago.
     notas: notas.trim() || undefined,
     estado,
     partidas: lines.map((p) => ({
