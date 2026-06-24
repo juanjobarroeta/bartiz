@@ -21,6 +21,8 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
 import { Icon } from '../components/ds/Icon'
+import Modal from '../components/Modal'
+import '../components/Modal.css'
 import { money, compactMoney, MoneyParts } from '../lib/format'
 import { readTerms } from './ProveedoresBartiz'
 import { SAMPLE_SALDO_TOTAL } from '../data/dashboardSample'
@@ -56,18 +58,25 @@ const SAMPLE_PAYABLES = [
   { id: 's5', supplierName: 'Transportes del Valle', proyecto: 'TR-CSH', folio: 'REQ-0276', monto: 41200, formaPago: 'CREDITO', diasCredito: 45, vencimiento: addDays(new Date(), 26), estado: 'APROBADA' },
 ]
 
-// Normalize a dedicated-endpoint row to the shape the screen renders.
-function fromEndpoint(p) {
+// Per-supplier payable (adjudicación) → row. The due date is the approval date
+// plus the supplier's credit days (delivery días are informational, separate).
+function fromAdjudicacion(a, suppliersById) {
+  const sup = a.supplierId ? suppliersById[a.supplierId] : null
+  const dias = a.tieneCredito ? (readTerms(sup).diasCredito || 30) : 0
+  const base = a.aprobadaAt || a.createdAt
   return {
-    id: p.id,
-    supplierName: p.supplier?.razonSocial ?? p.supplierNombre ?? '—',
-    proyecto: p.proyecto?.codigo ?? '—',
-    folio: p.folio ?? '—',
-    monto: Number(p.monto ?? p.total) || 0,
-    formaPago: p.formaPago ?? null,
-    diasCredito: p.diasCredito ?? null,
-    vencimiento: p.vencimiento ? new Date(p.vencimiento) : null,
-    estado: p.estado ?? 'APROBADA',
+    id: a.id, // adjudicación id — what we pay
+    solicitudId: a.solicitudId, // requisición — what we navigate to
+    supplierName: a.supplierNombre ?? '—',
+    proyecto: a.proyecto?.codigo ?? '—',
+    folio: a.folio ?? '—',
+    monto: Number(a.total) || 0,
+    formaPago: a.tieneCredito ? 'CREDITO' : 'CONTADO',
+    diasCredito: dias,
+    diasEntrega: a.diasEntrega,
+    vencimiento: base ? addDays(startOfDay(new Date(base)), dias) : null,
+    estado: a.estado === 'PAGADA' ? 'PAGADA' : 'APROBADA',
+    payable: a.estado !== 'PAGADA',
   }
 }
 
@@ -100,8 +109,11 @@ export default function CuentasPorPagar() {
 
   const [payables, setPayables] = useState([])
   const [saldo, setSaldo] = useState(SAMPLE_SALDO_TOTAL)
+  const [bankAccounts, setBankAccounts] = useState([])
   const [usingSample, setUsingSample] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [paying, setPaying] = useState(null) // row being paid
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!companyId) {
@@ -113,26 +125,32 @@ export default function CuentasPorPagar() {
     let alive = true
     setLoading(true)
     ;(async () => {
-      // Bank balance (best-effort).
+      // Bank balance + accounts (for the pay dialog).
       try {
         const accts = await apiFetch(`/api/construccion/bank-accounts?companyId=${encodeURIComponent(companyId)}&withBalances=true`)
-        if (alive && Array.isArray(accts) && accts.length) {
-          setSaldo(accts.reduce((a, x) => a + (x.balance ?? 0), 0))
+        if (alive && Array.isArray(accts)) {
+          setBankAccounts(accts)
+          if (accts.length) setSaldo(accts.reduce((a, x) => a + (x.balance ?? 0), 0))
         }
       } catch { /* keep sample saldo */ }
 
-      // 1) dedicated endpoint
+      // 1) per-supplier payables (adjudicaciones) — source of truth.
       try {
-        const data = await apiFetch(`/api/construccion/cuentas-por-pagar?companyId=${encodeURIComponent(companyId)}`)
-        if (alive && Array.isArray(data)) {
-          setPayables(data.map(fromEndpoint))
+        const [adjs, sups] = await Promise.all([
+          apiFetch(`/api/construccion/adjudicaciones?companyId=${encodeURIComponent(companyId)}&estado=POR_PAGAR`),
+          apiFetch(`/api/construccion/suppliers?companyId=${encodeURIComponent(companyId)}`).catch(() => []),
+        ])
+        if (alive && Array.isArray(adjs) && adjs.length) {
+          const byId = {}
+          for (const s of Array.isArray(sups) ? sups : []) byId[s.id] = s
+          setPayables(adjs.map((a) => fromAdjudicacion(a, byId)))
           setUsingSample(false)
           setLoading(false)
           return
         }
-      } catch { /* fall through to derive */ }
+      } catch { /* fall through */ }
 
-      // 2) derive from requisiciones + suppliers
+      // 2) derive from authorized requisiciones (pre-Phase-2 data) + suppliers.
       try {
         const [sols, sups] = await Promise.all([
           apiFetch(`/api/construccion/solicitudes-compra?companyId=${encodeURIComponent(companyId)}`),
@@ -143,7 +161,7 @@ export default function CuentasPorPagar() {
         const derived = deriveFromRequisiciones(Array.isArray(sols) ? sols : [], byId)
         if (alive) {
           if (derived.length) { setPayables(derived); setUsingSample(false) }
-          else { setPayables(SAMPLE_PAYABLES); setUsingSample(true) }
+          else { setPayables([]); setUsingSample(false) }
         }
       } catch (err) {
         console.error('cuentas por pagar:', err)
@@ -153,7 +171,16 @@ export default function CuentasPorPagar() {
       }
     })()
     return () => { alive = false }
-  }, [companyId])
+  }, [companyId, reloadKey])
+
+  const payAdjudicacion = async (row, bankAccountId, fecha) => {
+    await apiFetch(`/api/construccion/adjudicaciones/${row.id}/pagar`, {
+      method: 'POST',
+      body: { bankAccountId, fecha: new Date((fecha || new Date().toISOString().slice(0, 10)) + 'T12:00:00').toISOString() },
+    })
+    setPaying(null)
+    setReloadKey((k) => k + 1)
+  }
 
   const today = startOfDay(new Date())
   const rows = useMemo(() => {
@@ -261,7 +288,7 @@ export default function CuentasPorPagar() {
                       : p.daysUntil === 0 ? 'hoy'
                       : `en ${p.daysUntil} d`
                     return (
-                      <tr key={p.id} onClick={() => navigate(`/requisiciones/${p.id}`)}>
+                      <tr key={p.id} onClick={() => navigate(`/requisiciones/${p.solicitudId || p.id}`)}>
                         <td><span className="proj-name">{p.supplierName}</span></td>
                         <td className="mono" style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>{p.proyecto}</td>
                         <td className="mono" style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{p.folio}</td>
@@ -282,7 +309,11 @@ export default function CuentasPorPagar() {
                           )}
                         </td>
                         <td><span className={'status ' + meta.cls}><span className="sdot" />{meta.label}</span></td>
-                        <td className="r"><span className="row-go"><Icon name="chevronRight" /></span></td>
+                        <td className="r" onClick={(e) => e.stopPropagation()}>
+                          {p.payable !== false && p.estado !== 'PAGADA'
+                            ? <button className="cxp-pay-btn" onClick={() => setPaying(p)}>Pagar</button>
+                            : <span className="row-go"><Icon name="chevronRight" /></span>}
+                        </td>
                       </tr>
                     )
                   })}
@@ -294,11 +325,69 @@ export default function CuentasPorPagar() {
 
         {usingSample && (
           <p className="cxp-note">
-            Mostrando datos de muestra. Se llenará con tus requisiciones autorizadas y las
-            condiciones de crédito de cada proveedor en cuanto existan (y con el endpoint
-            <span className="mono"> /cuentas-por-pagar</span> de contabilidad-os cuando esté listo).
+            Mostrando datos de muestra. Se llenará con las adjudicaciones por pagar (un
+            renglón por proveedor) cuando autorices requisiciones.
           </p>
         )}
+      </div>
+
+      <Modal open={!!paying} onClose={() => setPaying(null)} title="Pagar a proveedor" size="sm">
+        {paying && (
+          <PayModal row={paying} bankAccounts={bankAccounts} onPay={payAdjudicacion} onClose={() => setPaying(null)} />
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+function PayModal({ row, bankAccounts, onPay, onClose }) {
+  const [bankAccountId, setBankAccountId] = useState(bankAccounts[0]?.id ?? '')
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  const submit = async () => {
+    if (!bankAccountId) { setError('Elige una cuenta bancaria.'); return }
+    setBusy(true); setError(null)
+    try {
+      await onPay(row, bankAccountId, fecha)
+    } catch (e) {
+      setError(e.message || 'No se pudo registrar el pago')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="ds cxp-pay">
+      <div className="cxp-pay-head">
+        <div className="proj-name">{row.supplierName}</div>
+        <div className="money big">{money(row.monto)}</div>
+      </div>
+      <div className="muted small" style={{ marginBottom: 12 }}>
+        {row.folio}{row.proyecto !== '—' ? ` · ${row.proyecto}` : ''} · {row.formaPago === 'CREDITO' ? `Crédito ${row.diasCredito}d` : 'Contado'}
+      </div>
+
+      <label className="stack">
+        <span>Cuenta bancaria</span>
+        <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
+          {bankAccounts.length === 0 && <option value="">Sin cuentas — captura una en Tesorería</option>}
+          {bankAccounts.map((a) => (
+            <option key={a.id} value={a.id}>{a.banco ? `${a.banco} · ` : ''}{a.nombre}{a.balance != null ? ` (${money(a.balance)})` : ''}</option>
+          ))}
+        </select>
+      </label>
+      <label className="stack">
+        <span>Fecha de pago</span>
+        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+      </label>
+
+      {error && <div className="cxp-pay-error">{error}</div>}
+
+      <div className="prov-modal-actions" style={{ marginTop: 14 }}>
+        <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>Cancelar</button>
+        <button type="button" className="btn btn-primary" onClick={submit} disabled={busy || !bankAccountId}>
+          {busy ? 'Registrando…' : `Pagar ${money(row.monto)}`}
+        </button>
       </div>
     </div>
   )
