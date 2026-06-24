@@ -90,3 +90,8 @@
 .cpa .btn-primary.small:disabled { opacity: 0.5; cursor: default; }
 .cpa .btn-ghost.small { background: transparent; border: 1px solid var(--border, #e5e1da); color: var(--ink, #2a241f); }
 .cpa .btn-ghost.small:disabled { opacity: 0.5; cursor: default; }
+
+/* Per-concepto budget context in the comparison matrix. */
+.cpa-budget { font-size: 0.72rem; color: var(--ink-3); margin-top: 3px; font-weight: 400; }
+.cpa-budget b { color: var(--ink-2); font-weight: 700; }
+.cpa-budget-over { color: var(--neg, #dc2626); font-weight: 700; }
