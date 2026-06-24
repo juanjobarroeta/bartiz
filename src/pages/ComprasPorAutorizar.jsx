@@ -33,6 +33,8 @@ export default function ComprasPorAutorizar() {
   const [awards, setAwards] = useState({})
   const [busyId, setBusyId] = useState(null)
   const [error, setError] = useState(null)
+  // budgetByProject: { [projectId]: { [insumoId]: { presupuestadoImporte, compradoImporte, restanteCantidad, unidad } } }
+  const [budgetByProject, setBudgetByProject] = useState({})
 
   const reload = useCallback(async () => {
     if (!companyId) { setReqs([]); setLoading(false); return }
@@ -60,6 +62,44 @@ export default function ComprasPorAutorizar() {
   }, [companyId])
 
   useEffect(() => { reload() }, [reload])
+
+  // Load per-insumo budget tracking for each distinct project in the queue, so
+  // management sees spend vs budget while authorizing. Best-effort: a project
+  // with no presupuesto/explosion simply shows no budget context.
+  useEffect(() => {
+    let alive = true
+    const ids = [...new Set(reqs.map((r) => r.proyecto?.id).filter(Boolean))]
+    const missing = ids.filter((pid) => !(pid in budgetByProject))
+    if (missing.length === 0) return
+    ;(async () => {
+      for (const pid of missing) {
+        try {
+          const proy = await apiFetch(`/api/construccion/proyectos/${pid}`)
+          const presups = proy?.presupuestos ?? []
+          const basis =
+            presups.find((p) => p.tipoPresupuesto === 'EJECUTADO') ??
+            presups.find((p) => p.estado === 'APROBADO' || p.estado === 'EN_EJECUCION') ??
+            presups[0]
+          let map = {}
+          if (basis) {
+            const data = await apiFetch(`/api/construccion/presupuestos/${basis.id}/explosion`)
+            for (const e of data?.explosion ?? []) {
+              map[e.insumoId] = {
+                presupuestadoImporte: e.importeTotal ?? 0,
+                compradoImporte: e.compradoImporte ?? 0,
+                restanteCantidad: e.restanteCantidad ?? 0,
+                unidad: e.unidad || '',
+              }
+            }
+          }
+          if (alive) setBudgetByProject((b) => ({ ...b, [pid]: map }))
+        } catch {
+          if (alive) setBudgetByProject((b) => ({ ...b, [pid]: {} }))
+        }
+      }
+    })()
+    return () => { alive = false }
+  }, [reqs, budgetByProject])
 
   const setAward = (reqId, partidaId, cotId) =>
     setAwards((a) => {
@@ -141,6 +181,7 @@ export default function ComprasPorAutorizar() {
             <RequisicionCard
               key={req.id}
               req={req}
+              budget={budgetByProject[req.proyecto?.id] ?? null}
               award={awards[req.id] ?? {}}
               busy={busyId === req.id}
               onAward={(pid, cid) => setAward(req.id, pid, cid)}
@@ -156,11 +197,12 @@ export default function ComprasPorAutorizar() {
   )
 }
 
-function RequisicionCard({ req, award, busy, onAward, onAutoCheapest, onClear, onAuthorize, onOpen }) {
+function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, onClear, onAuthorize, onOpen }) {
   const partidas = req.partidas ?? []
   const cots = req.cotizaciones ?? []
   const assigned = Object.keys(award).length
   const allAwarded = assigned === partidas.length && partidas.length > 0
+  const fmtQty = (n) => Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
 
   // Cheapest line per partida (for the green highlight).
   const cheapestCot = useMemo(() => {
@@ -241,9 +283,19 @@ function RequisicionCard({ req, award, busy, onAward, onAutoCheapest, onClear, o
               </tr>
             </thead>
             <tbody>
-              {partidas.map((p) => (
+              {partidas.map((p) => {
+                const b = budget && p.insumoId ? budget[p.insumoId] : null
+                return (
                 <tr key={p.id}>
-                  <td className="cpa-concept">{p.descripcion}</td>
+                  <td className="cpa-concept">
+                    {p.descripcion}
+                    {b && (
+                      <div className="cpa-budget">
+                        Presup. <b>{money(b.presupuestadoImporte)}</b> · comprado <b>{money(b.compradoImporte)}</b> · resta <b>{fmtQty(b.restanteCantidad)} {b.unidad}</b>
+                        {Number(p.cantidad) > b.restanteCantidad && <span className="cpa-budget-over"> · excede presupuesto</span>}
+                      </div>
+                    )}
+                  </td>
                   <td className="cpa-qty mono small">{p.cantidad} {p.unidad ?? ''}</td>
                   {cots.map((c) => {
                     const line = (c.partidas ?? []).find((l) => l.solicitudPartidaId === p.id)
@@ -266,7 +318,8 @@ function RequisicionCard({ req, award, busy, onAward, onAutoCheapest, onClear, o
                     )
                   })}
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

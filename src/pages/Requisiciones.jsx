@@ -347,6 +347,10 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
           descripcion: e.descripcion,
           unidad: e.unidad || '',
           codigo: e.codigo || '',
+          // budget tracking from the explosion
+          presupuestado: e.cantidadTotal ?? 0,
+          comprado: e.compradoCantidad ?? 0,
+          restante: e.restanteCantidad ?? 0,
         }))
         setInsumos(out)
       } catch {
@@ -359,6 +363,9 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
   const updatePart = (idx, field, val) => {
     setPartidas((arr) => arr.map((p, i) => (i === idx ? { ...p, [field]: val } : p)))
   }
+  const budgetOf = (c) => c
+    ? { presupuestado: c.presupuestado ?? 0, comprado: c.comprado ?? 0, restante: c.restante ?? 0 }
+    : null
   const onDescChange = (idx, val) => {
     const match = insumos.find((c) => c.descripcion.toLowerCase() === val.trim().toLowerCase())
     setPartidas((arr) => arr.map((p, i) => (i === idx ? {
@@ -366,6 +373,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
       descripcion: val,
       insumoId: match ? match.id : null,
       unidad: match && !p.unidad ? match.unidad : p.unidad,
+      _budget: match ? budgetOf(match) : null,
     } : p)))
   }
   const pickConcept = (idx, c) => {
@@ -374,6 +382,9 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
       descripcion: c.descripcion,
       insumoId: c.id,
       unidad: p.unidad || c.unidad || '',
+      // Default the quantity to what's still missing vs budget (only if empty).
+      cantidad: (p.cantidad === '' || p.cantidad == null) && c.restante > 0 ? String(c.restante) : p.cantidad,
+      _budget: budgetOf(c),
     } : p)))
   }
   const addRow = () =>
@@ -506,31 +517,34 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
           <span style={{ width: 30 }}></span>
         </div>
         {partidas.map((p, idx) => (
-          <div key={p.key} className="line-row">
-            <ConceptoCombobox
-              value={p.descripcion}
-              conceptos={insumos}
-              linked={!!p.insumoId}
-              onText={(v) => onDescChange(idx, v)}
-              onPick={(c) => pickConcept(idx, c)}
-            />
-            <input
-              type="number"
-              step="0.01"
-              value={p.cantidad}
-              onChange={(e) => updatePart(idx, 'cantidad', e.target.value)}
-              placeholder="0"
-              style={{ width: 80 }}
-            />
-            <input
-              value={p.unidad}
-              onChange={(e) => updatePart(idx, 'unidad', e.target.value)}
-              placeholder="ton, m3…"
-              style={{ width: 80 }}
-            />
-            <button type="button" className="link small danger" onClick={() => removeRow(idx)} disabled={partidas.length === 1}>
-              ×
-            </button>
+          <div key={p.key}>
+            <div className="line-row">
+              <ConceptoCombobox
+                value={p.descripcion}
+                conceptos={insumos}
+                linked={!!p.insumoId}
+                onText={(v) => onDescChange(idx, v)}
+                onPick={(c) => pickConcept(idx, c)}
+              />
+              <input
+                type="number"
+                step="0.01"
+                value={p.cantidad}
+                onChange={(e) => updatePart(idx, 'cantidad', e.target.value)}
+                placeholder="0"
+                style={{ width: 80 }}
+              />
+              <input
+                value={p.unidad}
+                onChange={(e) => updatePart(idx, 'unidad', e.target.value)}
+                placeholder="ton, m3…"
+                style={{ width: 80 }}
+              />
+              <button type="button" className="link small danger" onClick={() => removeRow(idx)} disabled={partidas.length === 1}>
+                ×
+              </button>
+            </div>
+            {p._budget && <LineBudgetHint budget={p._budget} unidad={p.unidad} pedido={p.cantidad} />}
           </div>
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
@@ -574,6 +588,23 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
         </button>
       </div>
     </form>
+  )
+}
+
+// Budget context for a picked insumo: presupuestado / ya comprado / restante,
+// with an over-budget warning when the requested qty exceeds what's left.
+function LineBudgetHint({ budget, unidad, pedido }) {
+  const fmtQty = (n) => Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+  const u = unidad ? ` ${unidad}` : ''
+  const ped = Number(pedido) || 0
+  const over = ped > 0 && ped > (budget.restante ?? 0)
+  return (
+    <div className={'line-budget' + (over ? ' over' : '')}>
+      Presupuestado <b>{fmtQty(budget.presupuestado)}{u}</b>
+      {' · '}comprado <b>{fmtQty(budget.comprado)}{u}</b>
+      {' · '}resta <b>{fmtQty(budget.restante)}{u}</b>
+      {over && <span className="line-budget-warn"> · excede lo presupuestado</span>}
+    </div>
   )
 }
 
