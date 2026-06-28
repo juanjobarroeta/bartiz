@@ -193,6 +193,12 @@ export function NewProveedorForm({ companyId, defaultName = '', onClose, onCreat
 
   const submit = async (e) => {
     e.preventDefault()
+    // This form is often rendered (via a portal-free Modal) INSIDE another
+    // form — e.g. the "crear proveedor" modal opened from the requisición
+    // form. Without stopPropagation the synthetic submit bubbles up the React
+    // tree and also fires the parent form's onSubmit (submitting the
+    // requisición and losing its state). Stop it here.
+    e.stopPropagation()
     if (!razonSocial.trim() || !rfc.trim()) {
       alertDialog({ message: 'Razón social y RFC son requeridos.' })
       return
