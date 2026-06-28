@@ -27,7 +27,6 @@ import {
   SAMPLE_BANKS,
   SAMPLE_SALDO_TOTAL,
   SAMPLE_PERFORMANCE,
-  SAMPLE_ACCIONES,
   SAMPLE_CURVE,
   SAMPLE_FACTURADO,
   SAMPLE_COBRADO,
@@ -71,12 +70,37 @@ const Dashboard = () => {
   const [usingSample, setUsingSample] = useState(false)
   const [sort, setSort] = useState('contratado')
   const [cfdiResumen, setCfdiResumen] = useState(null)
+  // Real, actionable pendientes for Gerardo's flow (counts only). Gerardo
+  // uploads presupuestos already approved, so there is no "presupuestos por
+  // aprobar" here — his approval queue is "compras por autorizar".
+  const [pend, setPend] = useState({ compras: 0, porPagar: 0, sinConciliar: 0, loaded: false })
 
   useEffect(() => {
     if (!activeCompany?.id) return
     apiFetch(`/api/construccion/cfdis/resumen?companyId=${encodeURIComponent(activeCompany.id)}`)
       .then((d) => { if (d && typeof d.porVincular === 'number') setCfdiResumen(d) })
       .catch(() => {})
+  }, [activeCompany?.id])
+
+  useEffect(() => {
+    if (!activeCompany?.id) { setPend({ compras: 0, porPagar: 0, sinConciliar: 0, loaded: false }); return }
+    const cid = encodeURIComponent(activeCompany.id)
+    let alive = true
+    ;(async () => {
+      const [compras, porPagar, conc] = await Promise.all([
+        apiFetch(`/api/construccion/solicitudes-compra?companyId=${cid}&estado=PENDIENTE`).catch(() => []),
+        apiFetch(`/api/construccion/adjudicaciones?companyId=${cid}&estado=POR_PAGAR`).catch(() => []),
+        apiFetch(`/api/construccion/bank-transactions?companyId=${cid}&status=UNMATCHED&count=1`).catch(() => null),
+      ])
+      if (!alive) return
+      setPend({
+        compras: Array.isArray(compras) ? compras.length : 0,
+        porPagar: Array.isArray(porPagar) ? porPagar.length : 0,
+        sinConciliar: conc && typeof conc.count === 'number' ? conc.count : 0,
+        loaded: true,
+      })
+    })()
+    return () => { alive = false }
   }, [activeCompany?.id])
 
   useEffect(() => {
@@ -122,6 +146,44 @@ const Dashboard = () => {
   const openProject = (row) => {
     if (row.id) navigate(`/proyectos/${row.id}`)
   }
+
+  // Pendientes that require Gerardo's action — each clickable to its surface,
+  // shown only when there's something to do.
+  const acciones = useMemo(() => {
+    const out = []
+    if (pend.compras > 0) {
+      out.push({
+        ic: 'requisiciones', tone: 'brand', n: pend.compras,
+        txt: pend.compras === 1 ? 'compra por autorizar' : 'compras por autorizar',
+        sub: 'requisiciones esperando tu visto bueno', to: '/compras-por-autorizar',
+      })
+    }
+    if (pend.porPagar > 0) {
+      out.push({
+        ic: 'receipt', tone: 'warn', n: pend.porPagar,
+        txt: pend.porPagar === 1 ? 'cuenta por pagar' : 'cuentas por pagar',
+        sub: 'adjudicaciones por liquidar a proveedores', to: '/cuentas-por-pagar',
+      })
+    }
+    if (cfdiResumen && cfdiResumen.porVincular > 0) {
+      const r = cfdiResumen.recibidas?.porVincular || 0
+      const e = cfdiResumen.emitidas?.porVincular || 0
+      out.push({
+        ic: 'file', tone: 'brand', n: cfdiResumen.porVincular,
+        txt: cfdiResumen.porVincular === 1 ? 'factura por vincular' : 'facturas por vincular',
+        sub: [r > 0 && `${r} recibidas`, e > 0 && `${e} emitidas`].filter(Boolean).join(' · '),
+        to: '/facturas',
+      })
+    }
+    if (pend.sinConciliar > 0) {
+      out.push({
+        ic: 'shuffle', tone: 'info', n: pend.sinConciliar,
+        txt: 'movimientos bancarios sin conciliar',
+        sub: 'pendientes de conciliar en tesorería', to: '/tesoreria-bartiz',
+      })
+    }
+    return out
+  }, [pend, cfdiResumen])
 
   return (
     <div className="ds">
@@ -190,7 +252,7 @@ const Dashboard = () => {
             <div className="kpi-sub">
               <span>{SAMPLE_BANKS.length} cuentas operativas</span>
               <span className="pill warn" style={{ marginLeft: 'auto' }}>
-                {SAMPLE_SIN_CONCILIAR} sin conciliar
+                {(pend.loaded ? pend.sinConciliar : SAMPLE_SIN_CONCILIAR)} sin conciliar
               </span>
             </div>
           </div>
@@ -422,41 +484,32 @@ const Dashboard = () => {
                 <h3>Pendientes</h3>
                 <span className="hint">Requiere tu atención</span>
               </div>
-              {SAMPLE_ACCIONES.map((a, i) => (
-                <div className="action" key={i}>
-                  <div className={'action-ic ' + a.tone}>
-                    <Icon name={a.ic} />
-                  </div>
-                  <div>
-                    <div className="action-txt">
-                      <b>{a.n}</b> {a.txt}
-                    </div>
-                    <div className="action-sub">{a.sub}</div>
-                  </div>
-                  <span className="row-go" style={{ marginLeft: 'auto' }}>
-                    <Icon name="chevronRight" />
-                  </span>
+              {acciones.length === 0 ? (
+                <div className="action-empty">
+                  {pend.loaded ? 'Todo al día — sin pendientes.' : 'Cargando pendientes…'}
                 </div>
-              ))}
-              {cfdiResumen && cfdiResumen.porVincular > 0 && (
-                <button className="action" style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => navigate('/facturas')}>
-                  <div className="action-ic brand">
-                    <Icon name="file" />
-                  </div>
-                  <div>
-                    <div className="action-txt">
-                      <b>{cfdiResumen.porVincular}</b> {cfdiResumen.porVincular === 1 ? 'factura' : 'facturas'} por vincular
+              ) : (
+                acciones.map((a, i) => (
+                  <button
+                    type="button"
+                    className="action action-btn"
+                    key={i}
+                    onClick={() => navigate(a.to)}
+                  >
+                    <div className={'action-ic ' + a.tone}>
+                      <Icon name={a.ic} />
                     </div>
-                    <div className="action-sub">
-                      {cfdiResumen.recibidas.porVincular > 0 && `${cfdiResumen.recibidas.porVincular} recibidas`}
-                      {cfdiResumen.recibidas.porVincular > 0 && cfdiResumen.emitidas.porVincular > 0 && ' · '}
-                      {cfdiResumen.emitidas.porVincular > 0 && `${cfdiResumen.emitidas.porVincular} emitidas`}
+                    <div>
+                      <div className="action-txt">
+                        <b>{a.n}</b> {a.txt}
+                      </div>
+                      {a.sub && <div className="action-sub">{a.sub}</div>}
                     </div>
-                  </div>
-                  <span className="row-go" style={{ marginLeft: 'auto' }}>
-                    <Icon name="chevronRight" />
-                  </span>
-                </button>
+                    <span className="row-go" style={{ marginLeft: 'auto' }}>
+                      <Icon name="chevronRight" />
+                    </span>
+                  </button>
+                ))
               )}
             </div>
           </div>

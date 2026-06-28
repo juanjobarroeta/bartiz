@@ -972,6 +972,23 @@
   font-weight: 700;
   font-size: 15px;
 }
+/* Clickable pendiente row (button reset so it reads like the div row). */
+.ds button.action-btn {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+}
+.ds button.action-btn:last-child {
+  border-bottom: none;
+}
+.ds .action-empty {
+  padding: 18px var(--pad);
+  font-size: 13px;
+  color: var(--ink-3);
+}
 
 /* ---------- Chart card (S-curve) ---------- */
 .ds .chart-head {
