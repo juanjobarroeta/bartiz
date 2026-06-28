@@ -229,7 +229,7 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
       if (!c) continue
       const line = (c.partidas ?? []).find((l) => l.solicitudPartidaId === p.id)
       const imp = line?.importe ?? 0
-      const cur = bySupplier.get(cotId) ?? { nombre: c.supplierNombre, credito: c.tieneCredito, dias: c.diasEntrega, total: 0, n: 0 }
+      const cur = bySupplier.get(cotId) ?? { nombre: c.supplierNombre, credito: c.tieneCredito, diasCredito: c.diasCredito, dias: c.diasEntrega, total: 0, n: 0 }
       cur.total += imp
       cur.n += 1
       bySupplier.set(cotId, cur)
@@ -273,7 +273,7 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
                     <div className="cpa-sup-name">{c.supplierNombre}</div>
                     <div className="cpa-sup-meta">
                       <span className={'pill ' + (c.tieneCredito ? 'pill-credito' : 'pill-contado')}>
-                        {c.tieneCredito ? 'Crédito' : 'Contado'}
+                        {c.tieneCredito ? (c.diasCredito != null ? `Crédito ${c.diasCredito}d` : 'Crédito') : 'Contado'}
                       </span>
                       <span className="cpa-dias">{c.diasEntrega != null ? `${c.diasEntrega} d entrega` : 'entrega s/d'}</span>
                     </div>
@@ -332,7 +332,7 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
             {summary.map((s, i) => (
               <div className="cpa-summary-row" key={i}>
                 <span className="cpa-summary-sup">{s.nombre}</span>
-                <span className={'pill ' + (s.credito ? 'pill-credito' : 'pill-contado')}>{s.credito ? 'Crédito' : 'Contado'}</span>
+                <span className={'pill ' + (s.credito ? 'pill-credito' : 'pill-contado')}>{s.credito ? (s.diasCredito != null ? `Crédito ${s.diasCredito}d` : 'Crédito') : 'Contado'}</span>
                 <span className="muted small">{s.dias != null ? `${s.dias} d` : 's/d'}</span>
                 <span className="muted small">{s.n} concepto{s.n > 1 ? 's' : ''}</span>
                 <span className="cpa-summary-total mono">{money(s.total)}</span>

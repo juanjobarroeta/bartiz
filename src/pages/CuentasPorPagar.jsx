@@ -62,7 +62,9 @@ const SAMPLE_PAYABLES = [
 // plus the supplier's credit days (delivery días are informational, separate).
 function fromAdjudicacion(a, suppliersById) {
   const sup = a.supplierId ? suppliersById[a.supplierId] : null
-  const dias = a.tieneCredito ? (readTerms(sup).diasCredito || 30) : 0
+  // Prefer the credit days captured on the offer (works for free-text suppliers
+  // too); fall back to the saved supplier's terms, then a 30-day default.
+  const dias = a.tieneCredito ? (a.diasCredito ?? readTerms(sup).diasCredito ?? 30) : 0
   const base = a.aprobadaAt || a.createdAt
   return {
     id: a.id, // adjudicación id — what we pay

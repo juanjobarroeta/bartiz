@@ -71,6 +71,7 @@ function formFromSolicitud(sol) {
       freeText: c.supplierId ? '' : (c.supplierNombre ?? ''),
       useFreeText: !c.supplierId,
       credito: !!c.tieneCredito,
+      diasCredito: c.diasCredito != null ? String(c.diasCredito) : '',
       diasEntrega: c.diasEntrega != null ? String(c.diasEntrega) : '',
       prices,
     }
@@ -311,7 +312,6 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
   )
   const [proyectoId, setProyectoId] = useState(initialDraft?.proyectoId ?? proyectos[0]?.id ?? '')
   const today = new Date().toISOString().slice(0, 10)
-  const [fechaEntrega, setFechaEntrega] = useState(initialDraft?.fechaEntrega ?? '')
   const [notas, setNotas] = useState(initialDraft?.notas ?? '')
   // Each partida carries a stable `key` so supplier offer prices map to the
   // right concept even as rows are added/removed.
@@ -403,7 +403,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
   // ── Offers (proveedor columns) ──
   const addOffer = () =>
-    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', useFreeText: false, credito: false, diasEntrega: '', prices: {} }])
+    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', useFreeText: false, credito: false, diasCredito: '', diasEntrega: '', prices: {} }])
   const removeOffer = (idx) =>
     setOffers((arr) => arr.filter((_, i) => i !== idx))
   const updateOffer = (idx, patch) =>
@@ -424,8 +424,8 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
     companyId, // ignored by PUT, required by POST
     folio: folio.trim(),
     proyectoId: proyectoId || undefined,
-    // Delivery is per-supplier now (offer.diasEntrega), so no header fecha.
-    formaPago: formaPago || null,
+    // Delivery AND payment terms are per-supplier now (offer.diasEntrega /
+    // offer.credito), so there's no header fecha or formaPago.
     notas: notas.trim() || undefined,
     estado,
     partidas: lines.map((p) => ({
@@ -440,6 +440,8 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
         supplierId: o.useFreeText ? null : o.supplier?.id ?? null,
         supplierNombre: offerName(o),
         tieneCredito: !!o.credito,
+        // Credit days only meaningful when the offer is a crédito; contado → null.
+        diasCredito: o.credito && o.diasCredito !== '' && o.diasCredito != null ? parseInt(o.diasCredito, 10) : null,
         diasEntrega: o.diasEntrega !== '' && o.diasEntrega != null ? parseInt(o.diasEntrega, 10) : null,
         lineas: lines
           .map((p, idx) => ({ partidaIndex: idx, precioUnitario: parseFloat(o.prices[p.key]) || 0 }))
@@ -697,6 +699,14 @@ function defaultCredito(supplier) {
   return t.tieneCredito === true || t.diasCredito > 0
 }
 
+// Default credit days from the supplier's saved terms (empty string when none),
+// preloaded into the offer so tesorería gets a real due-date.
+function defaultDiasCredito(supplier) {
+  if (!supplier) return ''
+  const t = readTerms(supplier)
+  return t.diasCredito > 0 ? String(t.diasCredito) : ''
+}
+
 // One proveedor column header: supplier picker + a forma-de-pago toggle that
 // preloads from the supplier's terms and can be checked/unchecked per offer.
 function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
@@ -723,7 +733,7 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
         <div className="ofs-pick">
           <SupplierPicker
             value={null}
-            onChange={(s) => onChange({ supplier: s, credito: defaultCredito(s) })}
+            onChange={(s) => onChange({ supplier: s, credito: defaultCredito(s), diasCredito: defaultDiasCredito(s) })}
             companyId={companyId}
             placeholder="Proveedor…"
           />
@@ -742,6 +752,20 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
             />
             <span>{offer.credito ? 'A crédito' : 'Contado'}</span>
           </label>
+          {offer.credito && (
+            <label className="ofs-credito-dias" title="Días de crédito ofrecidos — define el vencimiento en cuentas por pagar">
+              <input
+                type="number"
+                min="0"
+                max="365"
+                step="1"
+                value={offer.diasCredito ?? ''}
+                onChange={(e) => onChange({ diasCredito: e.target.value })}
+                placeholder="—"
+              />
+              <span>días crédito</span>
+            </label>
+          )}
           <label className="ofs-entrega" title="Días de entrega prometidos por este proveedor">
             <input
               type="number"
