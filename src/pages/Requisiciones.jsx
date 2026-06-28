@@ -477,6 +477,11 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
   const submit = async (e) => {
     e.preventDefault()
+    // Guard against submits that bubbled up from a NESTED form — e.g. the
+    // "crear proveedor" modal (a portal-free Modal) renders its own <form>
+    // inside this one, and its submit would otherwise trigger this handler and
+    // send the whole requisición. Only act when this form is the actual target.
+    if (e.target !== e.currentTarget) return
     setBusy(true)
     try {
       const saved = await persist('PENDIENTE')
