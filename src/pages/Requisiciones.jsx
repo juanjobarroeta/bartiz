@@ -34,6 +34,18 @@ const fmtMoneyDec = (n) =>
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('es-MX', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
+// Displayed total for a requisición row. The persisted `total` is only filled
+// in after adjudication (winning prices copied onto the partidas); before that
+// it's 0 even though the cotizaciones carry prices. So pre-award we show the
+// cheapest cotización as an estimate.
+function requisicionTotal(r) {
+  const real = Number(r.total) || 0
+  if (real > 0) return { amount: real, estimated: false }
+  const ofertas = (r.cotizaciones ?? []).map((c) => Number(c.total) || 0).filter((t) => t > 0)
+  if (ofertas.length) return { amount: Math.min(...ofertas), estimated: true }
+  return { amount: 0, estimated: false }
+}
+
 const ESTADO_LABEL = {
   BORRADOR: 'Borrador',
   PENDIENTE: 'Pendiente',
@@ -245,7 +257,15 @@ export default function Requisiciones() {
                 <td className="small">{r.fechaEntrega ? fmtDate(r.fechaEntrega) : <span className="muted">—</span>}</td>
                 <td style={{ textAlign: 'right' }}>{r._count?.partidas ?? 0}</td>
                 <td style={{ textAlign: 'right' }}>{r._count?.cotizaciones ?? r.cotizaciones?.length ?? 0}</td>
-                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(r.total)}</td>
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                  {(() => {
+                    const t = requisicionTotal(r)
+                    if (t.amount === 0) return <span className="muted">—</span>
+                    return t.estimated
+                      ? <span title="Estimado: oferta más baja (aún sin adjudicar)">≈ {fmtMoney(t.amount)}</span>
+                      : fmtMoney(t.amount)
+                  })()}
+                </td>
                 <td className="small">{r.supplier?.razonSocial ?? <span className="muted">— sin elegir —</span>}</td>
                 <td className="small muted">{fmtDate(r.createdAt)}</td>
                 <td className="reqs-actions" onClick={(e) => e.stopPropagation()}>
