@@ -78,6 +78,7 @@ function formFromSolicitud(sol) {
   })
   return {
     id: sol.id,
+    estado: sol.estado,
     folio: sol.folio,
     proyectoId: sol.proyectoId ?? sol.proyecto?.id ?? '',
     fechaEntrega: sol.fechaEntrega ? new Date(sol.fechaEntrega).toISOString().slice(0, 10) : '',
@@ -130,14 +131,7 @@ export default function Requisiciones() {
   }, [visibleRows, filter])
 
   const openNew = () => { setEditingDraft(null); setNewOpen(true) }
-  const closeForm = () => {
-    // [DBG] temporary instrumentation: capture WHAT closes the requisición modal
-    // (form submit success vs Modal backdrop/Escape/X vs Cancelar). Remove once
-    // the "modal closes on supplier create" cause is confirmed.
-    // eslint-disable-next-line no-console
-    console.warn('[REQ-DBG] closeForm called →', new Error('closeForm stack').stack)
-    setNewOpen(false); setEditingDraft(null)
-  }
+  const closeForm = () => { setNewOpen(false); setEditingDraft(null) }
 
   const continueDraft = async (draftRow) => {
     try {
@@ -150,10 +144,13 @@ export default function Requisiciones() {
     }
   }
 
-  const deleteDraft = async (id) => {
-    if (!(await confirmDialog({ title: 'Eliminar borrador', message: '¿Eliminar este borrador? No se puede deshacer.', okLabel: 'Eliminar' }))) return
+  // Delete an un-authorized requisición (borrador or pendiente). The backend
+  // rejects authorized ones (APROBADA/PAGADA).
+  const removeSolicitud = async (row) => {
+    const label = row.estado === 'BORRADOR' ? 'borrador' : 'requisición'
+    if (!(await confirmDialog({ title: `Eliminar ${label}`, message: `¿Eliminar ${row.folio}? No se puede deshacer.`, okLabel: 'Eliminar' }))) return
     try {
-      await apiFetch(`/api/construccion/solicitudes-compra/${id}`, { method: 'DELETE' })
+      await apiFetch(`/api/construccion/solicitudes-compra/${row.id}`, { method: 'DELETE' })
       reload()
     } catch (err) {
       alertDialog({ message: err.message || 'No se pudo eliminar' })
@@ -191,7 +188,7 @@ export default function Requisiciones() {
         </div>
       </div>
 
-      <Modal open={newOpen} onClose={closeForm} title={editingDraft ? 'Continuar requisición' : 'Nueva requisición de material'} size="lg">
+      <Modal open={newOpen} onClose={closeForm} title={editingDraft ? (editingDraft.estado === 'BORRADOR' ? 'Continuar requisición' : 'Editar requisición') : 'Nueva requisición de material'} size="lg">
         <NewRequisicionForm
           companyId={companyId}
           proyectos={proyectos}
@@ -206,7 +203,7 @@ export default function Requisiciones() {
         <DraftsList
           drafts={drafts}
           onContinue={continueDraft}
-          onDelete={deleteDraft}
+          onDelete={removeSolicitud}
           onClose={() => setDraftsOpen(false)}
         />
       </Modal>
@@ -231,6 +228,7 @@ export default function Requisiciones() {
               <th style={{ textAlign: 'right' }}>Total</th>
               <th>Proveedor</th>
               <th>Solicitada</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -250,6 +248,14 @@ export default function Requisiciones() {
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(r.total)}</td>
                 <td className="small">{r.supplier?.razonSocial ?? <span className="muted">— sin elegir —</span>}</td>
                 <td className="small muted">{fmtDate(r.createdAt)}</td>
+                <td className="reqs-actions" onClick={(e) => e.stopPropagation()}>
+                  {r.estado === 'PENDIENTE' ? (
+                    <>
+                      <button className="link small" onClick={() => continueDraft(r)}>Editar</button>
+                      <button className="link small danger" onClick={() => removeSolicitud(r)}>Eliminar</button>
+                    </>
+                  ) : null}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -296,7 +302,7 @@ function DraftsList({ drafts, onContinue, onDelete, onClose }) {
               <td className="small muted">{fmtDate(d.updatedAt ?? d.createdAt)}</td>
               <td style={{ whiteSpace: 'nowrap' }}>
                 <button className="link small" onClick={() => onContinue(d)}>Continuar</button>
-                <button className="link small danger" onClick={() => onDelete(d.id)}>Eliminar</button>
+                <button className="link small danger" onClick={() => onDelete(d)}>Eliminar</button>
               </td>
             </tr>
           ))}
@@ -484,20 +490,11 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
   const submit = async (e) => {
     e.preventDefault()
-    // [DBG] temporary instrumentation around the nested-form guard.
-    // eslint-disable-next-line no-console
-    console.warn('[REQ-DBG] submit fired. target===currentTarget?', e.target === e.currentTarget, '| target:', e.target?.className, '| currentTarget:', e.currentTarget?.className)
     // Guard against submits that bubbled up from a NESTED form — e.g. the
     // "crear proveedor" modal renders its own <form>, and its submit would
     // otherwise trigger this handler and send the whole requisición. Only act
     // when this form is the actual target.
-    if (e.target !== e.currentTarget) {
-      // eslint-disable-next-line no-console
-      console.warn('[REQ-DBG] submit IGNORED (bubbled from nested form)')
-      return
-    }
-    // eslint-disable-next-line no-console
-    console.warn('[REQ-DBG] submit PROCEEDING → will persist + onCreated (closes modal)')
+    if (e.target !== e.currentTarget) return
     setBusy(true)
     try {
       const saved = await persist('PENDIENTE')

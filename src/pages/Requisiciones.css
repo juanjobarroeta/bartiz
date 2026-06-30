@@ -256,6 +256,10 @@
 /* Compact request-meta line replacing the old solicitud/entrega date row. */
 .req-meta-line { margin: -2px 0 6px; }
 
+/* Row actions (editar/eliminar) for un-authorized requisiciones in the list. */
+.reqs-actions { white-space: nowrap; text-align: right; }
+.reqs-actions .link.small { padding: 2px 6px; }
+
 /* Crédito/contado per cotización column (detalle matrix header). */
 .cot-credit { font-weight: 700; }
 .cot-credit.has { color: var(--pos); }

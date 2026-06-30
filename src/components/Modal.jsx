@@ -41,8 +41,6 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
     escapeStack.push(entry)
     const onKey = (e) => {
       if (e.key === 'Escape' && escapeStack[escapeStack.length - 1] === entry) {
-        // eslint-disable-next-line no-console
-        console.warn('[MODAL-DBG] Escape close →', title)
         onClose?.()
       }
     }
@@ -56,15 +54,13 @@ export default function Modal({ open, onClose, title, children, size = 'md' }) {
   }, [open, onClose])
 
   if (!open) return null
-  // eslint-disable-next-line no-console
-  const dbg = (src) => console.warn('[MODAL-DBG]', src, 'close →', title)
   return createPortal(
-    <div className="modal-backdrop" onClick={() => { dbg('backdrop'); onClose?.() }}>
+    <div className="modal-backdrop" onClick={() => onClose?.()}>
       <div className={`modal-panel modal-${size}`} onClick={(e) => e.stopPropagation()}>
         {title && (
           <div className="modal-head">
             <h2>{title}</h2>
-            <button type="button" className="modal-close" onClick={() => { dbg('button'); onClose?.() }} aria-label="Cerrar">×</button>
+            <button type="button" className="modal-close" onClick={() => onClose?.()} aria-label="Cerrar">×</button>
           </div>
         )}
         <div className="modal-body">{children}</div>
