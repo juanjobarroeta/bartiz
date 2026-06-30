@@ -261,6 +261,30 @@
 .cot-credit.has { color: var(--pos); }
 .cot-credit.cash { color: var(--ink-3); }
 
+/* ── Pagos por proveedor (adjudicaciones) panel ── */
+.adj-pagos {
+  border: 1px solid var(--line-2, #e5e1da);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  margin: 14px 0;
+  overflow: hidden;
+}
+.adj-pagos-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border-bottom: 1px solid var(--line, #efeae1); flex-wrap: wrap;
+}
+.adj-pagos-head h3 { margin: 0 0 2px; font-size: 1rem; }
+.adj-pagos-head p { margin: 0; max-width: 460px; }
+.adj-pagos-progress { text-align: right; font-size: 0.9rem; white-space: nowrap; }
+.adj-pagos-table { width: 100%; }
+.adj-pagos-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-3); }
+.adj-pagos-table td { vertical-align: top; }
+.adj-overdue { color: var(--neg, #dc2626); font-weight: 700; }
+.adj-pagos-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; border-top: 1px solid var(--line, #efeae1); background: var(--surface-sunk, #faf7f1);
+}
+
 /* ── Conceptos solicitados (detalle, siempre visible) ── */
 .req-conceptos { margin: 1rem 0; }
 .req-conceptos h3 { font-family: var(--font-display); font-size: 0.95rem; margin: 0 0 0.5rem; color: var(--ink); }
