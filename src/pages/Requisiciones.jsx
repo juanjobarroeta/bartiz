@@ -130,7 +130,14 @@ export default function Requisiciones() {
   }, [visibleRows, filter])
 
   const openNew = () => { setEditingDraft(null); setNewOpen(true) }
-  const closeForm = () => { setNewOpen(false); setEditingDraft(null) }
+  const closeForm = () => {
+    // [DBG] temporary instrumentation: capture WHAT closes the requisición modal
+    // (form submit success vs Modal backdrop/Escape/X vs Cancelar). Remove once
+    // the "modal closes on supplier create" cause is confirmed.
+    // eslint-disable-next-line no-console
+    console.warn('[REQ-DBG] closeForm called →', new Error('closeForm stack').stack)
+    setNewOpen(false); setEditingDraft(null)
+  }
 
   const continueDraft = async (draftRow) => {
     try {
@@ -477,11 +484,20 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
   const submit = async (e) => {
     e.preventDefault()
+    // [DBG] temporary instrumentation around the nested-form guard.
+    // eslint-disable-next-line no-console
+    console.warn('[REQ-DBG] submit fired. target===currentTarget?', e.target === e.currentTarget, '| target:', e.target?.className, '| currentTarget:', e.currentTarget?.className)
     // Guard against submits that bubbled up from a NESTED form — e.g. the
-    // "crear proveedor" modal (a portal-free Modal) renders its own <form>
-    // inside this one, and its submit would otherwise trigger this handler and
-    // send the whole requisición. Only act when this form is the actual target.
-    if (e.target !== e.currentTarget) return
+    // "crear proveedor" modal renders its own <form>, and its submit would
+    // otherwise trigger this handler and send the whole requisición. Only act
+    // when this form is the actual target.
+    if (e.target !== e.currentTarget) {
+      // eslint-disable-next-line no-console
+      console.warn('[REQ-DBG] submit IGNORED (bubbled from nested form)')
+      return
+    }
+    // eslint-disable-next-line no-console
+    console.warn('[REQ-DBG] submit PROCEEDING → will persist + onCreated (closes modal)')
     setBusy(true)
     try {
       const saved = await persist('PENDIENTE')
