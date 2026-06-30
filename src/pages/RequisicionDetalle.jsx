@@ -27,6 +27,11 @@ import './Requisiciones.css'
 
 const fmtMoney = (n) =>
   n == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(Number(n) || 0)
+const DAY = 86400000
+const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
+const addDays = (d, n) => new Date(d.getTime() + n * DAY)
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
 
 export default function RequisicionDetalle() {
   const { id } = useParams()
@@ -211,8 +216,13 @@ export default function RequisicionDetalle() {
         <button className="secondary" onClick={() => setNewCotOpen(true)}>+ Agregar cotización</button>
       </div>
 
-      {/* Movimiento bancario vinculado */}
-      <BankLinkPanel data={data} reload={reload} />
+      {/* Pagos por proveedor (adjudicaciones) — el modelo por proveedor reemplaza
+          el pago único cuando la requisición ya fue adjudicada. */}
+      {(data.adjudicaciones ?? []).length > 0 ? (
+        <AdjudicacionesPanel data={data} onGoPagar={() => navigate('/cuentas-por-pagar')} />
+      ) : (
+        <BankLinkPanel data={data} reload={reload} />
+      )}
 
 
       <Modal open={newCotOpen} onClose={() => setNewCotOpen(false)} title="Nueva cotización" size="lg">
@@ -401,6 +411,106 @@ export default function RequisicionDetalle() {
           </div>
         )}
         </>
+      )}
+    </div>
+  )
+}
+
+// ── Pagos por proveedor (adjudicaciones) ────────────────────────────────────
+// Once a requisición is authorized it splits into one SolicitudAdjudicacion per
+// winning supplier, each paid separately from Tesorería. This panel shows each
+// supplier's amount, credit condition, due date (aprobación + días de crédito)
+// and whether it's already paid — the per-supplier counterpart to the old
+// single-payment BankLinkPanel.
+function AdjudicacionesPanel({ data, onGoPagar }) {
+  const base = data.aprobadaAt || data.createdAt
+  const rows = (data.adjudicaciones ?? []).map((a) => {
+    const dias = a.tieneCredito ? (a.diasCredito ?? 0) : 0
+    const venc = a.tieneCredito && base ? addDays(startOfDay(new Date(base)), dias) : null
+    return { ...a, venc }
+  })
+  const total = rows.reduce((s, a) => s + (Number(a.total) || 0), 0)
+  const pagadas = rows.filter((a) => a.estado === 'PAGADA')
+  const totalPagado = pagadas.reduce((s, a) => s + (Number(a.total) || 0), 0)
+  const today = startOfDay(new Date())
+  const pendientes = rows.length - pagadas.length
+
+  return (
+    <div className="adj-pagos">
+      <div className="adj-pagos-head">
+        <div>
+          <h3>Pagos por proveedor</h3>
+          <p className="muted small">
+            Cada proveedor adjudicado se paga por separado. Los pagos se registran en Tesorería.
+          </p>
+        </div>
+        <div className="adj-pagos-progress">
+          <strong>{pagadas.length}/{rows.length}</strong> pagados
+          <div className="muted small">{fmtMoney(totalPagado)} de {fmtMoney(total)}</div>
+        </div>
+      </div>
+      <div className="matrix-scroll">
+        <table className="reqs-table compact adj-pagos-table">
+          <thead>
+            <tr>
+              <th>Proveedor</th>
+              <th>Condición</th>
+              <th>Entrega</th>
+              <th>Vence</th>
+              <th style={{ textAlign: 'right' }}>Monto</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((a) => {
+              const overdue = a.estado !== 'PAGADA' && a.venc && startOfDay(a.venc) < today
+              return (
+                <tr key={a.id}>
+                  <td><strong>{a.supplierNombre}</strong></td>
+                  <td className="small">
+                    {a.tieneCredito ? (
+                      <span className="cot-credit has">Crédito{a.diasCredito != null ? ` ${a.diasCredito}d` : ''}</span>
+                    ) : (
+                      <span className="cot-credit cash">Contado</span>
+                    )}
+                  </td>
+                  <td className="small">{a.diasEntrega != null ? `${a.diasEntrega} d` : '—'}</td>
+                  <td className="small">
+                    {a.estado === 'PAGADA' ? (
+                      <span className="muted">—</span>
+                    ) : a.venc ? (
+                      <span className={overdue ? 'adj-overdue' : ''}>{fmtDate(a.venc)}</span>
+                    ) : (
+                      <span className="muted">contado</span>
+                    )}
+                  </td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(a.total)}</td>
+                  <td>
+                    {a.estado === 'PAGADA' ? (
+                      <div>
+                        <span className="badge estado-pagada">Pagada</span>
+                        {a.bankTransaction && (
+                          <div className="muted small">
+                            {fmtDate(a.bankTransaction.fecha)}
+                            {a.bankTransaction.bankAccount && ` · ${a.bankTransaction.bankAccount.banco ?? ''} ${a.bankTransaction.bankAccount.nombre ?? ''}`}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="badge estado-pendiente">Por pagar</span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      {pendientes > 0 && (
+        <div className="adj-pagos-foot">
+          <span className="muted small">{pendientes} proveedor{pendientes === 1 ? '' : 'es'} por pagar</span>
+          <button type="button" className="link small" onClick={onGoPagar}>Ir a Cuentas por pagar →</button>
+        </div>
       )}
     </div>
   )
