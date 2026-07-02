@@ -23,6 +23,8 @@ import { useAuth } from '../auth/AuthContext'
 import { Icon } from '../components/ds/Icon'
 import Modal from '../components/Modal'
 import '../components/Modal.css'
+import FileUpload from '../components/FileUpload'
+import '../components/FileUpload.css'
 import { money, compactMoney, MoneyParts } from '../lib/format'
 import { readTerms } from './ProveedoresBartiz'
 import { SAMPLE_SALDO_TOTAL } from '../data/dashboardSample'
@@ -175,10 +177,17 @@ export default function CuentasPorPagar() {
     return () => { alive = false }
   }, [companyId, reloadKey])
 
-  const payAdjudicacion = async (row, bankAccountId, fecha) => {
+  // Registrar el pago NO toca el banco: guarda comprobante + referencia y marca
+  // la adjudicación PAGADA (por conciliar). El movimiento real llega por el CSV
+  // y se empata en la conciliación.
+  const payAdjudicacion = async (row, { fecha, referencia, comprobante }) => {
     await apiFetch(`/api/construccion/adjudicaciones/${row.id}/pagar`, {
       method: 'POST',
-      body: { bankAccountId, fecha: new Date((fecha || new Date().toISOString().slice(0, 10)) + 'T12:00:00').toISOString() },
+      body: {
+        fecha: new Date((fecha || new Date().toISOString().slice(0, 10)) + 'T12:00:00').toISOString(),
+        referencia: referencia?.trim() || undefined,
+        comprobante: comprobante ? { data: comprobante.data, mime: comprobante.mime, name: comprobante.name } : undefined,
+      },
     })
     setPaying(null)
     setReloadKey((k) => k + 1)
@@ -333,26 +342,28 @@ export default function CuentasPorPagar() {
         )}
       </div>
 
-      <Modal open={!!paying} onClose={() => setPaying(null)} title="Pagar a proveedor" size="sm">
+      <Modal open={!!paying} onClose={() => setPaying(null)} title="Registrar pago a proveedor" size="sm">
         {paying && (
-          <PayModal row={paying} bankAccounts={bankAccounts} onPay={payAdjudicacion} onClose={() => setPaying(null)} />
+          <PayModal row={paying} onPay={payAdjudicacion} onClose={() => setPaying(null)} />
         )}
       </Modal>
     </div>
   )
 }
 
-function PayModal({ row, bankAccounts, onPay, onClose }) {
-  const [bankAccountId, setBankAccountId] = useState(bankAccounts[0]?.id ?? '')
+// Registrar pago = comprobante + referencia + fecha. NO se elige cuenta ni se
+// mueve el banco: el movimiento real llega por el CSV y se empata al conciliar.
+function PayModal({ row, onPay, onClose }) {
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
+  const [referencia, setReferencia] = useState('')
+  const [comprobante, setComprobante] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
   const submit = async () => {
-    if (!bankAccountId) { setError('Elige una cuenta bancaria.'); return }
     setBusy(true); setError(null)
     try {
-      await onPay(row, bankAccountId, fecha)
+      await onPay(row, { fecha, referencia, comprobante })
     } catch (e) {
       setError(e.message || 'No se pudo registrar el pago')
       setBusy(false)
@@ -369,26 +380,30 @@ function PayModal({ row, bankAccounts, onPay, onClose }) {
         {row.folio}{row.proyecto !== '—' ? ` · ${row.proyecto}` : ''} · {row.formaPago === 'CREDITO' ? `Crédito ${row.diasCredito}d` : 'Contado'}
       </div>
 
-      <label className="stack">
-        <span>Cuenta bancaria</span>
-        <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
-          {bankAccounts.length === 0 && <option value="">Sin cuentas — captura una en Tesorería</option>}
-          {bankAccounts.map((a) => (
-            <option key={a.id} value={a.id}>{a.banco ? `${a.banco} · ` : ''}{a.nombre}{a.balance != null ? ` (${money(a.balance)})` : ''}</option>
-          ))}
-        </select>
-      </label>
+      <div className="cxp-pay-note muted small">
+        El pago queda <b>registrado (por conciliar)</b>. No mueve la cuenta bancaria —
+        eso se empata con el movimiento importado en la conciliación.
+      </div>
+
       <label className="stack">
         <span>Fecha de pago</span>
         <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+      </label>
+      <label className="stack">
+        <span>Referencia SPEI (opcional)</span>
+        <input value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="folio de la transferencia" />
+      </label>
+      <label className="stack">
+        <span>Comprobante (PDF / foto, opcional)</span>
+        <FileUpload value={comprobante} onChange={setComprobante} />
       </label>
 
       {error && <div className="cxp-pay-error">{error}</div>}
 
       <div className="prov-modal-actions" style={{ marginTop: 14 }}>
         <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>Cancelar</button>
-        <button type="button" className="btn btn-primary" onClick={submit} disabled={busy || !bankAccountId}>
-          {busy ? 'Registrando…' : `Pagar ${money(row.monto)}`}
+        <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>
+          {busy ? 'Registrando…' : 'Registrar pago'}
         </button>
       </div>
     </div>

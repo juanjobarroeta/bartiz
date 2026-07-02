@@ -430,7 +430,9 @@ function AdjudicacionesPanel({ data, onGoPagar }) {
     return { ...a, venc }
   })
   const total = rows.reduce((s, a) => s + (Number(a.total) || 0), 0)
-  const pagadas = rows.filter((a) => a.estado === 'PAGADA')
+  // PAGADA (por conciliar) y CONCILIADA cuentan como pagadas para el progreso.
+  const isPaid = (e) => e === 'PAGADA' || e === 'CONCILIADA'
+  const pagadas = rows.filter((a) => isPaid(a.estado))
   const totalPagado = pagadas.reduce((s, a) => s + (Number(a.total) || 0), 0)
   const today = startOfDay(new Date())
   const pendientes = rows.length - pagadas.length
@@ -463,7 +465,7 @@ function AdjudicacionesPanel({ data, onGoPagar }) {
           </thead>
           <tbody>
             {rows.map((a) => {
-              const overdue = a.estado !== 'PAGADA' && a.venc && startOfDay(a.venc) < today
+              const overdue = a.estado === 'POR_PAGAR' && a.venc && startOfDay(a.venc) < today
               return (
                 <tr key={a.id}>
                   <td><strong>{a.supplierNombre}</strong></td>
@@ -476,7 +478,7 @@ function AdjudicacionesPanel({ data, onGoPagar }) {
                   </td>
                   <td className="small">{a.diasEntrega != null ? `${a.diasEntrega} d` : '—'}</td>
                   <td className="small">
-                    {a.estado === 'PAGADA' ? (
+                    {isPaid(a.estado) ? (
                       <span className="muted">—</span>
                     ) : a.venc ? (
                       <span className={overdue ? 'adj-overdue' : ''}>{fmtDate(a.venc)}</span>
@@ -486,15 +488,24 @@ function AdjudicacionesPanel({ data, onGoPagar }) {
                   </td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(a.total)}</td>
                   <td>
-                    {a.estado === 'PAGADA' ? (
+                    {a.estado === 'CONCILIADA' ? (
                       <div>
-                        <span className="badge estado-pagada">Pagada</span>
+                        <span className="badge estado-pagada">Conciliada</span>
                         {a.bankTransaction && (
                           <div className="muted small">
                             {fmtDate(a.bankTransaction.fecha)}
                             {a.bankTransaction.bankAccount && ` · ${a.bankTransaction.bankAccount.banco ?? ''} ${a.bankTransaction.bankAccount.nombre ?? ''}`}
                           </div>
                         )}
+                      </div>
+                    ) : a.estado === 'PAGADA' ? (
+                      <div>
+                        <span className="badge estado-aprobada">Pagada · por conciliar</span>
+                        <div className="muted small">
+                          {a.pagadaAt ? fmtDate(a.pagadaAt) : ''}
+                          {a.referenciaPago ? ` · ref ${a.referenciaPago}` : ''}
+                          {a.comprobanteName ? ' · comprobante' : ''}
+                        </div>
                       </div>
                     ) : (
                       <span className="badge estado-pendiente">Por pagar</span>
