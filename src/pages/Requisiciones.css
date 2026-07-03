@@ -256,6 +256,13 @@
 /* Compact request-meta line replacing the old solicitud/entrega date row. */
 .req-meta-line { margin: -2px 0 6px; }
 
+/* Lock / already-authorized banners on the requisición detalle (#4). */
+.req-locked-banner, .req-approved-banner {
+  border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: 0.86rem;
+}
+.req-locked-banner { background: var(--surface-sunk, #f0ece4); color: var(--ink-2, #6b6258); border: 1px solid var(--border, #e5e1da); }
+.req-approved-banner { background: var(--info-soft, #eaf1fb); color: var(--info, #2c6fbb); border: 1px solid rgba(44,111,187,0.2); }
+
 /* Row actions (editar/eliminar) for un-authorized requisiciones in the list. */
 .reqs-actions { white-space: nowrap; text-align: right; }
 .reqs-actions .link.small { padding: 2px 6px; }

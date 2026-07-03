@@ -111,7 +111,28 @@ export default function RequisicionDetalle() {
     }
   }, [id])
 
-  const award = (partidaId, cotizacionId) => {
+  // Edit locking (#4): a PAGADA/cerrada requisición is read-only; an APROBADA
+  // one already generated cuentas por pagar, so changing an award warns first.
+  const estado = data?.estado
+  const locked = estado === 'PAGADA' || estado === 'RECHAZADA' || estado === 'CANCELADA'
+  const approved = estado === 'APROBADA'
+  const guardMutation = async () => {
+    if (locked) {
+      alertDialog({ message: `Esta requisición está ${String(estado).toLowerCase()}; ya no se puede modificar.` })
+      return false
+    }
+    if (approved) {
+      return confirmDialog({
+        title: 'Requisición ya autorizada',
+        message: 'Esta requisición ya fue autorizada y generó cuentas por pagar. Cambiar la adjudicación de un proveedor ya aprobado puede desincronizarlas. ¿Cambiar de todos modos?',
+        okLabel: 'Cambiar de todos modos',
+      })
+    }
+    return true
+  }
+
+  const award = async (partidaId, cotizacionId) => {
+    if (!(await guardMutation())) return
     const next = { ...awards }
     if (next[partidaId] === cotizacionId) delete next[partidaId]
     else next[partidaId] = cotizacionId
@@ -119,14 +140,15 @@ export default function RequisicionDetalle() {
     persistAwards(next)
   }
 
-  const awardCheapestAll = () => {
+  const awardCheapestAll = async () => {
+    if (!(await guardMutation())) return
     const next = {}
     for (const row of matrix ?? []) if (row.cheapest) next[row.partida.id] = row.cheapest.cotizacionId
     setAwards(next)
     persistAwards(next)
   }
 
-  const clearAwards = () => { setAwards({}); persistAwards({}) }
+  const clearAwards = async () => { if (!(await guardMutation())) return; setAwards({}); persistAwards({}) }
 
   // Group the awarded concepts by supplier for the summary: one purchase order
   // per supplier, plus the combined cost of the split award.
@@ -154,6 +176,7 @@ export default function RequisicionDetalle() {
   }, [data, awards])
 
   const selectCot = async (cotId) => {
+    if (locked) { alertDialog({ message: `Esta requisición está ${String(estado).toLowerCase()}; ya no se puede modificar.` }); return }
     if (!(await confirmDialog({ title: 'Elegir cotización ganadora', message: 'Se actualizarán precios y proveedor en la requisición. ¿Continuar?', okLabel: 'Sí, elegir' }))) return
     setBusy(true)
     try {
@@ -212,9 +235,22 @@ export default function RequisicionDetalle() {
         </div>
       </header>
 
-      <div className="req-actions">
-        <button className="secondary" onClick={() => setNewCotOpen(true)}>+ Agregar cotización</button>
-      </div>
+      {locked && (
+        <div className="req-locked-banner">
+          🔒 Esta requisición está {String(estado).toLowerCase()} y es de solo lectura. No se pueden cambiar cotizaciones ni adjudicaciones.
+        </div>
+      )}
+      {approved && (
+        <div className="req-approved-banner">
+          Esta requisición ya fue autorizada. Cambiar adjudicaciones pedirá confirmación (ya generaron cuentas por pagar).
+        </div>
+      )}
+
+      {!locked && (
+        <div className="req-actions">
+          <button className="secondary" onClick={() => setNewCotOpen(true)}>+ Agregar cotización</button>
+        </div>
+      )}
 
       {/* Pagos por proveedor (adjudicaciones) — el modelo por proveedor reemplaza
           el pago único cuando la requisición ya fue adjudicada. */}
@@ -282,16 +318,18 @@ export default function RequisicionDetalle() {
               )}
             </div>
           </div>
-          <div className="aq-actions">
-            <button type="button" className="link small" onClick={awardCheapestAll}>
-              Adjudicar lo más barato
-            </button>
-            {adjudicacion?.assigned > 0 && (
-              <button type="button" className="link small danger" onClick={clearAwards}>
-                Limpiar
+          {!locked && (
+            <div className="aq-actions">
+              <button type="button" className="link small" onClick={awardCheapestAll}>
+                Adjudicar lo más barato
               </button>
-            )}
-          </div>
+              {adjudicacion?.assigned > 0 && (
+                <button type="button" className="link small danger" onClick={clearAwards}>
+                  Limpiar
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="matrix-scroll">
           <table className="matrix-table">
