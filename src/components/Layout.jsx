@@ -36,7 +36,7 @@ const ALL_NAV_ITEMS = [
   { path: '/gastos',              label: 'Gastos',        icon: 'gastos',        ported: true },
   { path: '/caja-chica',          label: 'Caja Chica',    icon: 'cajachica',     ported: true },
   { path: '/destajo',             label: 'Destajo',       icon: 'destajo',       ported: true },
-  { path: '/tesoreria-bartiz',    label: 'Tesorería',     icon: 'tesoreria',     ported: true },
+  { path: '/tesoreria-bartiz',    label: 'Bancos y conciliación', icon: 'tesoreria', ported: true },
   { path: '/cuentas-por-pagar',   label: 'Cuentas por pagar', icon: 'receipt',   ported: true },
   { path: '/facturas',            label: 'Facturas (CFDI)', icon: 'file',        ported: true },
   { path: '/reportes',            label: 'Reportes',      icon: 'reportes',      ported: true },
@@ -66,7 +66,7 @@ const MOBILE_PWA_ROUTES = new Set(['/', '/proyectos', '/tesoreria-bartiz'])
 const REDESIGNED_ROUTES = {
   '/': { title: 'Dashboard', sub: 'Portafolio · cartera y caja' },
   '/proyectos': { title: 'Proyectos', sub: 'Cartera de obra · contabilidad-os' },
-  '/tesoreria-bartiz': { title: 'Tesorería', sub: 'Cuentas y movimientos de la empresa' },
+  '/tesoreria-bartiz': { title: 'Bancos y conciliación', sub: 'Estados de cuenta importados y su conciliación' },
   '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Vencimientos y flujo de pagos' },
   '/compras-por-autorizar': { title: 'Compras por autorizar', sub: 'Compara proveedores y autoriza' },
   '/facturas': { title: 'Facturas (CFDI)', sub: 'Inbox y conciliación de comprobantes' },

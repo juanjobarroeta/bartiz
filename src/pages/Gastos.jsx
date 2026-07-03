@@ -139,7 +139,6 @@ export default function Gastos() {
           <NewGastoForm
             companyId={companyId}
             proyectos={proyectos}
-            bankAccounts={bankAccounts}
             onCreated={reload}
           />
         </section>
@@ -236,7 +235,10 @@ function GastoRow({ gasto, onChange, companyId }) {
     }
   }
 
-  const pagar = () => {
+  // Aprobar (sin pagar): el gasto pasa a APROBADO y entra a Cuentas por pagar,
+  // donde admin lo manda a tesorería y tesorería registra el pago. El pago ya
+  // no crea movimientos bancarios; la cuenta real se resuelve al conciliar.
+  const aprobar = async () => {
     if (!hasAttribution) {
       alertDialog({
         title: 'Atribución requerida',
@@ -246,7 +248,15 @@ function GastoRow({ gasto, onChange, companyId }) {
       setAttributing(true)
       return
     }
-    setPickerOpen(true)
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/gastos/${gasto.id}/aprobar`, { method: 'POST' })
+      onChange?.()
+    } catch (err) {
+      alertDialog({ message: err.message || 'Error al aprobar' })
+    } finally {
+      setBusy(false)
+    }
   }
 
   const onBankTxPicked = async (tx) => {
@@ -361,7 +371,7 @@ function GastoRow({ gasto, onChange, companyId }) {
 
       {gasto.estado === 'PENDIENTE' && (
         <div className="gasto-actions">
-          <button className="primary small" disabled={busy} onClick={pagar}>✓ Aprobar y pagar</button>
+          <button className="primary small" disabled={busy} onClick={aprobar}>✓ Aprobar → cuentas por pagar</button>
           {!hasAttribution && !attributing && (
             <button className="secondary small" disabled={busy} onClick={() => setAttributing(true)}>
               ⚫ Marcar indirecto
@@ -405,9 +415,8 @@ const CATEGORIAS_INDIRECTO = [
 ]
 
 // ── New gasto form with live suggest + 3-mode picker ─────────────────────────
-function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
+function NewGastoForm({ companyId, proyectos, onCreated }) {
   const [proyectoId, setProyectoId] = useState('')
-  const [bankAccountId, setBankAccountId] = useState('')
   const [beneficiarioNombre, setBeneficiario] = useState('')
   const [descripcion, setDesc] = useState('')
   const [importe, setImporte] = useState('')
@@ -426,16 +435,11 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
   const [busy, setBusy] = useState(false)
   const timer = useRef(null)
 
-  // Default project & account when loaded
+  // Default project when loaded. (La cuenta ya no se elige aquí: la cuenta
+  // real se determina en la conciliación CFDI ↔ movimiento bancario.)
   useEffect(() => {
     if (proyectos.length && !proyectoId) setProyectoId(proyectos[0].id)
   }, [proyectos, proyectoId])
-  useEffect(() => {
-    if (bankAccounts.length && !bankAccountId) {
-      const main = bankAccounts.find(a => a.tipo === 'CHEQUES') ?? bankAccounts[0]
-      setBankAccountId(main.id)
-    }
-  }, [bankAccounts, bankAccountId])
 
   // Live suggest as user types descripción
   useEffect(() => {
@@ -477,8 +481,8 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
 
   const submit = async (e) => {
     e.preventDefault()
-    if (!proyectoId || !bankAccountId || !beneficiarioNombre || !descripcion) {
-      alertDialog({ message: 'Completa beneficiario, descripción, proyecto y cuenta.' })
+    if (!proyectoId || !beneficiarioNombre || !descripcion) {
+      alertDialog({ message: 'Completa beneficiario, descripción y proyecto.' })
       return
     }
     const imp = parseFloat(importe)
@@ -502,7 +506,6 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
         method: 'POST',
         body: {
           proyectoId,
-          bankAccountId,
           beneficiarioNombre: beneficiarioNombre.trim(),
           descripcion: descripcion.trim(),
           importe: imp,
@@ -649,21 +652,14 @@ function NewGastoForm({ companyId, proyectos, bankAccounts, onCreated }) {
         </div>
       )}
 
-      <label>
-        <span>Pagado desde</span>
-        <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
-          {bankAccounts.map(a => (
-            <option key={a.id} value={a.id}>
-              {a.banco} {a.nombre} {a.tipo === 'CAJA' ? '(Caja chica)' : a.tipo === 'TARJETA_DEPARTAMENTAL' ? `(TD ${a.titular ?? ''})` : ''}
-            </option>
-          ))}
-        </select>
-      </label>
-
       <label className="stack">
         <span>Comprobante (foto / PDF)</span>
         <FileUpload value={comprobanteFile} onChange={setComprobanteFile} />
       </label>
+      <div className="muted small">
+        La cuenta que pagó ya no se captura aquí — se determina al conciliar el
+        CFDI con el movimiento bancario importado.
+      </div>
 
       <button type="submit" className="primary" disabled={busy}>
         {busy ? 'Guardando…' : '+ Crear (queda PENDIENTE)'}
