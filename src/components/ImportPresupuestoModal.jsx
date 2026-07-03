@@ -159,7 +159,7 @@ export default function ImportPresupuestoModal({
       {stage === 'pick' && (
         <div className="imp-pick">
           <p className="muted small" style={{ marginTop: 0 }}>
-            Sube el archivo Excel del presupuesto (template Gerardo: hoja{' '}
+            Sube el archivo Excel del presupuesto (formato estándar: hoja{' '}
             <strong>PRESUPUESTO</strong> con capítulos numerados{' '}
             <span className="mono">1.1.3.5.1</span>). El sistema detecta el árbol,
             lee los insumos y crea el presupuesto maestro del proyecto.

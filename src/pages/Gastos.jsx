@@ -150,8 +150,8 @@ export default function Gastos() {
           </div>
           {!cajaAccount ? (
             <div className="pd-empty">
-              No hay cuenta <strong>CAJA</strong> configurada. Crea un BankAccount
-              con tipo=CAJA y titular=Rosy desde contabilidad-os o el script seed.
+              No hay cuenta <strong>CAJA</strong> configurada. Crea una cuenta
+              tipo CAJA con su titular desde contabilidad-os → Bancos.
             </div>
           ) : (
             <div className="gastos-caja-panel">

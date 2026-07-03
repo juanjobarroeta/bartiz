@@ -176,7 +176,7 @@ export default function Requisiciones() {
       <header>
         <h1>Requisiciones de material</h1>
         <p className="muted small">
-          Gerardo solicita materiales por requisición. Captura los precios de
+          Solicita materiales por requisición. Captura los precios de
           cada proveedor por concepto, envíala a autorización y elige qué
           proveedor surte cada concepto.
         </p>
@@ -688,8 +688,8 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
           <strong>Ofertas de proveedores</strong>
           <div className="muted small">
             Agrega un proveedor por columna y captura su precio por concepto.
-            Al enviar, cada proveedor queda como una cotización para que Gerardo
-            adjudique concepto por concepto.
+            Al enviar, cada proveedor queda como una cotización lista para
+            adjudicar concepto por concepto en Compras por autorizar.
           </div>
         </div>
         <button type="button" className="link small" onClick={addOffer}>+ agregar proveedor</button>
