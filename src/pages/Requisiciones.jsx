@@ -483,11 +483,40 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
       .filter((o) => o.lineas.length > 0),
   })
 
+  // Offers that carry data (a name and/or prices) but would be dropped by
+  // buildPayload — because the name wasn't committed (typed in the picker but
+  // not confirmed as "nombre libre") or no price falls on a concepto with
+  // cantidad > 0. We surface these instead of dropping them silently.
+  const droppedOffers = (lines) =>
+    offers
+      .map((o) => {
+        const hasName = !!offerName(o)
+        const hasAnyPrice = partidas.some((p) => parseFloat(o.prices[p.key]) > 0)
+        const hasValidPriced = lines.some((p) => parseFloat(o.prices[p.key]) > 0)
+        if (!hasName && !hasAnyPrice) return null // truly empty column — ignore
+        if (hasName && hasValidPriced) return null // will be saved
+        const label = offerName(o) || 'Un proveedor sin nombre'
+        const reason = !hasName
+          ? 'tiene precios pero no confirmaste el nombre (usa "nombre libre")'
+          : 'no tiene precios en conceptos con cantidad mayor a 0'
+        return `• ${label} — ${reason}`
+      })
+      .filter(Boolean)
+
   const persist = async (estado) => {
     const lines = validLines()
     if (lines.length === 0) {
       alertDialog({ message: 'Agrega al menos una línea con descripción y cantidad.' })
       return null
+    }
+    const dropped = droppedOffers(lines)
+    if (dropped.length > 0) {
+      const ok = await confirmDialog({
+        title: 'Ofertas que no se guardarán',
+        message: `Estas columnas de proveedor no se guardarán:\n\n${dropped.join('\n')}\n\n¿Continuar de todos modos?`,
+        okLabel: 'Continuar',
+      })
+      if (!ok) return null
     }
     const payload = buildPayload(lines, estado)
     const url = serverId
