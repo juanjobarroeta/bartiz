@@ -42,13 +42,13 @@ const ESTADO_META = {
   PAGADA: { cls: 'active', label: 'Pagada' },
 }
 
-// Aging buckets (by days until vencimiento). Order matters for display.
+// Aging buckets (by days until vencimiento). Clickable — they filter the
+// table: vencido / hoy / esta semana / más adelante, per the admin workflow.
 const BUCKETS = [
   { id: 'vencido', label: 'Vencido', tone: 'neg', test: (d) => d != null && d < 0 },
-  { id: 'd7', label: '0–7 días', tone: 'warn', test: (d) => d != null && d >= 0 && d <= 7 },
-  { id: 'd15', label: '8–15 días', tone: 'info', test: (d) => d != null && d > 7 && d <= 15 },
-  { id: 'd30', label: '16–30 días', tone: 'muted', test: (d) => d != null && d > 15 && d <= 30 },
-  { id: 'd30plus', label: '30+ días', tone: 'muted', test: (d) => d != null && d > 30 },
+  { id: 'hoy', label: 'Vence hoy', tone: 'warn', test: (d) => d === 0 },
+  { id: 'semana', label: 'Esta semana', tone: 'info', test: (d) => d != null && d >= 1 && d <= 7 },
+  { id: 'despues', label: 'Más adelante', tone: 'muted', test: (d) => d != null && d > 7 },
   { id: 'sinfecha', label: 'Sin fecha', tone: 'muted', test: (d) => d == null },
 ]
 
@@ -70,8 +70,10 @@ function fromAdjudicacion(a, suppliersById) {
   const base = a.aprobadaAt || a.createdAt
   return {
     id: a.id, // adjudicación id — what we pay
+    kind: 'adjudicacion',
     solicitudId: a.solicitudId, // requisición — what we navigate to
     supplierName: a.supplierNombre ?? '—',
+    detalle: null,
     proyecto: a.proyecto?.codigo ?? '—',
     folio: a.folio ?? '—',
     monto: Number(a.total) || 0,
@@ -79,8 +81,32 @@ function fromAdjudicacion(a, suppliersById) {
     diasCredito: dias,
     diasEntrega: a.diasEntrega,
     vencimiento: base ? addDays(startOfDay(new Date(base)), dias) : null,
+    enviadaTesoreriaAt: a.enviadaTesoreriaAt ?? null,
     estado: a.estado === 'PAGADA' ? 'PAGADA' : 'APROBADA',
     payable: a.estado !== 'PAGADA',
+  }
+}
+
+// Gasto APROBADO → payable row. Same admin→tesorería workflow as las compras;
+// un gasto aprobado es contado (vence al aprobarse).
+function fromGasto(g) {
+  const base = g.aprobadoAt || g.createdAt
+  return {
+    id: g.id,
+    kind: 'gasto',
+    solicitudId: null,
+    supplierName: g.beneficiarioNombre ?? '—',
+    detalle: g.descripcion ?? null,
+    proyecto: g.proyecto?.codigo ?? '—',
+    folio: 'Gasto',
+    monto: Number(g.importe) || 0,
+    formaPago: 'CONTADO',
+    diasCredito: 0,
+    diasEntrega: null,
+    vencimiento: base ? startOfDay(new Date(base)) : null,
+    enviadaTesoreriaAt: g.enviadaTesoreriaAt ?? null,
+    estado: 'APROBADA',
+    payable: true,
   }
 }
 
@@ -138,16 +164,22 @@ export default function CuentasPorPagar() {
         }
       } catch { /* keep sample saldo */ }
 
-      // 1) per-supplier payables (adjudicaciones) — source of truth.
+      // 1) per-supplier payables (adjudicaciones) + gastos aprobados — the
+      // unified admin queue: todo lo aprobado vive aquí.
       try {
-        const [adjs, sups] = await Promise.all([
-          apiFetch(`/api/construccion/adjudicaciones?companyId=${encodeURIComponent(companyId)}&estado=POR_PAGAR`),
+        const [adjs, gastos, sups] = await Promise.all([
+          apiFetch(`/api/construccion/adjudicaciones?companyId=${encodeURIComponent(companyId)}&estado=POR_PAGAR`).catch(() => []),
+          apiFetch(`/api/construccion/gastos?companyId=${encodeURIComponent(companyId)}&estado=APROBADO`).catch(() => []),
           apiFetch(`/api/construccion/suppliers?companyId=${encodeURIComponent(companyId)}`).catch(() => []),
         ])
-        if (alive && Array.isArray(adjs) && adjs.length) {
-          const byId = {}
-          for (const s of Array.isArray(sups) ? sups : []) byId[s.id] = s
-          setPayables(adjs.map((a) => fromAdjudicacion(a, byId)))
+        const byId = {}
+        for (const s of Array.isArray(sups) ? sups : []) byId[s.id] = s
+        const rows = [
+          ...(Array.isArray(adjs) ? adjs : []).map((a) => fromAdjudicacion(a, byId)),
+          ...(Array.isArray(gastos) ? gastos : []).map(fromGasto),
+        ]
+        if (alive && rows.length) {
+          setPayables(rows)
           setUsingSample(false)
           setLoading(false)
           return
@@ -193,6 +225,42 @@ export default function CuentasPorPagar() {
     setReloadKey((k) => k + 1)
   }
 
+  // Registrar pago de un gasto aprobado (mismo modal): marca PAGADO, sin tocar
+  // el banco. La cuenta real se resuelve al conciliar.
+  const payGasto = async (row, { fecha, referencia, comprobante }) => {
+    await apiFetch(`/api/construccion/gastos/${row.id}/aprobar-pagar`, {
+      method: 'POST',
+      body: {
+        fecha: new Date((fecha || new Date().toISOString().slice(0, 10)) + 'T12:00:00').toISOString(),
+        referencia: referencia?.trim() || undefined,
+        pagoComprobanteData: comprobante?.data ?? undefined,
+        pagoComprobanteMime: comprobante?.mime ?? undefined,
+        pagoComprobanteName: comprobante?.name ?? undefined,
+      },
+    })
+    setPaying(null)
+    setReloadKey((k) => k + 1)
+  }
+
+  const pay = (row, args) => (row.kind === 'gasto' ? payGasto(row, args) : payAdjudicacion(row, args))
+
+  // Admin → tesorería hand-off. La tesorera trabaja del filtro "En tesorería".
+  const enviarTesoreria = async (row) => {
+    const url = row.kind === 'gasto'
+      ? `/api/construccion/gastos/${row.id}/enviar-tesoreria`
+      : `/api/construccion/adjudicaciones/${row.id}/enviar-tesoreria`
+    try {
+      await apiFetch(url, { method: 'POST' })
+      setReloadKey((k) => k + 1)
+    } catch (e) {
+      console.error('enviar a tesorería:', e)
+    }
+  }
+
+  // Filters: bucket (vencimiento) + etapa (por enviar / en tesorería).
+  const [bucketFilter, setBucketFilter] = useState(null)
+  const [etapa, setEtapa] = useState('todas') // todas | porEnviar | enTesoreria
+
   const today = startOfDay(new Date())
   const rows = useMemo(() => {
     return payables
@@ -206,6 +274,17 @@ export default function CuentasPorPagar() {
         return a.daysUntil - b.daysUntil
       })
   }, [payables])
+
+  const visibleRows = useMemo(() => {
+    let out = rows
+    if (bucketFilter) {
+      const b = BUCKETS.find((x) => x.id === bucketFilter)
+      if (b) out = out.filter((p) => b.test(p.daysUntil))
+    }
+    if (etapa === 'porEnviar') out = out.filter((p) => !p.enviadaTesoreriaAt)
+    if (etapa === 'enTesoreria') out = out.filter((p) => !!p.enviadaTesoreriaAt)
+    return out
+  }, [rows, bucketFilter, etapa])
 
   const totals = useMemo(() => {
     const total = rows.reduce((a, p) => a + p.monto, 0)
@@ -253,14 +332,20 @@ export default function CuentasPorPagar() {
           </div>
         </div>
 
-        {/* Aging buckets */}
+        {/* Aging buckets — clickable filters */}
         <div className="cxp-buckets">
           {totals.buckets.map((b) => (
-            <div key={b.id} className={'cxp-bucket ' + b.tone}>
+            <button
+              type="button"
+              key={b.id}
+              className={'cxp-bucket ' + b.tone + (bucketFilter === b.id ? ' active' : '')}
+              onClick={() => setBucketFilter(bucketFilter === b.id ? null : b.id)}
+              title="Filtrar por vencimiento"
+            >
               <div className="cxp-bucket-label">{b.label}</div>
               <div className="cxp-bucket-sum num">{compactMoney(b.sum)}</div>
               <div className="cxp-bucket-count">{b.count} cuenta{b.count === 1 ? '' : 's'}</div>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -268,12 +353,30 @@ export default function CuentasPorPagar() {
         <div className="card">
           <div className="card-head">
             <h3>Cuentas por pagar</h3>
-            <span className="hint">Ordenadas por vencimiento · autorizadas pendientes de pago</span>
+            <div className="cxp-etapa">
+              {[['todas', 'Todas'], ['porEnviar', 'Por enviar'], ['enTesoreria', 'En tesorería']].map(([id, label]) => (
+                <button
+                  type="button"
+                  key={id}
+                  className={'cxp-etapa-btn' + (etapa === id ? ' active' : '')}
+                  onClick={() => setEtapa(id)}
+                >
+                  {label}
+                  {id === 'enTesoreria' && rows.some((r) => r.enviadaTesoreriaAt) && (
+                    <span className="cxp-etapa-n">{rows.filter((r) => r.enviadaTesoreriaAt).length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
           {loading ? (
             <div className="empty">Cargando…</div>
-          ) : rows.length === 0 ? (
-            <div className="empty">Nada por pagar. Las requisiciones autorizadas aparecerán aquí con su vencimiento.</div>
+          ) : visibleRows.length === 0 ? (
+            <div className="empty">
+              {rows.length === 0
+                ? 'Nada por pagar. Las compras autorizadas y los gastos aprobados aparecerán aquí con su vencimiento.'
+                : 'Nada en este filtro.'}
+            </div>
           ) : (
             <div className="scroll-x">
               <table className="ptable">
@@ -290,8 +393,7 @@ export default function CuentasPorPagar() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((p) => {
-                    const meta = ESTADO_META[p.estado] ?? { cls: 'plan', label: p.estado }
+                  {visibleRows.map((p) => {
                     const overdue = p.daysUntil != null && p.daysUntil < 0
                     const soon = p.daysUntil != null && p.daysUntil >= 0 && p.daysUntil <= 7
                     const rel = p.daysUntil == null ? ''
@@ -299,8 +401,15 @@ export default function CuentasPorPagar() {
                       : p.daysUntil === 0 ? 'hoy'
                       : `en ${p.daysUntil} d`
                     return (
-                      <tr key={p.id} onClick={() => navigate(`/requisiciones/${p.solicitudId || p.id}`)}>
-                        <td><span className="proj-name">{p.supplierName}</span></td>
+                      <tr
+                        key={p.kind + p.id}
+                        onClick={() => { if (p.solicitudId) navigate(`/requisiciones/${p.solicitudId}`) }}
+                        style={p.solicitudId ? undefined : { cursor: 'default' }}
+                      >
+                        <td>
+                          <span className="proj-name">{p.supplierName}</span>
+                          {p.detalle && <div className="muted" style={{ fontSize: 11.5 }}>{p.detalle.slice(0, 60)}</div>}
+                        </td>
                         <td className="mono" style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>{p.proyecto}</td>
                         <td className="mono" style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{p.folio}</td>
                         <td>
@@ -319,11 +428,18 @@ export default function CuentasPorPagar() {
                             </div>
                           )}
                         </td>
-                        <td><span className={'status ' + meta.cls}><span className="sdot" />{meta.label}</span></td>
+                        <td>
+                          {p.enviadaTesoreriaAt
+                            ? <span className="status active"><span className="sdot" />En tesorería</span>
+                            : <span className="status plan"><span className="sdot" />Por enviar</span>}
+                        </td>
                         <td className="r" onClick={(e) => e.stopPropagation()}>
-                          {p.payable !== false && p.estado !== 'PAGADA'
-                            ? <button className="cxp-pay-btn" onClick={() => setPaying(p)}>Pagar</button>
-                            : <span className="row-go"><Icon name="chevronRight" /></span>}
+                          {!p.enviadaTesoreriaAt && (
+                            <button className="cxp-send-btn" onClick={() => enviarTesoreria(p)} title="Mandar a tesorería para pago">
+                              → Tesorería
+                            </button>
+                          )}
+                          <button className="cxp-pay-btn" onClick={() => setPaying(p)}>Pagar</button>
                         </td>
                       </tr>
                     )
@@ -342,9 +458,9 @@ export default function CuentasPorPagar() {
         )}
       </div>
 
-      <Modal open={!!paying} onClose={() => setPaying(null)} title="Registrar pago a proveedor" size="sm">
+      <Modal open={!!paying} onClose={() => setPaying(null)} title="Registrar pago" size="sm">
         {paying && (
-          <PayModal row={paying} onPay={payAdjudicacion} onClose={() => setPaying(null)} />
+          <PayModal row={paying} onPay={pay} onClose={() => setPaying(null)} />
         )}
       </Modal>
     </div>

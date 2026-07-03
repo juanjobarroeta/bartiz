@@ -17,7 +17,14 @@
   border-radius: var(--r-md);
   padding: 13px 15px;
   box-shadow: var(--shadow-sm);
+  /* Clickable filter: button reset + affordance. */
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.12s, transform 0.12s;
 }
+.ds .cxp-bucket:hover { box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.08)); }
+.ds .cxp-bucket.active { outline: 2px solid var(--brand, #e2571e); outline-offset: -1px; }
 .ds .cxp-bucket.neg { border-left-color: var(--neg); }
 .ds .cxp-bucket.warn { border-left-color: var(--warn); }
 .ds .cxp-bucket.info { border-left-color: var(--info); }
@@ -56,6 +63,27 @@
   background: var(--ink, #2a241f); color: #fff; border: none; cursor: pointer;
 }
 .cxp-pay-btn:hover { opacity: 0.9; }
+
+/* Enviar a tesorería (admin hand-off) — ghost button next to Pagar. */
+.cxp-send-btn {
+  font-size: 0.8rem; font-weight: 700; padding: 5px 12px; border-radius: 8px;
+  background: transparent; color: var(--ink, #2a241f);
+  border: 1px solid var(--line-2, #d9d3c9); cursor: pointer; margin-right: 6px;
+}
+.cxp-send-btn:hover { background: var(--surface-2, #f6f2ea); }
+
+/* Etapa segmented control (Todas / Por enviar / En tesorería). */
+.ds .cxp-etapa { display: inline-flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.ds .cxp-etapa-btn {
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2);
+  background: transparent; border: none; border-radius: 8px; padding: 5px 12px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.ds .cxp-etapa-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+.ds .cxp-etapa-n {
+  font-size: 10.5px; font-weight: 700; background: var(--brand-soft, #fdeae0); color: var(--brand-strong, #c24a17);
+  border-radius: 999px; padding: 1px 7px;
+}
 .cxp-pay-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
 .cxp-pay .stack { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; font-size: 0.82rem; font-weight: 600; color: var(--ink-2); }
 .cxp-pay .stack select, .cxp-pay .stack input { font-size: 0.9rem; padding: 8px 10px; border: 1px solid var(--line-2, #e5e1da); border-radius: 8px; }
