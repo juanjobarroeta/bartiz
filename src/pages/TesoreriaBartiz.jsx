@@ -60,6 +60,9 @@ export default function TesoreriaBartiz() {
   const [txLoading, setTxLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [uploadOpen, setUploadOpen] = useState(false)
+  // Movimiento en proceso de conciliación manual (abre el modal de candidatos).
+  const [conciliando, setConciliando] = useState(null)
+  const [autoBusy, setAutoBusy] = useState(false)
 
   // Load accounts with balances baked in
   useEffect(() => {
@@ -95,6 +98,38 @@ export default function TesoreriaBartiz() {
   useEffect(() => {
     reloadTxs()
   }, [reloadTxs])
+
+  // Corre el auto-conciliador fiscal (solo empates de alta confianza) para
+  // todas las cuentas de la empresa.
+  const autoConciliar = async () => {
+    setAutoBusy(true)
+    try {
+      const r = await apiFetch('/api/construccion/bank-transactions/auto-conciliar', {
+        method: 'POST',
+        body: { companyId },
+      })
+      await reloadTxs()
+      alertDialog({
+        title: 'Auto-conciliación',
+        message: r.matched > 0
+          ? `${r.matched} movimiento${r.matched === 1 ? '' : 's'} conciliado${r.matched === 1 ? '' : 's'} automáticamente (de ${r.total} sin conciliar).`
+          : `Sin empates automáticos de alta confianza (${r.total} movimientos sin conciliar). Concílialos manualmente con el botón Conciliar.`,
+      })
+    } catch (e) {
+      alertDialog({ message: e.message || 'No se pudo correr la auto-conciliación' })
+    } finally {
+      setAutoBusy(false)
+    }
+  }
+
+  const desconciliar = async (tx) => {
+    try {
+      await apiFetch(`/api/construccion/bank-transactions/${tx.id}/desconciliar`, { method: 'POST' })
+      reloadTxs()
+    } catch (e) {
+      alertDialog({ message: e.message || 'No se pudo desconciliar' })
+    }
+  }
 
   const grouped = useMemo(() => {
     const m = new Map()
@@ -200,6 +235,10 @@ export default function TesoreriaBartiz() {
                       </div>
                     </div>
                     <div className="spacer" />
+                    <button className="btn btn-ghost" onClick={autoConciliar} disabled={autoBusy} title="Empata automáticamente movimientos con CFDIs (solo coincidencias de alta confianza)">
+                      <Icon name="shuffle" />
+                      {autoBusy ? 'Conciliando…' : 'Auto-conciliar'}
+                    </button>
                     <button className="btn btn-dark" onClick={() => setUploadOpen(true)}>
                       <Icon name="external" style={{ transform: 'rotate(-90deg)' }} />
                       Importar movimientos
@@ -219,6 +258,21 @@ export default function TesoreriaBartiz() {
                       ))}
                     </div>
                   </div>
+
+                  <Modal
+                    open={!!conciliando}
+                    onClose={() => setConciliando(null)}
+                    title="Conciliar movimiento con CFDI"
+                    size="md"
+                  >
+                    {conciliando && (
+                      <ConciliarModal
+                        tx={conciliando}
+                        onClose={() => setConciliando(null)}
+                        onDone={() => { setConciliando(null); reloadTxs() }}
+                      />
+                    )}
+                  </Modal>
 
                   <Modal
                     open={uploadOpen}
@@ -250,6 +304,7 @@ export default function TesoreriaBartiz() {
                             <th>Status</th>
                             <th>Vinculado a</th>
                             <th className="r">Monto</th>
+                            <th></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -262,7 +317,7 @@ export default function TesoreriaBartiz() {
                               : t.rayaPagada
                               ? `Raya ${t.rayaPagada.id.slice(0, 8)}`
                               : t.invoice
-                              ? `Factura ${t.invoice.folio}`
+                              ? `CFDI ${[t.invoice.serie, t.invoice.folio].filter(Boolean).join('-') || (t.invoice.uuid ? t.invoice.uuid.slice(0, 8) + '…' : '')} · ${fmtMoney(t.invoice.total)}`
                               : null
                             const positive = t.tipo === 'CREDITO' || (t.monto ?? 0) >= 0
                             return (
@@ -304,6 +359,22 @@ export default function TesoreriaBartiz() {
                                     {fmtMoney(t.monto)}
                                   </span>
                                 </td>
+                                <td className="r" style={{ whiteSpace: 'nowrap' }}>
+                                  {t.status === 'UNMATCHED' && (
+                                    <button className="btn btn-ghost btn-sm" onClick={() => setConciliando(t)}>
+                                      Conciliar
+                                    </button>
+                                  )}
+                                  {t.status === 'MATCHED' && t.invoice && (
+                                    <button
+                                      className="link small danger"
+                                      onClick={() => desconciliar(t)}
+                                      title="Deshacer el empate con este CFDI"
+                                    >
+                                      desconciliar
+                                    </button>
+                                  )}
+                                </td>
                               </tr>
                             )
                           })}
@@ -320,6 +391,113 @@ export default function TesoreriaBartiz() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── ConciliarModal ───────────────────────────────────────────────────────────
+// Candidatos CFDI para un movimiento sin conciliar, rankeados por el mismo
+// scoring del auto-conciliador fiscal (monto/fecha/RFC). Elegir uno confirma
+// el empate (status MATCHED + invoiceId) — la conciliación real.
+function ConciliarModal({ tx, onClose, onDone }) {
+  const [loading, setLoading] = useState(true)
+  const [candidates, setCandidates] = useState([])
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    apiFetch(`/api/construccion/bank-transactions/${tx.id}/cfdi-candidatos`)
+      .then((r) => { if (alive) setCandidates(r.candidates ?? []) })
+      .catch((e) => alertDialog({ message: e.message || 'Error al cargar candidatos' }))
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [tx.id])
+
+  const conciliar = async (inv) => {
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/bank-transactions/${tx.id}/conciliar`, {
+        method: 'POST',
+        body: { invoiceId: inv.id },
+      })
+      onDone?.()
+    } catch (e) {
+      alertDialog({ message: e.message || 'No se pudo conciliar' })
+      setBusy(false)
+    }
+  }
+
+  const confianza = (score) => (score >= 130 ? 'alta' : score >= 70 ? 'media' : 'baja')
+
+  return (
+    <div className="ds">
+      <div className="conc-tx">
+        <div>
+          <div className="proj-name">{tx.descripcion?.slice(0, 70) || '—'}</div>
+          <div className="bank-meta">{fmtDate(tx.fecha)}{tx.referencia ? ` · Ref: ${tx.referencia}` : ''}</div>
+        </div>
+        <span className="money big" style={{ color: (tx.monto ?? 0) >= 0 ? 'var(--pos)' : 'var(--neg)' }}>
+          {fmtMoney(tx.monto)}
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="empty">Buscando CFDIs candidatos…</div>
+      ) : candidates.length === 0 ? (
+        <div className="empty">
+          Sin CFDIs candidatos (±30 días, ±5% del monto). Verifica que el CFDI
+          esté descargado del SAT en contabilidad-os.
+        </div>
+      ) : (
+        <div className="scroll-x">
+          <table className="ptable">
+            <thead>
+              <tr>
+                <th>CFDI</th>
+                <th>Emisor/Receptor</th>
+                <th>Fecha</th>
+                <th className="r">Total</th>
+                <th>Confianza</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map((c) => (
+                <tr key={c.id} style={{ cursor: 'default' }}>
+                  <td>
+                    <div className="mono" style={{ fontSize: 12.5 }}>
+                      {[c.serie, c.folio].filter(Boolean).join('-') || (c.uuid ? c.uuid.slice(0, 8) + '…' : '—')}
+                    </div>
+                    <div className="bank-meta">
+                      {c.metodoPago}{c.alreadyMatched ? ` · pagada parcial (resta ${fmtMoney(c.remainingBalance)})` : ''}
+                    </div>
+                  </td>
+                  <td style={{ fontSize: 13 }}>
+                    {c.nombre ?? '—'}
+                    {c.rfc && <div className="bank-meta mono">{c.rfc}</div>}
+                  </td>
+                  <td className="mono" style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>{fmtDate(c.fecha)}</td>
+                  <td className="r"><span className="money">{fmtMoney(c.total)}</span></td>
+                  <td>
+                    <span className={'pill ' + (confianza(c.score) === 'alta' ? 'brand' : confianza(c.score) === 'media' ? 'warn' : '')}>
+                      {confianza(c.score)}
+                    </span>
+                  </td>
+                  <td className="r">
+                    <button className="btn btn-dark btn-sm" disabled={busy} onClick={() => conciliar(c)}>
+                      Conciliar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="modal-actions" style={{ marginTop: 12 }}>
+        <button type="button" className="btn btn-ghost" onClick={onClose}>Cerrar</button>
       </div>
     </div>
   )
