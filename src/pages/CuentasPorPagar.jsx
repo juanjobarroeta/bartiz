@@ -465,7 +465,7 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
 
       <Modal open={!!paying} onClose={() => setPaying(null)} title="Registrar pago" size="sm">
         {paying && (
-          <PayModal row={paying} onPay={pay} onClose={() => setPaying(null)} />
+          <PayModal row={paying} companyId={companyId} onPay={pay} onClose={() => setPaying(null)} />
         )}
       </Modal>
     </div>
@@ -474,17 +474,63 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
 
 // Registrar pago = comprobante + referencia + fecha. NO se elige cuenta ni se
 // mueve el banco: el movimiento real llega por el CSV y se empata al conciliar.
-function PayModal({ row, onPay, onClose }) {
+// Opcionalmente vincula la factura del proveedor (CFDI importado) a la compra/
+// gasto — atribución, distinta de la conciliación bancaria que vive en Bancos.
+function PayModal({ row, companyId, onPay, onClose }) {
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
   const [referencia, setReferencia] = useState('')
   const [comprobante, setComprobante] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // CFDI candidates: facturas recibidas cerca del monto, aún sin vincular.
+  const [cfdis, setCfdis] = useState([])
+  const [cfdiId, setCfdiId] = useState(null)
+
+  useEffect(() => {
+    if (!companyId) return
+    let alive = true
+    apiFetch(`/api/construccion/cfdis?companyId=${encodeURIComponent(companyId)}&tipo=RECIBIDA`)
+      .then((list) => {
+        if (!alive || !Array.isArray(list)) return
+        const monto = Number(row.monto) || 0
+        const cerca = list
+          .filter((c) => (c.matchEstado === 'SIN_VINCULAR' || c.matchEstado === 'SUGERIDA') && c.estadoSat !== 'CANCELADO')
+          .filter((c) => monto > 0 && Math.abs(c.total - monto) / monto <= 0.15)
+          .sort((a, b) => {
+            // Cercanía de monto primero; empate → coincidencia de nombre del proveedor.
+            const da = Math.abs(a.total - monto) - Math.abs(b.total - monto)
+            if (Math.abs(da) > 0.005 * monto) return da
+            const name = (row.supplierName || '').toLowerCase()
+            const am = (a.emisorNombre || '').toLowerCase().includes(name.slice(0, 8)) ? 0 : 1
+            const bm = (b.emisorNombre || '').toLowerCase().includes(name.slice(0, 8)) ? 0 : 1
+            return am - bm
+          })
+          .slice(0, 6)
+        setCfdis(cerca)
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [companyId, row.monto, row.supplierName])
 
   const submit = async () => {
     setBusy(true); setError(null)
     try {
       await onPay(row, { fecha, referencia, comprobante })
+      // Atribución best-effort: el pago ya quedó registrado; si el vínculo
+      // falla se puede hacer después desde Facturas.
+      if (cfdiId) {
+        try {
+          await apiFetch(`/api/construccion/cfdis/${cfdiId}/vincular`, {
+            method: 'POST',
+            body: {
+              tipo: row.kind === 'gasto' ? 'GASTO' : 'SOLICITUD',
+              targetId: row.kind === 'gasto' ? row.id : row.solicitudId,
+            },
+          })
+        } catch (e) {
+          console.error('vincular CFDI tras pago:', e)
+        }
+      }
     } catch (e) {
       setError(e.message || 'No se pudo registrar el pago')
       setBusy(false)
@@ -518,6 +564,34 @@ function PayModal({ row, onPay, onClose }) {
         <span>Comprobante (PDF / foto, opcional)</span>
         <FileUpload value={comprobante} onChange={setComprobante} />
       </label>
+
+      {cfdis.length > 0 && (
+        <div className="stack" style={{ marginTop: 10 }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--ink-2)' }}>
+            Factura del proveedor (CFDI, opcional)
+          </span>
+          <div className="cxp-cfdi-list">
+            {cfdis.map((c) => (
+              <button
+                type="button"
+                key={c.id}
+                className={'cxp-cfdi-item' + (cfdiId === c.id ? ' active' : '')}
+                onClick={() => setCfdiId(cfdiId === c.id ? null : c.id)}
+                title={c.uuid || ''}
+              >
+                <span className="mono small">{[c.serie, c.folio].filter(Boolean).join('-') || (c.uuid ? c.uuid.slice(0, 8) + '…' : '—')}</span>
+                <span className="cxp-cfdi-emisor">{c.emisorNombre ?? '—'}</span>
+                <span className="mono small muted">{fmtDate(c.fecha)}</span>
+                <span className="num" style={{ marginLeft: 'auto', fontWeight: 700 }}>{money(c.total)}</span>
+              </button>
+            ))}
+          </div>
+          <span className="muted" style={{ fontSize: 11.5 }}>
+            Vincula la factura a esta {row.kind === 'gasto' ? 'partida de gasto' : 'compra'} (atribución).
+            La conciliación bancaria se hace aparte, en Bancos y conciliación.
+          </span>
+        </div>
+      )}
 
       {error && <div className="cxp-pay-error">{error}</div>}
 
