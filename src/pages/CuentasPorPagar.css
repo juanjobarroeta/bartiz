@@ -72,6 +72,18 @@
 }
 .cxp-send-btn:hover { background: var(--surface-2, #f6f2ea); }
 
+/* CFDI attribution picker inside the pay modal. */
+.cxp-cfdi-list { display: flex; flex-direction: column; gap: 5px; }
+.cxp-cfdi-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
+  padding: 7px 10px; border: 1px solid var(--line-2, #d9d3c9); border-radius: 8px;
+  background: var(--surface, #fff); color: var(--ink, #2a241f);
+}
+.cxp-cfdi-item:hover { background: var(--surface-2, #f6f2ea); }
+.cxp-cfdi-item.active { outline: 2px solid var(--brand, #e2571e); outline-offset: -1px; }
+.cxp-cfdi-emisor { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Etapa segmented control (Todas / Por enviar / En tesorería). */
 .ds .cxp-etapa { display: inline-flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
 .ds .cxp-etapa-btn {
