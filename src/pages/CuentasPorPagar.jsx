@@ -132,7 +132,9 @@ function deriveFromRequisiciones(solicitudes, suppliersById) {
     })
 }
 
-export default function CuentasPorPagar() {
+// etapaInicial: 'todas' (default, vista admin) | 'enTesoreria' (feed de la
+// tesorera, montada en /pagos-tesoreria).
+export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
   const navigate = useNavigate()
   const { activeCompany } = useAuth()
   const companyId = activeCompany?.id
@@ -259,7 +261,10 @@ export default function CuentasPorPagar() {
 
   // Filters: bucket (vencimiento) + etapa (por enviar / en tesorería).
   const [bucketFilter, setBucketFilter] = useState(null)
-  const [etapa, setEtapa] = useState('todas') // todas | porEnviar | enTesoreria
+  const [etapa, setEtapa] = useState(etapaInicial) // todas | porEnviar | enTesoreria
+  // Cambiar entre las dos entradas del nav (/cuentas-por-pagar y
+  // /pagos-tesoreria) reutiliza el componente montado — re-sincroniza el filtro.
+  useEffect(() => { setEtapa(etapaInicial) }, [etapaInicial])
 
   const today = startOfDay(new Date())
   const rows = useMemo(() => {

@@ -99,6 +99,9 @@ function App() {
                     <Route path="/compras-por-autorizar" element={<ComprasPorAutorizar />} />
                     <Route path="/tesoreria-bartiz" element={<TesoreriaBartiz />} />
                     <Route path="/cuentas-por-pagar" element={<CuentasPorPagar />} />
+                    {/* Feed de la tesorera: la misma cola, pre-filtrada a lo que
+                        admin ya mandó a pagar (etapa En tesorería). */}
+                    <Route path="/pagos-tesoreria" element={<CuentasPorPagar etapaInicial="enTesoreria" />} />
                     <Route path="/facturas" element={<Facturas />} />
                     <Route path="/reportes" element={<Reportes />} />
                     <Route path="/proveedores-bartiz" element={<ProveedoresBartiz />} />
