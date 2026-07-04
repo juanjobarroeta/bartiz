@@ -38,6 +38,7 @@ const ALL_NAV_ITEMS = [
   { path: '/destajo',             label: 'Destajo',       icon: 'destajo',       ported: true },
   { path: '/tesoreria-bartiz',    label: 'Bancos y conciliación', icon: 'tesoreria', ported: true },
   { path: '/cuentas-por-pagar',   label: 'Cuentas por pagar', icon: 'receipt',   ported: true },
+  { path: '/pagos-tesoreria',     label: 'Pagos (tesorería)', icon: 'tesoreria', ported: true },
   { path: '/facturas',            label: 'Facturas (CFDI)', icon: 'file',        ported: true },
   { path: '/reportes',            label: 'Reportes',      icon: 'reportes',      ported: true },
 
@@ -67,7 +68,8 @@ const REDESIGNED_ROUTES = {
   '/': { title: 'Dashboard', sub: 'Portafolio · cartera y caja' },
   '/proyectos': { title: 'Proyectos', sub: 'Cartera de obra · contabilidad-os' },
   '/tesoreria-bartiz': { title: 'Bancos y conciliación', sub: 'Estados de cuenta importados y su conciliación' },
-  '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Vencimientos y flujo de pagos' },
+  '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Cola de admin · vencimientos y envío a tesorería' },
+  '/pagos-tesoreria': { title: 'Pagos por realizar', sub: 'Feed de tesorería · lo que admin mandó a pagar' },
   '/compras-por-autorizar': { title: 'Compras por autorizar', sub: 'Compara proveedores y autoriza' },
   '/facturas': { title: 'Facturas (CFDI)', sub: 'Inbox y conciliación de comprobantes' },
 }
