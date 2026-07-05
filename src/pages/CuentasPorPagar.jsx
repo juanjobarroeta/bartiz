@@ -546,35 +546,47 @@ function PayModal({ row, companyId, openRows = [], onPay, onClose }) {
     }
     return { out, anticipo: Math.max(0, restante) }
   }, [ordered, incluidas, monto])
-  // CFDI candidates: facturas recibidas cerca del monto, aún sin vincular.
+  // CFDI candidates. Sin búsqueda: facturas recibidas cerca del monto (±15%),
+  // aún sin vincular. Con búsqueda (folio/uuid/proveedor/RFC): consulta al
+  // backend sin restricción de monto, para encontrar cualquier factura.
   const [cfdis, setCfdis] = useState([])
   const [cfdiId, setCfdiId] = useState(null)
+  const [cfdiQ, setCfdiQ] = useState('')
 
   useEffect(() => {
     if (!companyId) return
     let alive = true
-    apiFetch(`/api/construccion/cfdis?companyId=${encodeURIComponent(companyId)}&tipo=RECIBIDA`)
-      .then((list) => {
-        if (!alive || !Array.isArray(list)) return
-        const monto = Number(row.monto) || 0
-        const cerca = list
-          .filter((c) => (c.matchEstado === 'SIN_VINCULAR' || c.matchEstado === 'SUGERIDA') && c.estadoSat !== 'CANCELADO')
-          .filter((c) => monto > 0 && Math.abs(c.total - monto) / monto <= 0.15)
-          .sort((a, b) => {
-            // Cercanía de monto primero; empate → coincidencia de nombre del proveedor.
-            const da = Math.abs(a.total - monto) - Math.abs(b.total - monto)
-            if (Math.abs(da) > 0.005 * monto) return da
-            const name = (row.supplierName || '').toLowerCase()
-            const am = (a.emisorNombre || '').toLowerCase().includes(name.slice(0, 8)) ? 0 : 1
-            const bm = (b.emisorNombre || '').toLowerCase().includes(name.slice(0, 8)) ? 0 : 1
-            return am - bm
-          })
-          .slice(0, 6)
-        setCfdis(cerca)
-      })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [companyId, row.monto, row.supplierName])
+    const q = cfdiQ.trim()
+    const run = () => {
+      const url = `/api/construccion/cfdis?companyId=${encodeURIComponent(companyId)}&tipo=RECIBIDA${q ? `&q=${encodeURIComponent(q)}` : ''}`
+      apiFetch(url)
+        .then((list) => {
+          if (!alive || !Array.isArray(list)) return
+          const monto = Number(row.monto) || 0
+          const linkables = list.filter(
+            (c) => (c.matchEstado === 'SIN_VINCULAR' || c.matchEstado === 'SUGERIDA') && c.estadoSat !== 'CANCELADO'
+          )
+          const out = q
+            ? linkables.slice(0, 8) // búsqueda: sin filtro de monto
+            : linkables
+                .filter((c) => monto > 0 && Math.abs(c.total - monto) / monto <= 0.15)
+                .sort((a, b) => {
+                  // Cercanía de monto primero; empate → coincidencia de nombre.
+                  const da = Math.abs(a.total - monto) - Math.abs(b.total - monto)
+                  if (Math.abs(da) > 0.005 * monto) return da
+                  const name = (row.supplierName || '').toLowerCase()
+                  const am = (a.emisorNombre || '').toLowerCase().includes(name.slice(0, 8)) ? 0 : 1
+                  const bm = (b.emisorNombre || '').toLowerCase().includes(name.slice(0, 8)) ? 0 : 1
+                  return am - bm
+                })
+                .slice(0, 6)
+          setCfdis(out)
+        })
+        .catch(() => {})
+    }
+    const t = setTimeout(run, q ? 300 : 0) // debounce mientras se escribe
+    return () => { alive = false; clearTimeout(t) }
+  }, [companyId, row.monto, row.supplierName, cfdiQ])
 
   const submit = async () => {
     const m = parseFloat(monto) || 0
@@ -679,11 +691,22 @@ function PayModal({ row, companyId, openRows = [], onPay, onClose }) {
         <FileUpload value={comprobante} onChange={setComprobante} />
       </label>
 
-      {cfdis.length > 0 && (
-        <div className="stack" style={{ marginTop: 10 }}>
-          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--ink-2)' }}>
-            Factura del proveedor (CFDI, opcional)
+      <div className="stack" style={{ marginTop: 10 }}>
+        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--ink-2)' }}>
+          Factura del proveedor (CFDI, opcional)
+        </span>
+        <input
+          value={cfdiQ}
+          onChange={(e) => setCfdiQ(e.target.value)}
+          placeholder="Buscar por folio, UUID, proveedor o RFC…"
+        />
+        {cfdis.length === 0 ? (
+          <span className="muted" style={{ fontSize: 11.5 }}>
+            {cfdiQ.trim()
+              ? 'Sin CFDIs que coincidan con la búsqueda.'
+              : 'Sin sugerencias cercanas al monto — busca arriba para encontrar cualquier factura.'}
           </span>
+        ) : (
           <div className="cxp-cfdi-list">
             {cfdis.map((c) => (
               <button
@@ -700,12 +723,12 @@ function PayModal({ row, companyId, openRows = [], onPay, onClose }) {
               </button>
             ))}
           </div>
-          <span className="muted" style={{ fontSize: 11.5 }}>
-            Vincula la factura a esta {row.kind === 'gasto' ? 'partida de gasto' : 'compra'} (atribución).
-            La conciliación bancaria se hace aparte, en Bancos y conciliación.
-          </span>
-        </div>
-      )}
+        )}
+        <span className="muted" style={{ fontSize: 11.5 }}>
+          Vincula la factura a esta {row.kind === 'gasto' ? 'partida de gasto' : 'compra'} (atribución).
+          La conciliación bancaria se hace aparte, en Bancos y conciliación.
+        </span>
+      </div>
 
       {error && <div className="cxp-pay-error">{error}</div>}
 
