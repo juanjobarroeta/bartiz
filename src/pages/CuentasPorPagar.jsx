@@ -68,22 +68,30 @@ function fromAdjudicacion(a, suppliersById) {
   // too); fall back to the saved supplier's terms, then a 30-day default.
   const dias = a.tieneCredito ? (a.diasCredito ?? readTerms(sup).diasCredito ?? 30) : 0
   const base = a.aprobadaAt || a.createdAt
+  const total = Number(a.total) || 0
+  const aplicado = Number(a.aplicado) || 0
+  // saldo viene del backend (con tolerancia legacy); fallback para respuestas
+  // del backend anterior sin cuenta corriente.
+  const saldo = a.saldo != null ? Number(a.saldo) : (a.estado === 'PAGADA' ? 0 : total)
   return {
     id: a.id, // adjudicación id — what we pay
     kind: 'adjudicacion',
+    supplierId: a.supplierId ?? null,
     solicitudId: a.solicitudId, // requisición — what we navigate to
     supplierName: a.supplierNombre ?? '—',
     detalle: null,
     proyecto: a.proyecto?.codigo ?? '—',
     folio: a.folio ?? '—',
-    monto: Number(a.total) || 0,
+    total,
+    aplicado,
+    monto: saldo, // lo que falta por pagar — la cifra operativa de la cola
     formaPago: a.tieneCredito ? 'CREDITO' : 'CONTADO',
     diasCredito: dias,
     diasEntrega: a.diasEntrega,
     vencimiento: base ? addDays(startOfDay(new Date(base)), dias) : null,
     enviadaTesoreriaAt: a.enviadaTesoreriaAt ?? null,
-    estado: a.estado === 'PAGADA' ? 'PAGADA' : 'APROBADA',
-    payable: a.estado !== 'PAGADA',
+    estado: a.estado === 'PAGADA' ? 'PAGADA' : a.estado === 'PARCIAL' ? 'PARCIAL' : 'APROBADA',
+    payable: saldo > 0.01,
   }
 }
 
@@ -170,7 +178,9 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
       // unified admin queue: todo lo aprobado vive aquí.
       try {
         const [adjs, gastos, sups] = await Promise.all([
-          apiFetch(`/api/construccion/adjudicaciones?companyId=${encodeURIComponent(companyId)}&estado=POR_PAGAR`).catch(() => []),
+          // abiertas=1 (backend nuevo) = POR_PAGAR + PARCIAL; estado=POR_PAGAR
+          // queda como fallback para el backend anterior.
+          apiFetch(`/api/construccion/adjudicaciones?companyId=${encodeURIComponent(companyId)}&estado=POR_PAGAR&abiertas=1`).catch(() => []),
           apiFetch(`/api/construccion/gastos?companyId=${encodeURIComponent(companyId)}&estado=APROBADO`).catch(() => []),
           apiFetch(`/api/construccion/suppliers?companyId=${encodeURIComponent(companyId)}`).catch(() => []),
         ])
@@ -211,16 +221,22 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
     return () => { alive = false }
   }, [companyId, reloadKey])
 
-  // Registrar el pago NO toca el banco: guarda comprobante + referencia y marca
-  // la adjudicación PAGADA (por conciliar). El movimiento real llega por el CSV
-  // y se empata en la conciliación.
-  const payAdjudicacion = async (row, { fecha, referencia, comprobante }) => {
-    await apiFetch(`/api/construccion/adjudicaciones/${row.id}/pagar`, {
+  // Registrar el pago NO toca el banco: se registra contra la cuenta corriente
+  // del proveedor (PagoProveedor) y se APLICA a adjudicaciones — parciales,
+  // varias requisiciones en un pago, o excedente como anticipo. El movimiento
+  // real llega por el CSV y se empata en la conciliación.
+  const payAdjudicacion = async (row, { fecha, referencia, comprobante, monto, aplicaciones }) => {
+    await apiFetch('/api/construccion/pagos-proveedor', {
       method: 'POST',
       body: {
+        companyId,
+        supplierId: row.supplierId ?? null,
+        supplierNombre: row.supplierName,
         fecha: new Date((fecha || new Date().toISOString().slice(0, 10)) + 'T12:00:00').toISOString(),
+        monto,
         referencia: referencia?.trim() || undefined,
         comprobante: comprobante ? { data: comprobante.data, mime: comprobante.mime, name: comprobante.name } : undefined,
+        aplicaciones,
       },
     })
     setPaying(null)
@@ -424,7 +440,12 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
                             ? <span className="pill">Contado</span>
                             : <span className="money muted">—</span>}
                         </td>
-                        <td className="r"><span className="money big">{money(p.monto)}</span></td>
+                        <td className="r">
+                          <span className="money big">{money(p.monto)}</span>
+                          {p.aplicado > 0.01 && (
+                            <div className="muted" style={{ fontSize: 11 }}>de {money(p.total)} · parcial</div>
+                          )}
+                        </td>
                         <td>
                           <div style={{ fontSize: 13 }}>{fmtDate(p.vencimiento)}</div>
                           {rel && (
@@ -465,7 +486,17 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
 
       <Modal open={!!paying} onClose={() => setPaying(null)} title="Registrar pago" size="sm">
         {paying && (
-          <PayModal row={paying} companyId={companyId} onPay={pay} onClose={() => setPaying(null)} />
+          <PayModal
+            row={paying}
+            companyId={companyId}
+            openRows={rows.filter((r) =>
+              r.kind === 'adjudicacion' && r.monto > 0.01 &&
+              ((paying.supplierId && r.supplierId === paying.supplierId) ||
+                (!paying.supplierId && r.supplierName === paying.supplierName))
+            )}
+            onPay={pay}
+            onClose={() => setPaying(null)}
+          />
         )}
       </Modal>
     </div>
@@ -474,14 +505,47 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
 
 // Registrar pago = comprobante + referencia + fecha. NO se elige cuenta ni se
 // mueve el banco: el movimiento real llega por el CSV y se empata al conciliar.
-// Opcionalmente vincula la factura del proveedor (CFDI importado) a la compra/
-// gasto — atribución, distinta de la conciliación bancaria que vive en Bancos.
-function PayModal({ row, companyId, onPay, onClose }) {
+// Para compras (adjudicaciones) el pago va a la cuenta corriente del proveedor
+// y se aplica FIFO a sus adjudicaciones abiertas: un pago puede cubrir varias
+// requisiciones, ser parcial, o dejar excedente como anticipo. Opcionalmente
+// vincula la factura del proveedor (CFDI) — atribución, no conciliación.
+function PayModal({ row, companyId, openRows = [], onPay, onClose }) {
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
   const [referencia, setReferencia] = useState('')
   const [comprobante, setComprobante] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const isAdj = row.kind !== 'gasto'
+  const [monto, setMonto] = useState(() => String(row.monto || ''))
+  // Adjudicaciones del proveedor incluidas en la distribución (la clickeada
+  // siempre primero; el resto por antigüedad de vencimiento).
+  const ordered = useMemo(() => {
+    const rest = openRows.filter((r) => r.id !== row.id)
+      .sort((a, b) => (a.vencimiento?.getTime?.() ?? 0) - (b.vencimiento?.getTime?.() ?? 0))
+    const self = openRows.find((r) => r.id === row.id)
+    return self ? [self, ...rest] : rest
+  }, [openRows, row.id])
+  const [incluidas, setIncluidas] = useState(() => new Set(ordered.map((r) => r.id)))
+  const toggleIncluida = (id) =>
+    setIncluidas((s) => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+
+  // Distribución FIFO del monto entre las adjudicaciones incluidas.
+  const distribucion = useMemo(() => {
+    let restante = parseFloat(monto) || 0
+    const out = []
+    for (const r of ordered) {
+      if (!incluidas.has(r.id) || restante <= 0.005) { out.push({ row: r, aplicar: 0 }); continue }
+      const aplicar = Math.min(r.monto, restante)
+      out.push({ row: r, aplicar })
+      restante -= aplicar
+    }
+    return { out, anticipo: Math.max(0, restante) }
+  }, [ordered, incluidas, monto])
   // CFDI candidates: facturas recibidas cerca del monto, aún sin vincular.
   const [cfdis, setCfdis] = useState([])
   const [cfdiId, setCfdiId] = useState(null)
@@ -513,9 +577,17 @@ function PayModal({ row, companyId, onPay, onClose }) {
   }, [companyId, row.monto, row.supplierName])
 
   const submit = async () => {
+    const m = parseFloat(monto) || 0
+    if (isAdj && !(m > 0)) { setError('Captura el monto del pago.'); return }
+    const aplicaciones = isAdj
+      ? distribucion.out.filter((d) => d.aplicar > 0.005).map((d) => ({
+          adjudicacionId: d.row.id,
+          monto: Math.round(d.aplicar * 100) / 100,
+        }))
+      : undefined
     setBusy(true); setError(null)
     try {
-      await onPay(row, { fecha, referencia, comprobante })
+      await onPay(row, { fecha, referencia, comprobante, monto: m, aplicaciones })
       // Atribución best-effort: el pago ya quedó registrado; si el vínculo
       // falla se puede hacer después desde Facturas.
       if (cfdiId) {
@@ -552,6 +624,19 @@ function PayModal({ row, companyId, onPay, onClose }) {
         eso se empata con el movimiento importado en la conciliación.
       </div>
 
+      {isAdj && (
+        <label className="stack">
+          <span>Monto del pago</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={monto}
+            onChange={(e) => setMonto(e.target.value)}
+            style={{ fontFamily: 'var(--font-mono)' }}
+          />
+        </label>
+      )}
       <label className="stack">
         <span>Fecha de pago</span>
         <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
@@ -560,6 +645,35 @@ function PayModal({ row, companyId, onPay, onClose }) {
         <span>Referencia SPEI (opcional)</span>
         <input value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="folio de la transferencia" />
       </label>
+
+      {isAdj && ordered.length > 0 && (
+        <div className="stack" style={{ marginTop: 10 }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--ink-2)' }}>
+            Se aplica a (cuenta del proveedor)
+          </span>
+          <div className="cxp-aplic-list">
+            {distribucion.out.map(({ row: r, aplicar }) => (
+              <label key={r.id} className={'cxp-aplic-item' + (incluidas.has(r.id) ? '' : ' off')}>
+                <input
+                  type="checkbox"
+                  checked={incluidas.has(r.id)}
+                  onChange={() => toggleIncluida(r.id)}
+                />
+                <span className="mono small">{r.folio}</span>
+                <span className="muted small">saldo {money(r.monto)}</span>
+                <span className="num" style={{ marginLeft: 'auto', fontWeight: 700 }}>
+                  {aplicar > 0.005 ? `aplica ${money(aplicar)}` : '—'}
+                </span>
+              </label>
+            ))}
+          </div>
+          {distribucion.anticipo > 0.005 && (
+            <div className="cxp-anticipo">
+              Excedente de <b>{money(distribucion.anticipo)}</b> quedará como <b>anticipo</b> (saldo a favor del proveedor).
+            </div>
+          )}
+        </div>
+      )}
       <label className="stack">
         <span>Comprobante (PDF / foto, opcional)</span>
         <FileUpload value={comprobante} onChange={setComprobante} />
