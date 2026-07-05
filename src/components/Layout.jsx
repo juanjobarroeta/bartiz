@@ -39,6 +39,7 @@ const ALL_NAV_ITEMS = [
   { path: '/tesoreria-bartiz',    label: 'Bancos y conciliación', icon: 'tesoreria', ported: true },
   { path: '/cuentas-por-pagar',   label: 'Cuentas por pagar', icon: 'receipt',   ported: true },
   { path: '/pagos-tesoreria',     label: 'Pagos (tesorería)', icon: 'tesoreria', ported: true },
+  { path: '/cuentas-proveedores', label: 'Cuentas de proveedores', icon: 'proveedores', ported: true },
   { path: '/facturas',            label: 'Facturas (CFDI)', icon: 'file',        ported: true },
   { path: '/reportes',            label: 'Reportes',      icon: 'reportes',      ported: true },
 
@@ -70,6 +71,7 @@ const REDESIGNED_ROUTES = {
   '/tesoreria-bartiz': { title: 'Bancos y conciliación', sub: 'Estados de cuenta importados y su conciliación' },
   '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Cola de admin · vencimientos y envío a tesorería' },
   '/pagos-tesoreria': { title: 'Pagos por realizar', sub: 'Feed de tesorería · lo que admin mandó a pagar' },
+  '/cuentas-proveedores': { title: 'Cuentas de proveedores', sub: 'Estado de cuenta · cargos, abonos, saldos y anticipos' },
   '/compras-por-autorizar': { title: 'Compras por autorizar', sub: 'Compara proveedores y autoriza' },
   '/facturas': { title: 'Facturas (CFDI)', sub: 'Inbox y conciliación de comprobantes' },
 }

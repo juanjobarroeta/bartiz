@@ -36,6 +36,7 @@ import RequisicionDetalle from './pages/RequisicionDetalle'
 import ComprasPorAutorizar from './pages/ComprasPorAutorizar'
 import TesoreriaBartiz from './pages/TesoreriaBartiz'
 import CuentasPorPagar from './pages/CuentasPorPagar'
+import CuentasProveedores from './pages/CuentasProveedores'
 import Facturas from './pages/Facturas'
 import Reportes from './pages/Reportes'
 import ProveedoresBartiz from './pages/ProveedoresBartiz'
@@ -102,6 +103,7 @@ function App() {
                     {/* Feed de la tesorera: la misma cola, pre-filtrada a lo que
                         admin ya mandó a pagar (etapa En tesorería). */}
                     <Route path="/pagos-tesoreria" element={<CuentasPorPagar etapaInicial="enTesoreria" />} />
+                    <Route path="/cuentas-proveedores" element={<CuentasProveedores />} />
                     <Route path="/facturas" element={<Facturas />} />
                     <Route path="/reportes" element={<Reportes />} />
                     <Route path="/proveedores-bartiz" element={<ProveedoresBartiz />} />
