@@ -214,7 +214,12 @@ export default function ProyectoDetalle() {
       </nav>
 
       <div className="pd-tab-content">
-        {tab === 'resumen' && <ResumenTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} />}
+        {tab === 'resumen' && (
+          <>
+            <CostosProyecto proyectoId={proyecto.id} />
+            <ResumenTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} />
+          </>
+        )}
         {tab === 'unidades' && <UnidadesTab proyecto={proyecto} onRefresh={cargar} />}
         {tab === 'consumo' && <ConsumoInsumosTab proyecto={proyecto} />}
         {tab === 'presupuestos' && <PresupuestosTab proyecto={proyecto} contrato={contrato} ejecutado={ejecutado} navigate={navigate} onRefresh={cargar} />}
@@ -262,6 +267,48 @@ function SecondaryTabsMenu({ hidden, onPick }) {
 }
 
 // ── Resumen Tab ─────────────────────────────────────────────────────────────
+
+// ── Costos del proyecto (Fase C — cuenta corriente) ──────────────────────────
+// Los cuatro números honestos del proyecto, cada uno de su fuente:
+// solicitado / comprometido / facturado / pagado real, con el presupuesto
+// base como referencia. Viene de GET /proyectos/:id/costos.
+function CostosProyecto({ proyectoId }) {
+  const [data, setData] = useState(null)
+  useEffect(() => {
+    let alive = true
+    apiFetch(`/api/construccion/proyectos/${proyectoId}/costos`)
+      .then((d) => { if (alive) setData(d) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [proyectoId])
+
+  if (!data) return null
+  const base = data.presupuestoTotal
+  const pct = (v) => (base > 0 ? `${((v / base) * 100).toFixed(1)}% del presupuesto` : null)
+  const METRICAS = [
+    { label: 'Solicitado', v: data.solicitado, hint: 'requisiciones enviadas (pendientes estimadas con la oferta más baja)' },
+    { label: 'Comprometido', v: data.comprometido, hint: 'compras autorizadas + gastos aprobados — el costo devengado' },
+    { label: 'Facturado', v: data.facturado, hint: 'CFDIs de proveedores vinculados a este proyecto' },
+    { label: 'Pagado real', v: data.pagadoReal, hint: 'pagos aplicados a las compras del proyecto + gastos pagados' },
+  ]
+  return (
+    <div className="pd-costos">
+      <div className="pd-costos-head">
+        <h3>Costos del proyecto</h3>
+        {base > 0 && <span className="muted small">Presupuesto base: <b>{fmtMoney(base)}</b></span>}
+      </div>
+      <div className="pd-costos-grid">
+        {METRICAS.map((m) => (
+          <div key={m.label} className="pd-costos-tile" title={m.hint}>
+            <div className="pd-costos-label">{m.label}</div>
+            <div className="pd-costos-value">{fmtMoney(m.v)}</div>
+            {pct(m.v) && <div className="pd-costos-pct">{pct(m.v)}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function ResumenTab({ proyecto, contrato, ejecutado }) {
   if (!contrato) {

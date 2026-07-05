@@ -545,3 +545,25 @@
 .est-excel-summary-row.highlight { background: var(--brand-tint); border-radius: var(--r-sm); border-top: 1px solid var(--brand-soft); }
 .est-excel-summary-row.highlight .key { background: var(--brand); color: #fff; border-radius: 6px; }
 .est-excel-summary-row.highlight .val { color: var(--brand-strong); font-size: 1.05rem; }
+
+/* ── Costos del proyecto (Fase C — solicitado/comprometido/facturado/pagado) ── */
+.pd-costos {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #e5e1da);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.pd-costos-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.pd-costos-head h3 { margin: 0; font-size: 1rem; }
+.pd-costos-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 900px) { .pd-costos-grid { grid-template-columns: repeat(2, 1fr); } }
+.pd-costos-tile {
+  border: 1px solid var(--line, #efeae1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2, #faf7f1);
+}
+.pd-costos-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--ink-3, #8a8178); }
+.pd-costos-value { font-size: 1.15rem; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.pd-costos-pct { font-size: 11px; color: var(--ink-3, #8a8178); margin-top: 2px; }
