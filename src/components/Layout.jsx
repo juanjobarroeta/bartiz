@@ -1,221 +1,200 @@
 /**
- * Layout / app shell — DECOLSA "Plataforma de Obra" redesign.
+ * Layout / app shell — rediseño Bartiz ("Nocturno" / "Ledger").
  *
- * A fixed two-column shell: a 244px sticky sidebar (company identity +
- * primary nav + account) and a fluid main column. Routes that have been
- * ported to the new design system also get a sticky translucent topbar
- * (page title + global search + notifications + avatar); legacy pages keep
- * rendering their own headers until they're migrated, so the topbar is only
- * shown for routes listed in REDESIGNED_ROUTES.
+ * Barra de navegación HORIZONTAL sticky (sustituye al sidebar): wordmark
+ * serif itálica, nav de 8 items primarios + menú "más" con los módulos
+ * secundarios, fecha, toggle de tema (oscuro⇄claro, persistido en
+ * localStorage como bz-theme) y avatar con menú de cuenta.
  *
- * Nav only shows pages that have been ported to the contabilidad-os backend
- * (`ported: true`). Duplicates of contabilidad-os native UI stay hidden —
- * users manage those in contabilidad-os.
+ * Los tokens del tema viven en design-system.css sobre :root /
+ * :root[data-theme="claro"]; aquí sólo se conmuta el atributo.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { Icon, BrandGlyph } from './ds/Icon'
 import { useIsMobile } from '../lib/useIsMobile'
 import MobileApp from '../mobile/MobileApp'
 import './Layout.css'
 
-// Brand mark glyph (six are available in the design system; `tower` is the
-// chosen production mark — stacked towers for a housing/"Torres" developer).
-const BRAND_LOGO = 'tower'
-
-// Nav structure. `icon` is a key into the design-system line-icon set.
-const ALL_NAV_ITEMS = [
-  { path: '/',                    label: 'Dashboard',     icon: 'dashboard',     ported: true },
-  { path: '/proyectos',           label: 'Proyectos',     icon: 'projects',      ported: true },
-  { path: '/catalogo',            label: 'Catálogo',      icon: 'catalog',       ported: true },
-  { path: '/requisiciones',       label: 'Requisiciones', icon: 'requisiciones', ported: true },
-  { path: '/compras-por-autorizar', label: 'Compras por autorizar', icon: 'requisiciones', ported: true },
-  { path: '/proveedores-bartiz',  label: 'Proveedores',   icon: 'proveedores',   ported: true },
-  { path: '/gastos',              label: 'Gastos',        icon: 'gastos',        ported: true },
-  { path: '/caja-chica',          label: 'Caja Chica',    icon: 'cajachica',     ported: true },
-  { path: '/destajo',             label: 'Destajo',       icon: 'destajo',       ported: true },
-  { path: '/tesoreria-bartiz',    label: 'Bancos y conciliación', icon: 'tesoreria', ported: true },
-  { path: '/cuentas-por-pagar',   label: 'Cuentas por pagar', icon: 'receipt',   ported: true },
-  { path: '/pagos-tesoreria',     label: 'Pagos (tesorería)', icon: 'tesoreria', ported: true },
-  { path: '/cuentas-proveedores', label: 'Cuentas de proveedores', icon: 'proveedores', ported: true },
-  { path: '/facturas',            label: 'Facturas (CFDI)', icon: 'file',        ported: true },
-  { path: '/reportes',            label: 'Reportes',      icon: 'reportes',      ported: true },
-
-  // Permanently hidden — contabilidad-os native UI owns these.
-  { path: '/clientes',            label: 'Clientes',      icon: 'proveedores',   ported: false, hidden: true },
-  { path: '/empleados',           label: 'Empleados',     icon: 'destajo',       ported: false, hidden: true },
-  { path: '/proveedores',         label: 'Proveedores',   icon: 'proveedores',   ported: false, hidden: true },
-  { path: '/tesoreria',           label: 'Tesorería (legacy)', icon: 'tesoreria', ported: false, hidden: true },
-  { path: '/contabilidad',        label: 'Contabilidad',  icon: 'reportes',      ported: false, hidden: true },
-  { path: '/usuarios',            label: 'Usuarios',      icon: 'proveedores',   ported: false, hidden: true },
-
-  // Deprecated — kept hidden until referrers are gone.
-  { path: '/reembolsos',          label: 'Reembolsos',    icon: 'cajachica',     ported: false, hidden: true },
-  { path: '/solicitudes-compra',  label: 'Solicitudes',   icon: 'requisiciones', ported: false, hidden: true },
+// Nav primario (orden y nombres cortos del diseño). El resto de módulos
+// viven en el menú "más".
+const PRIMARY_NAV = [
+  { path: '/',                      label: 'Hoy' },
+  { path: '/proyectos',             label: 'Obras' },
+  { path: '/requisiciones',         label: 'Reqs' },
+  { path: '/compras-por-autorizar', label: 'Compras' },
+  { path: '/facturas',              label: 'Facturas' },
+  { path: '/cuentas-por-pagar',     label: 'Pagos' },
+  { path: '/tesoreria-bartiz',      label: 'Bancos' },
+  { path: '/gastos',                label: 'Caja' },
 ]
 
-// Entry routes owned by the mobile PWA shell. On phones these mount the
-// dedicated mobile experience; every other route keeps the desktop layout
-// (with the off-canvas drawer) so the secondary modules stay reachable on
-// mobile too. The PWA handles its internal nav (tabs + project detail) in
-// component state, so only these entry paths need to be listed.
+const MORE_NAV = [
+  { path: '/pagos-tesoreria',     label: 'Pagos (tesorería)' },
+  { path: '/cuentas-proveedores', label: 'Cuentas de proveedores' },
+  { path: '/proveedores-bartiz',  label: 'Proveedores' },
+  { path: '/catalogo',            label: 'Catálogo' },
+  { path: '/caja-chica',          label: 'Caja chica' },
+  { path: '/destajo',             label: 'Destajo' },
+  { path: '/reportes',            label: 'Reportes' },
+]
+
+// Entry routes owned by the mobile PWA shell (bottom tabs). Other routes on
+// phones use this same top-nav layout (horizontally scrollable).
 const MOBILE_PWA_ROUTES = new Set(['/', '/proyectos', '/tesoreria-bartiz'])
 
-// Routes whose pages have been rebuilt on the design system and therefore
-// render the shared topbar (instead of their own page header).
+// Rutas rediseñadas que reciben el encabezado de página (h1 serif) del shell;
+// las páginas legacy siguen pintando su propio header.
 const REDESIGNED_ROUTES = {
-  '/': { title: 'Dashboard', sub: 'Portafolio · cartera y caja' },
-  '/proyectos': { title: 'Proyectos', sub: 'Cartera de obra · contabilidad-os' },
+  '/': { title: 'Hoy', sub: 'Portafolio · cartera y caja' },
+  '/proyectos': { title: 'Obras', sub: 'Cartera de obra' },
   '/tesoreria-bartiz': { title: 'Bancos y conciliación', sub: 'Estados de cuenta importados y su conciliación' },
   '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Cola de admin · vencimientos y envío a tesorería' },
   '/pagos-tesoreria': { title: 'Pagos por realizar', sub: 'Feed de tesorería · lo que admin mandó a pagar' },
-  '/cuentas-proveedores': { title: 'Cuentas de proveedores', sub: 'Estado de cuenta · cargos, abonos, saldos y anticipos' },
+  '/cuentas-proveedores': { title: 'Cuentas de proveedores', sub: 'Cargos, abonos, saldos y anticipos' },
   '/compras-por-autorizar': { title: 'Compras por autorizar', sub: 'Compara proveedores y autoriza' },
   '/facturas': { title: 'Facturas (CFDI)', sub: 'Inbox y conciliación de comprobantes' },
 }
+
+// ── Tema (oscuro "Nocturno" / claro "Ledger") ────────────────────────────────
+function useTheme() {
+  const [theme, setTheme] = useState(() => localStorage.getItem('bz-theme') || 'oscuro')
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('bz-theme', theme)
+  }, [theme])
+  return [theme, () => setTheme((t) => (t === 'oscuro' ? 'claro' : 'oscuro'))]
+}
+
+const fmtHoy = () =>
+  new Date().toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
 
 const Layout = ({ children }) => {
   const location = useLocation()
   const { user, activeCompany, logout } = useAuth()
   const isMobile = useIsMobile()
+  const [theme, toggleTheme] = useTheme()
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [userOpen, setUserOpen] = useState(false)
+  const moreRef = useRef(null)
+  const userRef = useRef(null)
 
-  // On mobile the sidebar is an off-canvas drawer toggled by the hamburger.
-  // Close it on any navigation so tapping a nav item dismisses the drawer.
-  const [menuOpen, setMenuOpen] = useState(false)
+  // Cerrar menús al navegar o al hacer clic fuera.
+  useEffect(() => { setMoreOpen(false); setUserOpen(false) }, [location.pathname])
   useEffect(() => {
-    setMenuOpen(false)
-  }, [location.pathname])
+    const fn = (e) => {
+      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false)
+      if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false)
+    }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [])
 
-  // Phone viewports get the dedicated mobile PWA shell (bottom tab nav +
-  // approval flows) on its core routes. Other routes (secondary modules,
-  // legacy pages) keep the desktop layout + drawer so they stay usable on
-  // mobile until they have their own mobile screens.
   if (isMobile && MOBILE_PWA_ROUTES.has(location.pathname)) return <MobileApp />
 
-  const visibleItems = ALL_NAV_ITEMS.filter((item) => !item.hidden && item.ported)
-
-  // Keep "Proyectos" active when on a project-detail route.
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/'
     if (path === '/proyectos') return location.pathname.startsWith('/proyectos')
+    if (path === '/requisiciones') return location.pathname.startsWith('/requisiciones')
     return location.pathname === path || location.pathname.startsWith(path + '/')
   }
+  const moreActive = MORE_NAV.some((i) => isActive(i.path))
 
-  const topbar = REDESIGNED_ROUTES[location.pathname]
-
-  const companyName = activeCompany?.razonSocial ?? 'DECOLSA Ingeniería'
-  const companySub = activeCompany?.rfc
-    ? `S.A. DE C.V. · ${activeCompany.rfc}`
-    : 'Construcción · contabilidad-os'
-  const initials = (user?.name || user?.email || 'JB')
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase())
-    .join('')
+  const pageHead = REDESIGNED_ROUTES[location.pathname]
+  const wordmark = activeCompany?.razonSocial?.split(/[,\s]+/).slice(0, 1).join(' ') || 'Bartiz'
+  const initial = (user?.name || user?.email || 'B')[0]?.toUpperCase()
 
   return (
-    <div className="ds-layout">
-      <aside className={`ds ds-sidebar${menuOpen ? ' open' : ''}`}>
-        <div className="brand">
-          <div className="brand-mark">
-            <BrandGlyph id={BRAND_LOGO} />
-          </div>
-          <div className="brand-txt">
-            <div className="brand-name">{companyName}</div>
-            <div className="brand-rfc">{companySub}</div>
-          </div>
-          <button
-            className="ds-drawer-close"
-            onClick={() => setMenuOpen(false)}
-            aria-label="Cerrar menú"
-          >
-            <Icon name="close" />
-          </button>
-        </div>
+    <div className="bz-shell">
+      <header className="bz-topnav">
+        <Link to="/" className="bz-wordmark" title={activeCompany?.razonSocial}>
+          {wordmark}
+        </Link>
 
-        <nav className="nav">
-          {visibleItems.map((item) => (
+        <nav className="bz-nav">
+          {PRIMARY_NAV.map((item) => (
             <Link
               key={item.path}
               to={item.path}
-              className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
+              className={`bz-nav-item${isActive(item.path) ? ' active' : ''}`}
             >
-              <Icon name={item.icon} />
               <span>{item.label}</span>
-              {item.badge && <span className="nav-badge">{item.badge}</span>}
             </Link>
           ))}
+          <div className="bz-more" ref={moreRef}>
+            <button
+              type="button"
+              className={`bz-nav-item${moreActive ? ' active' : ''}`}
+              onClick={() => setMoreOpen((o) => !o)}
+            >
+              <span>más ▾</span>
+            </button>
+            {moreOpen && (
+              <div className="bz-menu">
+                {MORE_NAV.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`bz-menu-item${isActive(item.path) ? ' active' : ''}`}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
-        <div className="sidebar-foot">
-          <div className="who" title={user?.email}>
-            {user?.email ?? ''}
-          </div>
-          <a
-            className="link"
-            href="https://contabilidad-os-production.up.railway.app"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Icon name="external" style={{ width: 13, height: 13 }} />
-            contabilidad-os
-          </a>
-          <button className="logout" onClick={logout}>
-            <Icon name="logout" />
-            Cerrar sesión
-          </button>
-        </div>
-      </aside>
-
-      {/* mobile-only scrim behind the drawer */}
-      <div
-        className={`ds-scrim${menuOpen ? ' open' : ''}`}
-        onClick={() => setMenuOpen(false)}
-        aria-hidden="true"
-      />
-
-      <div className="ds-main">
-        {/* mobile-only top bar: hamburger + brand (the only menu access on phones) */}
-        <header className="ds ds-mobilebar">
+        <div className="bz-topnav-right">
+          <span className="bz-date">{fmtHoy()}</span>
           <button
-            className="ds-menu-btn"
-            onClick={() => setMenuOpen(true)}
-            aria-label="Abrir menú"
+            type="button"
+            className="bz-theme-toggle"
+            onClick={toggleTheme}
+            title="Cambiar tema"
           >
-            <Icon name="menu" />
+            <span className="bz-theme-dot" />
+            {theme === 'oscuro' ? 'NOCTURNO' : 'LEDGER'}
           </button>
-          <div className="brand-mark ds-mobilebar-mark">
-            <BrandGlyph id={BRAND_LOGO} />
+          <div className="bz-user" ref={userRef}>
+            <button
+              type="button"
+              className="bz-avatar"
+              onClick={() => setUserOpen((o) => !o)}
+              title={user?.email}
+            >
+              {initial}
+            </button>
+            {userOpen && (
+              <div className="bz-menu bz-menu-right">
+                <div className="bz-menu-meta">{user?.email}</div>
+                <div className="bz-menu-meta">{activeCompany?.razonSocial}</div>
+                <a
+                  className="bz-menu-item"
+                  href="https://contabilidad-os-production.up.railway.app"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  contabilidad-os ↗
+                </a>
+                <button type="button" className="bz-menu-item danger" onClick={logout}>
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
           </div>
-          <div className="ds-mobilebar-name">{companyName}</div>
-        </header>
+        </div>
+      </header>
 
-        {topbar && (
-          <header className="ds ds-topbar">
-            <div>
-              <h1 className="topbar-title">{topbar.title}</h1>
-              {topbar.sub && <span className="topbar-sub">{topbar.sub}</span>}
-            </div>
-            <div className="spacer" />
-            <div className="searchbox">
-              <Icon name="search" />
-              <span>Buscar proyecto, concepto…</span>
-              <kbd>⌘K</kbd>
-            </div>
-            <button className="icon-btn" aria-label="Mensajes">
-              <Icon name="message" />
-            </button>
-            <button className="icon-btn" aria-label="Notificaciones">
-              <Icon name="bell" />
-              <span className="dot" />
-            </button>
-            <div className="avatar">{initials || 'JB'}</div>
-          </header>
+      <div className="ds bz-content">
+        {pageHead && (
+          <div className="bz-pagehead">
+            <h1>{pageHead.title}</h1>
+            {pageHead.sub && <span className="bz-pagehead-sub">{pageHead.sub}</span>}
+          </div>
         )}
-        <main className="ds-content">{children}</main>
+        {children}
       </div>
     </div>
   )

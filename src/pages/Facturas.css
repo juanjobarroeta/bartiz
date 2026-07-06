@@ -18,7 +18,7 @@
   flex: 0 0 auto; padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
   background: var(--surface); border: 1px solid var(--line-2); color: var(--ink-2); cursor: pointer;
 }
-.ds .m-chip-like.active { background: var(--deep); border-color: var(--deep); color: #fff; }
+.ds .m-chip-like.active { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 
 /* match cell */
 .ds .fac-table td { vertical-align: middle; }
