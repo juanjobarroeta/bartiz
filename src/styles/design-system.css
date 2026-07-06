@@ -133,6 +133,10 @@ body {
   background: var(--bg);
   color: var(--ink);
   transition: background 0.25s;
+  /* El scroll horizontal vive DENTRO de .scroll-x / .matrix-scroll, nunca a
+     nivel de página: cualquier elemento ancho que se escape no debe desplazar
+     el layout completo (overflow visto en móvil). */
+  overflow-x: clip;
 }
 
 /* Controles de formulario con tokens dentro del shell (los checkboxes/radios
@@ -706,6 +710,16 @@ body {
   grid-template-columns: 1fr 340px;
   gap: var(--gap);
   align-items: start;
+}
+/* Los hijos de grid/flex tienen min-width:auto por defecto: una tabla ancha
+   fuerza la columna más allá del viewport y toda la página scrollea de lado.
+   min-width:0 mantiene el scroll DENTRO de .scroll-x. */
+.ds .grid-main > *,
+.ds .col > * {
+  min-width: 0;
+}
+.ds .col {
+  min-width: 0;
 }
 @media (max-width: 1180px) {
   .ds .grid-main {
@@ -1283,4 +1297,5 @@ body {
 }
 .ds .scroll-x {
   overflow-x: auto;
+  max-width: 100%;
 }
