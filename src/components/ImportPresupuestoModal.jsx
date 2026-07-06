@@ -159,10 +159,12 @@ export default function ImportPresupuestoModal({
       {stage === 'pick' && (
         <div className="imp-pick">
           <p className="muted small" style={{ marginTop: 0 }}>
-            Sube el archivo Excel del presupuesto (formato estándar: hoja{' '}
-            <strong>PRESUPUESTO</strong> con capítulos numerados{' '}
-            <span className="mono">1.1.3.5.1</span>). El sistema detecta el árbol,
-            lee los insumos y crea el presupuesto maestro del proyecto.
+            Sube el archivo Excel del presupuesto. Se detecta el formato
+            automáticamente: hoja <strong>PRESUPUESTO</strong> (capítulos
+            numerados <span className="mono">1.1.3.5.1</span> + hoja INSUMOS) u
+            hoja <strong>Matrices</strong> (análisis de precios unitarios estilo
+            Opus). En ambos casos se crea el presupuesto del proyecto con sus
+            conceptos e insumos.
           </p>
           <label
             className="imp-drop"
