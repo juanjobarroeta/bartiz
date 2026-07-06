@@ -150,6 +150,12 @@ export default function MobileApp() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // El tema vive en <html data-theme> (tokens en design-system.css). En móvil
+  // este shell monta EN LUGAR de Layout, así que aplica el atributo aquí.
+  useEffect(() => {
+    document.documentElement.dataset.theme = localStorage.getItem('bz-theme') || 'oscuro'
+  }, [])
+
   const [tab, setTab] = useState(() => tabForPath(location.pathname))
   const [project, setProject] = useState(null)
   const [sheet, setSheet] = useState(null)
@@ -236,7 +242,7 @@ export default function MobileApp() {
         <nav className="m-tabbar">
           {TABS.map((tb) => (
             <button key={tb.id} className={'m-tab' + (tab === tb.id ? ' active' : '')} onClick={() => go(tb.id)}>
-              <Icon name={tb.icon} />
+              <span className="tind" />
               <span className="tl">{tb.label}</span>
               {tb.id === 'pendientes' && pendCount > 0 && <span className="tbadge">{pendCount}</span>}
             </button>
