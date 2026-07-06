@@ -11,3 +11,53 @@
   border: 1px dashed var(--line-2);
   border-radius: var(--r-md);
 }
+
+/* ── Hoy — saludo editorial + números protagonistas + prosa ── */
+.ds .hoy-greeting {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 26px;
+  color: var(--ink-2);
+  margin: 6px 0 26px;
+}
+.ds .hoy-heroes {
+  display: flex;
+  align-items: flex-end;
+  gap: 56px;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+}
+.ds .hoy-hero-v {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  font-size: 34px;
+  line-height: 1.05;
+  margin-top: 8px;
+  white-space: nowrap;
+}
+.ds .hoy-hero.main .hoy-hero-v { font-size: 58px; }
+@media (max-width: 900px) {
+  .ds .hoy-heroes { gap: 28px; }
+  .ds .hoy-hero.main .hoy-hero-v { font-size: 44px; }
+  .ds .hoy-hero-v { font-size: 26px; }
+}
+.ds .hoy-hero-sub { font-size: 12.5px; color: var(--ink-3); margin-top: 6px; }
+.ds .hoy-hero-sub.accent { color: var(--accent); }
+
+.ds .hoy-prosa {
+  padding: 18px 22px;
+  background: var(--surface2);
+  border-radius: 14px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  margin-bottom: 30px;
+  max-width: 860px;
+}
+.ds .hoy-prosa a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

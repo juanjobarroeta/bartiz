@@ -65,7 +65,7 @@ function toRow(p, i) {
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { activeCompany } = useAuth()
+  const { activeCompany, user } = useAuth()
   const [rows, setRows] = useState([])
   const [usingSample, setUsingSample] = useState(false)
   const [sort, setSort] = useState('contratado')
@@ -73,7 +73,9 @@ const Dashboard = () => {
   // Real, actionable pendientes for Gerardo's flow (counts only). Gerardo
   // uploads presupuestos already approved, so there is no "presupuestos por
   // aprobar" here — his approval queue is "compras por autorizar".
-  const [pend, setPend] = useState({ compras: 0, porPagar: 0, sinConciliar: 0, loaded: false })
+  const [pend, setPend] = useState({ compras: 0, porPagar: 0, porPagarMonto: 0, sinConciliar: 0, loaded: false })
+  // Saldo real en bancos (para el stat protagonista "En bancos").
+  const [saldoBancos, setSaldoBancos] = useState(null)
 
   useEffect(() => {
     if (!activeCompany?.id) return
@@ -83,22 +85,28 @@ const Dashboard = () => {
   }, [activeCompany?.id])
 
   useEffect(() => {
-    if (!activeCompany?.id) { setPend({ compras: 0, porPagar: 0, sinConciliar: 0, loaded: false }); return }
+    if (!activeCompany?.id) { setPend({ compras: 0, porPagar: 0, porPagarMonto: 0, sinConciliar: 0, loaded: false }); return }
     const cid = encodeURIComponent(activeCompany.id)
     let alive = true
     ;(async () => {
-      const [compras, porPagar, conc] = await Promise.all([
+      const [compras, porPagar, conc, accts] = await Promise.all([
         apiFetch(`/api/construccion/solicitudes-compra?companyId=${cid}&estado=PENDIENTE`).catch(() => []),
-        apiFetch(`/api/construccion/adjudicaciones?companyId=${cid}&estado=POR_PAGAR`).catch(() => []),
+        apiFetch(`/api/construccion/adjudicaciones?companyId=${cid}&estado=POR_PAGAR&abiertas=1`).catch(() => []),
         apiFetch(`/api/construccion/bank-transactions?companyId=${cid}&status=UNMATCHED&count=1`).catch(() => null),
+        apiFetch(`/api/construccion/bank-accounts?companyId=${cid}&withBalances=true`).catch(() => null),
       ])
       if (!alive) return
+      const abiertas = Array.isArray(porPagar) ? porPagar : []
       setPend({
         compras: Array.isArray(compras) ? compras.length : 0,
-        porPagar: Array.isArray(porPagar) ? porPagar.length : 0,
+        porPagar: abiertas.length,
+        porPagarMonto: abiertas.reduce((s, a) => s + (Number(a.saldo ?? a.total) || 0), 0),
         sinConciliar: conc && typeof conc.count === 'number' ? conc.count : 0,
         loaded: true,
       })
+      if (Array.isArray(accts) && accts.length) {
+        setSaldoBancos(accts.reduce((s, a) => s + (a.balance ?? 0), 0))
+      }
     })()
     return () => { alive = false }
   }, [activeCompany?.id])
@@ -140,136 +148,60 @@ const Dashboard = () => {
     return { contratado, activos }
   }, [rows])
 
-  const facturadoPct = totals.contratado > 0 ? (SAMPLE_FACTURADO / totals.contratado) * 100 : 0
-  const perf = SAMPLE_PERFORMANCE
-
   const openProject = (row) => {
     if (row.id) navigate(`/proyectos/${row.id}`)
   }
 
-  // Pendientes that require Gerardo's action — each clickable to its surface,
-  // shown only when there's something to do.
-  const acciones = useMemo(() => {
-    const out = []
-    if (pend.compras > 0) {
-      out.push({
-        ic: 'requisiciones', tone: 'brand', n: pend.compras,
-        txt: pend.compras === 1 ? 'compra por autorizar' : 'compras por autorizar',
-        sub: 'requisiciones esperando tu visto bueno', to: '/compras-por-autorizar',
-      })
-    }
-    if (pend.porPagar > 0) {
-      out.push({
-        ic: 'receipt', tone: 'warn', n: pend.porPagar,
-        txt: pend.porPagar === 1 ? 'cuenta por pagar' : 'cuentas por pagar',
-        sub: 'adjudicaciones por liquidar a proveedores', to: '/cuentas-por-pagar',
-      })
-    }
-    if (cfdiResumen && cfdiResumen.porVincular > 0) {
-      const r = cfdiResumen.recibidas?.porVincular || 0
-      const e = cfdiResumen.emitidas?.porVincular || 0
-      out.push({
-        ic: 'file', tone: 'brand', n: cfdiResumen.porVincular,
-        txt: cfdiResumen.porVincular === 1 ? 'factura por vincular' : 'facturas por vincular',
-        sub: [r > 0 && `${r} recibidas`, e > 0 && `${e} emitidas`].filter(Boolean).join(' · '),
-        to: '/facturas',
-      })
-    }
-    if (pend.sinConciliar > 0) {
-      out.push({
-        ic: 'shuffle', tone: 'info', n: pend.sinConciliar,
-        txt: 'movimientos bancarios sin conciliar',
-        sub: 'pendientes de conciliar en tesorería', to: '/tesoreria-bartiz',
-      })
-    }
-    return out
-  }, [pend, cfdiResumen])
+
+  // Saludo editorial + pendientes como prosa (no lista de alertas).
+  const hora = new Date().getHours()
+  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
+  const nombre = (user?.name || user?.email || '').split(/[\s@]/)[0]
+  const prosa = []
+  if (pend.compras > 0) prosa.push({ n: `${pend.compras} compra${pend.compras === 1 ? '' : 's'} por autorizar`, to: '/compras-por-autorizar' })
+  if (pend.porPagar > 0) prosa.push({ n: `${pend.porPagar} cuenta${pend.porPagar === 1 ? '' : 's'} por pagar (${money(pend.porPagarMonto)})`, to: '/cuentas-por-pagar' })
+  if (cfdiResumen?.porVincular > 0) prosa.push({ n: `${cfdiResumen.porVincular} factura${cfdiResumen.porVincular === 1 ? '' : 's'} por vincular`, to: '/facturas' })
+  if (pend.sinConciliar > 0) prosa.push({ n: `${pend.sinConciliar} movimiento${pend.sinConciliar === 1 ? '' : 's'} sin conciliar`, to: '/tesoreria-bartiz' })
 
   return (
     <div className="ds">
       <div className="page">
-        {/* toolbar */}
-        <div className="page-toolbar">
-          <div className="daterange">
-            <Icon name="calendar" />
-            <span>10 Jun 2026 — 30 Jun 2026</span>
-            <Icon name="chevronDown" style={{ width: 15, height: 15, color: 'var(--ink-3)' }} />
+        {/* Hoy — saludo + números protagonistas */}
+        <div className="hoy-greeting">{saludo}{nombre ? `, ${nombre}` : ''}.</div>
+        <div className="hoy-heroes">
+          <div className="hoy-hero main">
+            <div className="eyebrow">Valor de cartera</div>
+            <div className="hoy-hero-v"><MoneyParts value={totals.contratado} /></div>
+            <div className="hoy-hero-sub">{totals.activos} obra{totals.activos === 1 ? '' : 's'} activa{totals.activos === 1 ? '' : 's'}</div>
           </div>
-          <div className="spacer" />
-          <button className="btn btn-ghost">
-            <Icon name="link" />
-            Link público
-          </button>
-          <button className="btn btn-primary">
-            <Icon name="share" />
-            Compartir
-          </button>
+          <div className="hoy-hero">
+            <div className="eyebrow">En bancos</div>
+            <div className="hoy-hero-v"><MoneyParts value={saldoBancos ?? SAMPLE_SALDO_TOTAL} /></div>
+            <div className="hoy-hero-sub">{pend.sinConciliar > 0 ? `${pend.sinConciliar} mov. sin conciliar` : 'conciliado'}</div>
+          </div>
+          <div className="hoy-hero">
+            <div className="eyebrow">Por pagar</div>
+            <div className="hoy-hero-v"><MoneyParts value={pend.porPagarMonto} /></div>
+            <div className="hoy-hero-sub accent">{pend.porPagar} proveedor{pend.porPagar === 1 ? '' : 'es'} con saldo</div>
+          </div>
         </div>
 
-        {/* hero KPI strip */}
-        <div className="kpi-row">
-          <div className="kpi feature">
-            <div className="kpi-top">
-              <div className="kpi-ic">
-                <Icon name="briefcase" />
-              </div>
-              <div className="kpi-label">Valor de cartera · Contratado</div>
-            </div>
-            <div className="kpi-value">
-              <MoneyParts value={totals.contratado} />
-            </div>
-            <div className="kpi-sub">
-              <Delta v={18} />
-              <span>vs. trimestre anterior</span>
-              <span style={{ marginLeft: 'auto' }}>{totals.activos} proyectos activos</span>
-            </div>
-          </div>
-
-          <div className="kpi">
-            <div className="kpi-top">
-              <div className="kpi-ic">
-                <Icon name="receipt" />
-              </div>
-              <div className="kpi-label">Facturado de cartera</div>
-            </div>
-            <div className="kpi-value">{money(SAMPLE_FACTURADO)}</div>
-            <div className="kpi-sub">
-              <span className="pill">{facturadoPct.toFixed(1)}% del contrato</span>
-              <span>· {money(SAMPLE_COBRADO)} cobrado</span>
-            </div>
-          </div>
-
-          <div className="kpi">
-            <div className="kpi-top">
-              <div className="kpi-ic" style={{ background: 'var(--pos-soft)', color: 'var(--pos)' }}>
-                <Icon name="bank" />
-              </div>
-              <div className="kpi-label">Saldo en bancos</div>
-            </div>
-            <div className="kpi-value">
-              <MoneyParts value={SAMPLE_SALDO_TOTAL} />
-            </div>
-            <div className="kpi-sub">
-              <span>{SAMPLE_BANKS.length} cuentas operativas</span>
-              <span className="pill warn" style={{ marginLeft: 'auto' }}>
-                {(pend.loaded ? pend.sinConciliar : SAMPLE_SIN_CONCILIAR)} sin conciliar
-              </span>
-            </div>
-          </div>
-
-          <div className="kpi">
-            <div className="kpi-top">
-              <div className="kpi-ic" style={{ background: 'var(--info-soft)', color: 'var(--info)' }}>
-                <Icon name="target" />
-              </div>
-              <div className="kpi-label">Rendimiento de cartera</div>
-            </div>
-            <div className="kpi-value">{perf.rendimiento}%</div>
-            <div className="kpi-sub">
-              <span>Ganado {compactMoney(perf.valorGanado)}</span>
-              <span>· Plan {compactMoney(perf.valorPlaneado)}</span>
-            </div>
-          </div>
+        {/* Pendientes en prosa — una oración, no una lista de alertas */}
+        <div className="hoy-prosa">
+          {prosa.length === 0 ? (
+            pend.loaded ? 'Todo al día — no hay pendientes que requieran tu atención.' : 'Cargando pendientes…'
+          ) : (
+            <>
+              {'Hoy tienes '}
+              {prosa.map((p, i) => (
+                <span key={p.to}>
+                  <a onClick={(e) => { e.preventDefault(); navigate(p.to) }} href={p.to}>{p.n}</a>
+                  {i < prosa.length - 2 ? ', ' : i === prosa.length - 2 ? ' y ' : ''}
+                </span>
+              ))}
+              {'.'}
+            </>
+          )}
         </div>
 
         {/* main two-column */}
@@ -450,68 +382,6 @@ const Dashboard = () => {
               ))}
             </div>
 
-            {/* rendimiento gauge */}
-            <div className="card">
-              <div className="card-head">
-                <h3>Rendimiento del proyecto</h3>
-              </div>
-              <div className="gauge-wrap">
-                <Gauge pct={perf.rendimiento} />
-                <div className="gauge-legend">
-                  <div className="gl-item">
-                    <div className="gl-top">
-                      <span className="sw" style={{ background: 'var(--brand)' }} />
-                      Valor ganado
-                    </div>
-                    <div className="gl-v">{money(perf.valorGanado)}</div>
-                  </div>
-                  <div className="gl-item">
-                    <div className="gl-top">
-                      <span className="sw" style={{ background: '#EFE9DF' }} />
-                      Valor planeado
-                    </div>
-                    <div className="gl-v" style={{ color: 'var(--ink-2)' }}>
-                      {money(perf.valorPlaneado)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* pendientes / acciones */}
-            <div className="card">
-              <div className="card-head">
-                <h3>Pendientes</h3>
-                <span className="hint">Requiere tu atención</span>
-              </div>
-              {acciones.length === 0 ? (
-                <div className="action-empty">
-                  {pend.loaded ? 'Todo al día — sin pendientes.' : 'Cargando pendientes…'}
-                </div>
-              ) : (
-                acciones.map((a, i) => (
-                  <button
-                    type="button"
-                    className="action action-btn"
-                    key={i}
-                    onClick={() => navigate(a.to)}
-                  >
-                    <div className={'action-ic ' + a.tone}>
-                      <Icon name={a.ic} />
-                    </div>
-                    <div>
-                      <div className="action-txt">
-                        <b>{a.n}</b> {a.txt}
-                      </div>
-                      {a.sub && <div className="action-sub">{a.sub}</div>}
-                    </div>
-                    <span className="row-go" style={{ marginLeft: 'auto' }}>
-                      <Icon name="chevronRight" />
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
           </div>
         </div>
 
