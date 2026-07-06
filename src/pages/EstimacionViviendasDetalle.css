@@ -2,7 +2,7 @@
 .ev-back {
   background: transparent;
   border: none;
-  color: #2563eb;
+  color: var(--info);
   cursor: pointer;
   font-size: 0.9rem;
   padding: 0 0 0.5rem 0;
@@ -10,8 +10,8 @@
 .ev-empty {
   padding: 2rem;
   text-align: center;
-  color: #64748b;
-  background: #f8fafc;
+  color: var(--ink-3);
+  background: var(--surface2);
   border-radius: 8px;
 }
 
@@ -19,8 +19,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
@@ -30,8 +30,8 @@
 
 /* Grid */
 .ev-grid-wrap {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   overflow-x: auto;
   margin-bottom: 1rem;
@@ -44,35 +44,35 @@
 .ev-grid th, .ev-grid td {
   padding: 0.45rem 0.6rem;
   text-align: left;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
 }
 .ev-grid thead th {
-  background: #f8fafc;
+  background: var(--surface2);
   font-size: 0.7rem;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--ink-3);
   letter-spacing: 0.04em;
   font-weight: 600;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
 }
 .ev-grid thead tr:last-child th {
-  background: #f1f5f9;
+  background: var(--surface2);
   text-transform: none;
   font-size: 0.72rem;
 }
 .ev-grid th.ev-period, .ev-grid td.ev-period {
-  background: #fffbeb;
+  background: var(--warn-soft);
 }
 .ev-grid tfoot td {
   border-top: 2px solid #cbd5e1;
-  background: #f8fafc;
+  background: var(--surface2);
   font-size: 0.92rem;
   padding: 0.6rem;
 }
 .ev-grid input[type=number] {
   width: 60px;
   padding: 0.3rem 0.4rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 4px;
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
@@ -87,8 +87,8 @@
 .ev-summary {
   display: flex;
   gap: 2rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
@@ -104,7 +104,7 @@
 }
 .ev-summary .ev-summary-total strong {
   font-size: 1.3rem;
-  color: #16a34a;
+  color: var(--pos);
 }
 
 /* Link cards (CFDI / Cobranza) */
@@ -115,20 +115,20 @@
   margin-bottom: 1rem;
 }
 .ev-link-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 1rem 1.25rem;
 }
 .ev-link-card .link {
   background: none;
   border: none;
-  color: #2563eb;
+  color: var(--info);
   cursor: pointer;
   padding: 0.4rem 0;
   font-size: 0.9rem;
 }
-.ev-link-card .link:disabled { color: #94a3b8; cursor: not-allowed; }
+.ev-link-card .link:disabled { color: var(--muted); cursor: not-allowed; }
 
 /* Action bar */
 .ev-actions {
@@ -147,4 +147,4 @@
   cursor: pointer;
 }
 .ev-actions .primary:disabled { background: #cbd5e1; cursor: not-allowed; }
-.ev-actions .danger { color: #dc2626; }
+.ev-actions .danger { color: var(--neg); }

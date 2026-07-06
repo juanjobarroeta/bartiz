@@ -180,7 +180,7 @@
 .matrix-table th.cot-selected, .matrix-table td.cot-selected { background: var(--pos-soft); }
 .matrix-table td.cheapest { color: var(--pos); font-weight: 700; }
 .matrix-table tr.totals-row td { background: var(--surface-sunk); font-size: 0.95rem; border-top: 2px solid var(--line-2); font-family: var(--font-display); }
-.matrix-table .selected { background: var(--pos); color: white; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
+.matrix-table .selected { background: var(--pos); color: var(--accent-ink); padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
 
 /* ── Per-concept adjudicación ── */
 .matrix-cell[role="button"] { cursor: pointer; }

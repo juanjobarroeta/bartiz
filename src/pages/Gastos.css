@@ -12,8 +12,8 @@
 }
 
 .gastos-col {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 1rem;
 }
@@ -27,11 +27,11 @@
   padding: 0.2rem 0.55rem;
   border-radius: 4px;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--ink-3);
   cursor: pointer;
 }
-.gastos-filters button:hover { background: #f1f5f9; color: #0f172a; }
-.gastos-filters button.active { background: #0f172a; color: white; }
+.gastos-filters button:hover { background: var(--surface2); color: var(--ink); }
+.gastos-filters button.active { background: var(--ink); color: var(--bg); }
 .gastos-filters .badge {
   margin-left: 0.3rem;
   background: #fca5a5;
@@ -43,14 +43,14 @@
 
 .gastos-items { list-style: none; padding: 0; margin: 0; }
 .gasto-item {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
   margin-bottom: 0.5rem;
-  background: #fff;
+  background: var(--surface);
 }
 .gasto-item.estado-pagado { background: #f0fdf4; border-color: #bbf7d0; }
-.gasto-item.estado-rechazado { background: #fef2f2; border-color: #fecaca; opacity: 0.75; }
+.gasto-item.estado-rechazado { background: var(--neg-soft); border-color: #fecaca; opacity: 0.75; }
 
 .gasto-row-main { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
 .importe { font-family: ui-monospace, Menlo, monospace; }
@@ -73,28 +73,28 @@
 /* ── Form ── */
 .gasto-form { display: flex; flex-direction: column; gap: 0.7rem; }
 .gasto-form label { display: flex; flex-direction: column; gap: 0.2rem; }
-.gasto-form label > span { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+.gasto-form label > span { font-size: 0.75rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; }
 .gasto-form input,
 .gasto-form select {
   padding: 0.4rem 0.5rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 5px;
   font-size: 0.9rem;
-  background: #fff;
+  background: var(--surface);
 }
 .gasto-form label.stack { display: flex; flex-direction: column; gap: 0.3rem; }
 .gasto-form input:focus, .gasto-form select:focus { outline: 2px solid #3b82f6; outline-offset: -1px; border-color: #3b82f6; }
 
 .suggest-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--surface2);
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
-.suggest-title { font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-bottom: 0.2rem; }
+.suggest-title { font-size: 0.7rem; color: var(--ink-3); text-transform: uppercase; margin-bottom: 0.2rem; }
 .suggest-item {
   display: block;
   width: 100%;
@@ -109,7 +109,7 @@
 .suggest-item:hover { background: #e2e8f0; }
 .suggest-item .mono { font-weight: 600; }
 .picked {
-  background: #dbeafe;
+  background: var(--info-soft);
   color: #1e3a8a;
   padding: 0.4rem 0.5rem;
   border-radius: 5px;
@@ -122,7 +122,7 @@
 
 .suggest-empty {
   padding: 0.4rem 0.5rem;
-  background: #fef3c7;
+  background: var(--warn-soft);
   border-radius: 5px;
   color: #78350f;
 }
@@ -131,27 +131,27 @@
 .mode-tabs {
   display: flex;
   gap: 0.3rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
   padding-bottom: 0.4rem;
 }
 .mode-tabs button {
-  background: #f1f5f9;
+  background: var(--surface2);
   border: 1px solid transparent;
   padding: 0.35rem 0.7rem;
   border-radius: 5px;
   font-size: 0.82rem;
   cursor: pointer;
-  color: #334155;
+  color: var(--ink-2);
 }
 .mode-tabs button.active {
   background: #0f172a;
   color: white;
-  border-color: #0f172a;
+  border-color: var(--ink);
 }
 
 .indirecto-picker {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--surface2);
+  border: 1px solid var(--line);
   border-radius: 6px;
   padding: 0.6rem;
   display: flex;
@@ -164,23 +164,23 @@
   gap: 0.3rem;
 }
 .cat-chips button {
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
   padding: 0.3rem 0.55rem;
   border-radius: 999px;
   font-size: 0.78rem;
   cursor: pointer;
-  color: #334155;
+  color: var(--ink-2);
 }
-.cat-chips button:hover { background: #f1f5f9; }
+.cat-chips button:hover { background: var(--surface2); }
 .cat-chips button.active {
   background: #fde68a;
-  border-color: #d97706;
+  border-color: var(--warn);
   color: #78350f;
 }
 .cat-other {
   padding: 0.35rem 0.5rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 5px;
   font-size: 0.85rem;
 }

@@ -11,21 +11,21 @@
   border-radius: 5px;
   font-size: 0.82rem;
   cursor: pointer;
-  color: #64748b;
+  color: var(--ink-3);
 }
-.toolbar .filters button:hover { background: #f1f5f9; color: #0f172a; }
-.toolbar .filters button.active { background: #0f172a; color: white; }
+.toolbar .filters button:hover { background: var(--surface2); color: var(--ink); }
+.toolbar .filters button.active { background: var(--ink); color: var(--bg); }
 
 .month-block { margin-bottom: 1.5rem; }
 .month-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.4rem; }
-.month-head h2 { margin: 0; font-size: 0.95rem; text-transform: capitalize; color: #334155; }
-.month-totals { font-size: 0.78rem; color: #64748b; }
+.month-head h2 { margin: 0; font-size: 0.95rem; text-transform: capitalize; color: var(--ink-2); }
+.month-totals { font-size: 0.78rem; color: var(--ink-3); }
 
-.reembolsos-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; }
-.reembolsos-table th, .reembolsos-table td { padding: 0.55rem 0.75rem; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 0.88rem; }
-.reembolsos-table thead th { background: #f8fafc; font-size: 0.72rem; text-transform: uppercase; color: #64748b; letter-spacing: 0.04em; }
+.reembolsos-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.reembolsos-table th, .reembolsos-table td { padding: 0.55rem 0.75rem; text-align: left; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+.reembolsos-table thead th { background: var(--surface2); font-size: 0.72rem; text-transform: uppercase; color: var(--ink-3); letter-spacing: 0.04em; }
 .reembolsos-table tr.clickable { cursor: pointer; }
-.reembolsos-table tr.clickable:hover { background: #f8fafc; }
+.reembolsos-table tr.clickable:hover { background: var(--surface2); }
 
 .badge {
   display: inline-block;
@@ -35,9 +35,9 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   background: #e2e8f0;
-  color: #475569;
+  color: var(--ink-2);
 }
-.badge.estado-submitted  { background: #dbeafe; color: #1e3a8a; }
+.badge.estado-submitted  { background: var(--info-soft); color: #1e3a8a; }
 .badge.estado-revisado   { background: #fde68a; color: #78350f; }
 .badge.estado-reembolsado { background: #bbf7d0; color: #166534; }
 .badge.estado-rechazado  { background: #fecaca; color: #991b1b; }
@@ -47,7 +47,7 @@
 .pd-back {
   background: transparent;
   border: none;
-  color: #2563eb;
+  color: var(--info);
   cursor: pointer;
   font-size: 0.9rem;
   padding: 0 0 0.5rem 0;
@@ -57,8 +57,8 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 2rem;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
@@ -84,9 +84,9 @@
   font-size: 1.05rem;
 }
 .reembolso-totals .row strong { font-variant-numeric: tabular-nums; }
-.reembolso-totals button.link { background: none; border: none; color: #2563eb; cursor: pointer; font-size: 0.75rem; margin-left: 0.4rem; }
+.reembolso-totals button.link { background: none; border: none; color: var(--info); cursor: pointer; font-size: 0.75rem; margin-left: 0.4rem; }
 
-.reembolso-body { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; }
+.reembolso-body { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
 .reembolso-actions { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center; }
 .reembolso-frozen { color: #166534; font-size: 0.9rem; }
 
@@ -94,15 +94,15 @@
 .reembolso-gastos th, .reembolso-gastos td {
   padding: 0.5rem 0.75rem;
   text-align: left;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
   font-size: 0.88rem;
   vertical-align: top;
 }
 .reembolso-gastos thead th {
-  background: #f8fafc;
+  background: var(--surface2);
   font-size: 0.72rem;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--ink-3);
   letter-spacing: 0.04em;
 }
 .reembolso-gastos tr.rechazado { opacity: 0.5; text-decoration: line-through; }
@@ -111,8 +111,8 @@
 .new-gasto-inline {
   margin-top: 1rem;
   padding: 1rem;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: var(--surface2);
+  border: 1px dashed var(--line-2);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -120,10 +120,10 @@
 }
 .new-gasto-inline .row { display: flex; gap: 0.6rem; align-items: flex-end; }
 .new-gasto-inline label { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; }
-.new-gasto-inline label > span { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+.new-gasto-inline label > span { font-size: 0.72rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; }
 .new-gasto-inline input {
   padding: 0.4rem 0.5rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 5px;
   font-size: 0.9rem;
 }
@@ -133,22 +133,22 @@
   display: flex;
   gap: 0.3rem;
   padding-bottom: 0.3rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
 }
 .new-gasto-inline .mode-tabs button {
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
   padding: 0.25rem 0.6rem;
   border-radius: 4px;
   font-size: 0.78rem;
   cursor: pointer;
-  color: #334155;
+  color: var(--ink-2);
 }
-.new-gasto-inline .mode-tabs button.active { background: #0f172a; color: white; border-color: #0f172a; }
+.new-gasto-inline .mode-tabs button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
 .new-gasto-inline .suggest-box {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 5px;
   padding: 0.3rem;
   display: flex;
@@ -164,10 +164,10 @@
   cursor: pointer;
   font-size: 0.85rem;
 }
-.new-gasto-inline .suggest-item:hover { background: #f1f5f9; }
+.new-gasto-inline .suggest-item:hover { background: var(--surface2); }
 .new-gasto-inline .suggest-item .mono { font-weight: 600; }
 .new-gasto-inline .picked {
-  background: #dbeafe;
+  background: var(--info-soft);
   color: #1e3a8a;
   padding: 0.35rem 0.5rem;
   border-radius: 4px;
@@ -178,17 +178,17 @@
 }
 .new-gasto-inline .cat-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .new-gasto-inline .cat-chips button {
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
   padding: 0.25rem 0.55rem;
   border-radius: 999px;
   font-size: 0.78rem;
   cursor: pointer;
 }
-.new-gasto-inline .cat-chips button.active { background: #fde68a; border-color: #d97706; color: #78350f; }
-.new-gasto-inline .link { background: none; border: none; color: #2563eb; cursor: pointer; font-size: 0.75rem; }
+.new-gasto-inline .cat-chips button.active { background: #fde68a; border-color: var(--warn); color: #78350f; }
+.new-gasto-inline .link { background: none; border: none; color: var(--info); cursor: pointer; font-size: 0.75rem; }
 
 .mono { font-family: ui-monospace, Menlo, monospace; }
 .small { font-size: 0.8rem; }
-.muted { color: #64748b; }
-.pd-empty { padding: 2rem; text-align: center; color: #64748b; }
+.muted { color: var(--ink-3); }
+.pd-empty { padding: 2rem; text-align: center; color: var(--ink-3); }

@@ -10,7 +10,7 @@
 .login-card {
   width: 100%;
   max-width: 420px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 12px;
   padding: 2.5rem 2rem;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
@@ -22,13 +22,13 @@
 .login-card h1 {
   margin: 0;
   font-size: 1.5rem;
-  color: #0f172a;
+  color: var(--ink);
   letter-spacing: -0.01em;
 }
 
 .login-sub {
   margin: 0 0 0.5rem;
-  color: #64748b;
+  color: var(--ink-3);
   font-size: 0.92rem;
 }
 
@@ -38,12 +38,12 @@
   gap: 0.35rem;
   font-size: 0.88rem;
   font-weight: 500;
-  color: #334155;
+  color: var(--ink-2);
 }
 
 .login-card input {
   padding: 0.7rem 0.85rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   font-size: 0.95rem;
   outline: none;
@@ -51,14 +51,14 @@
 }
 
 .login-card input:focus {
-  border-color: #2563eb;
+  border-color: var(--info);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .login-error {
-  background: #fef2f2;
+  background: var(--neg-soft);
   border: 1px solid #fecaca;
-  color: #b91c1c;
+  color: var(--neg);
   padding: 0.65rem 0.85rem;
   border-radius: 8px;
   font-size: 0.85rem;
@@ -87,7 +87,7 @@
 
 .login-hint {
   margin: 0;
-  color: #94a3b8;
+  color: var(--muted);
   font-size: 0.78rem;
   text-align: center;
 }

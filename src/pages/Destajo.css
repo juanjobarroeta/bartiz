@@ -11,25 +11,25 @@
 }
 .destajo-page .toolbar select {
   padding: 0.4rem 0.55rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 5px;
-  background: #fff;
+  background: var(--surface);
   font-size: 0.88rem;
 }
 .destajo-page .filters { display: flex; gap: 0.3rem; }
 .destajo-page .filters button {
-  background: #f1f5f9;
+  background: var(--surface2);
   border: 1px solid transparent;
   padding: 0.35rem 0.7rem;
   border-radius: 5px;
   font-size: 0.85rem;
   cursor: pointer;
-  color: #334155;
+  color: var(--ink-2);
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
 }
-.destajo-page .filters button.active { background: #0f172a; color: white; border-color: #0f172a; }
+.destajo-page .filters button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .destajo-page .filters .count {
   background: rgba(255, 255, 255, 0.2);
   padding: 0 0.35rem;
@@ -46,14 +46,14 @@
   border-radius: 4px;
   font-size: 0.78rem;
   cursor: pointer;
-  color: #64748b;
+  color: var(--ink-3);
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
 }
-.estado-filters button:hover { background: #f1f5f9; }
-.estado-filters button.active { background: #0f172a; color: white; }
-.estado-filters .count { background: #fca5a5; color: white; padding: 0 0.3rem; border-radius: 8px; font-size: 0.65rem; }
+.estado-filters button:hover { background: var(--surface2); }
+.estado-filters button.active { background: var(--ink); color: var(--bg); }
+.estado-filters .count { background: var(--neg-soft); color: var(--neg); padding: 0 0.3rem; border-radius: 8px; font-size: 0.65rem; }
 
 .cuadrilla-grid {
   display: grid;
@@ -61,8 +61,8 @@
   gap: 0.75rem;
 }
 .cuadrilla-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.85rem 0.95rem;
   display: flex;
@@ -75,7 +75,7 @@
   align-items: baseline;
   gap: 0.4rem;
 }
-.cuadrilla-stats { padding-top: 0.2rem; border-top: 1px solid #f1f5f9; }
+.cuadrilla-stats { padding-top: 0.2rem; border-top: 1px solid var(--line); }
 .miembros {
   list-style: none;
   margin: 0.4rem 0 0;
@@ -87,22 +87,22 @@
 .rayas-table {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 6px;
   overflow: hidden;
 }
 .rayas-table th, .rayas-table td {
   padding: 0.55rem 0.75rem;
   text-align: left;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
   font-size: 0.88rem;
 }
 .rayas-table thead th {
-  background: #f8fafc;
+  background: var(--surface2);
   font-size: 0.72rem;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--ink-3);
   letter-spacing: 0.04em;
 }
 
@@ -114,13 +114,13 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   background: #e2e8f0;
-  color: #475569;
+  color: var(--ink-2);
 }
-.badge.estado-borrador { background: #fef3c7; color: #78350f; }
-.badge.estado-aprobada { background: #dbeafe; color: #1e3a8a; }
+.badge.estado-borrador { background: var(--warn-soft); color: #78350f; }
+.badge.estado-aprobada { background: var(--info-soft); color: #1e3a8a; }
 .badge.estado-pagada   { background: #bbf7d0; color: #166534; }
 
 .mono { font-family: ui-monospace, Menlo, monospace; }
 .small { font-size: 0.8rem; }
-.muted { color: #64748b; }
-.pd-empty { padding: 2rem; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px; }
+.muted { color: var(--ink-3); }
+.pd-empty { padding: 2rem; text-align: center; color: var(--ink-3); background: var(--surface2); border-radius: 8px; }

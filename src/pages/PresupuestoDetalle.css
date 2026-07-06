@@ -9,7 +9,7 @@
 .pres-back {
   background: transparent;
   border: none;
-  color: #2563eb;
+  color: var(--info);
   font-weight: 600;
   cursor: pointer;
   padding: 0;
@@ -18,8 +18,8 @@
 }
 
 .pres-header {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 1.3rem 1.5rem;
   margin-bottom: 1rem;
@@ -33,7 +33,7 @@
 .pres-tag {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--ink-3);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-bottom: 0.3rem;
@@ -42,7 +42,7 @@
 .pres-header h1 {
   margin: 0 0 0.6rem;
   font-size: 1.6rem;
-  color: #0f172a;
+  color: var(--ink);
   line-height: 1.2;
 }
 
@@ -63,16 +63,16 @@
   letter-spacing: 0.02em;
 }
 
-.estado-borrador     { background: #fef3c7; color: #92400e; }
-.estado-aprobado     { background: #dcfce7; color: #166534; }
-.estado-en_ejecucion { background: #dbeafe; color: #1e40af; }
+.estado-borrador     { background: var(--warn-soft); color: var(--warn); }
+.estado-aprobado     { background: var(--pos-soft); color: #166534; }
+.estado-en_ejecucion { background: var(--info-soft); color: #1e40af; }
 .estado-cerrado      { background: #e0e7ff; color: #3730a3; }
-.estado-rechazado    { background: #fee2e2; color: #991b1b; }
+.estado-rechazado    { background: var(--neg-soft); color: #991b1b; }
 
 .pres-totals-card,
 .pres-footer-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--surface2);
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 1rem 1.25rem;
   min-width: 280px;
@@ -84,7 +84,7 @@
   justify-content: space-between;
   padding: 0.35rem 0;
   font-size: 0.88rem;
-  color: #475569;
+  color: var(--ink-2);
 }
 
 .pres-totals-card .row.total,
@@ -93,7 +93,7 @@
   margin-top: 0.35rem;
   padding-top: 0.6rem;
   font-size: 1.05rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .pres-totals-card .row strong,
@@ -139,8 +139,8 @@
 }
 
 .pres-zona {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   margin-bottom: 1rem;
   overflow: hidden;
@@ -165,7 +165,7 @@
 }
 
 .pres-zona-total .muted {
-  color: #94a3b8;
+  color: var(--muted);
   font-weight: 400;
 }
 
@@ -177,13 +177,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f1f5f9;
+  background: var(--surface2);
   padding: 0.55rem 0.85rem;
   border-radius: 6px;
   margin: 0.85rem 0 0.4rem;
   font-size: 0.82rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--ink-2);
 }
 
 .pres-grupo-head .mono {
@@ -200,17 +200,17 @@
 .pres-table thead th {
   padding: 0.5rem 0.6rem;
   text-align: left;
-  color: #64748b;
+  color: var(--ink-3);
   font-weight: 600;
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
 }
 
 .pres-table tbody td {
   padding: 0.55rem 0.6rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
   vertical-align: top;
   font-variant-numeric: tabular-nums;
 }
@@ -226,12 +226,12 @@
 .pres-table .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78rem;
-  color: #334155;
+  color: var(--ink-2);
   white-space: nowrap;
 }
 
 .pres-table .desc {
-  color: #0f172a;
+  color: var(--ink);
   line-height: 1.4;
 }
 
@@ -242,29 +242,29 @@
 }
 
 .pres-footer-card {
-  background: white;
+  background: var(--surface);
   border: 2px solid #0f172a;
   min-width: 320px;
 }
 
 .muted {
-  color: #94a3b8;
+  color: var(--muted);
   font-weight: 400;
 }
 
 .pres-state {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: var(--surface2);
+  border: 1px dashed var(--line-2);
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
-  color: #475569;
+  color: var(--ink-2);
 }
 
 .pres-error {
-  background: #fef2f2;
+  background: var(--neg-soft);
   border-color: #fecaca;
-  color: #b91c1c;
+  color: var(--neg);
 }
 
 /* Partida notes */
@@ -282,7 +282,7 @@
 
 .pres-notas-row td {
   padding: 0 0.6rem 0.6rem !important;
-  border-bottom: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid var(--line) !important;
   background: #fafbff;
 }
 
@@ -301,12 +301,12 @@
   font-family: inherit;
   resize: vertical;
   min-height: 40px;
-  background: white;
+  background: var(--surface);
 }
 
 .pres-notas-editor textarea:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--info);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
@@ -320,7 +320,7 @@
 .pres-notas-status {
   flex: 1;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--ink-3);
 }
 
 .pres-notas-save {
@@ -341,17 +341,17 @@
 
 .pres-notas-close {
   padding: 0.35rem 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 6px;
-  background: white;
-  color: #64748b;
+  background: var(--surface);
+  color: var(--ink-3);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
 .pres-notas-close:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--surface2);
+  color: var(--ink);
 }
 
 /* ── Edit mode ───────────────────────────────────────────────────────── */
@@ -368,25 +368,25 @@
   width: 100%;
   max-width: 110px;
   padding: 0.35rem 0.5rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 6px;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  background: #fffbeb;
+  background: var(--warn-soft);
   font-family: inherit;
 }
 .pres-qty-input:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--info);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
-  background: white;
+  background: var(--surface);
 }
 
 .pres-delete-btn {
   background: transparent;
   border: 1px solid #fecaca;
-  color: #dc2626;
+  color: var(--neg);
   border-radius: 6px;
   width: 26px;
   height: 26px;
@@ -396,7 +396,7 @@
   line-height: 1;
 }
 .pres-delete-btn:hover {
-  background: #fee2e2;
+  background: var(--neg-soft);
 }
 
 .pres-add-row {
@@ -412,23 +412,23 @@
   font-size: 0.85rem;
 }
 .pres-add-row:hover {
-  background: #dcfce7;
+  background: var(--pos-soft);
 }
 .pres-add-partida {
-  background: #eff6ff;
+  background: var(--info-soft);
   border-color: #93c5fd;
   color: #1e40af;
 }
 .pres-add-partida:hover {
-  background: #dbeafe;
+  background: var(--info-soft);
 }
 .pres-add-zone-wrap {
   margin-top: 1rem;
 }
 .pres-add-zona {
-  background: #fef3c7;
+  background: var(--warn-soft);
   border-color: #fcd34d;
-  color: #92400e;
+  color: var(--warn);
   margin: 0;
   width: 100%;
 }
@@ -450,7 +450,7 @@
 }
 
 .pres-picker {
-  background: white;
+  background: var(--surface);
   border-radius: 12px;
   width: 100%;
   max-width: 720px;
@@ -463,17 +463,17 @@
 
 .pres-picker header {
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
   position: relative;
 }
 .pres-picker header h3 {
   margin: 0;
   font-size: 1.05rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 .pres-picker header .muted {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--ink-3);
   margin-top: 0.15rem;
 }
 .pres-picker-close {
@@ -484,25 +484,25 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #64748b;
+  color: var(--ink-3);
   width: 32px;
   height: 32px;
   border-radius: 6px;
 }
 .pres-picker-close:hover {
-  background: #f1f5f9;
+  background: var(--surface2);
 }
 
 .pres-picker > input[type='search'] {
   margin: 1rem 1.25rem 0;
   padding: 0.6rem 0.85rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   font-size: 0.9rem;
 }
 .pres-picker > input[type='search']:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--info);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
@@ -521,28 +521,28 @@
   padding: 0.6rem 1.25rem;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
   text-align: left;
   width: 100%;
   cursor: pointer;
   font-size: 0.82rem;
 }
 .pres-picker-row:hover {
-  background: #eff6ff;
+  background: var(--info-soft);
 }
 .pres-picker-row .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: #334155;
+  color: var(--ink-2);
   font-size: 0.78rem;
 }
 .pres-picker-row .desc {
-  color: #0f172a;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .pres-picker-row .muted {
-  color: #94a3b8;
+  color: var(--muted);
   font-size: 0.78rem;
 }
 
@@ -551,14 +551,14 @@
   padding: 0.75rem;
   background: #fefce8;
   border: 1px dashed #fcd34d;
-  color: #92400e;
+  color: var(--warn);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   font-size: 0.88rem;
 }
 .pres-picker-new:hover {
-  background: #fef3c7;
+  background: var(--warn-soft);
 }
 
 .pres-picker-confirm {
@@ -569,14 +569,14 @@
 }
 .pres-picker-confirm .summary {
   padding: 0.75rem;
-  background: #f8fafc;
+  background: var(--surface2);
   border-radius: 8px;
   font-size: 0.88rem;
   line-height: 1.5;
 }
 .pres-picker-confirm .summary .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: #475569;
+  color: var(--ink-2);
   font-size: 0.78rem;
 }
 .pres-picker-confirm label {
@@ -584,12 +584,12 @@
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.82rem;
-  color: #475569;
+  color: var(--ink-2);
   font-weight: 500;
 }
 .pres-picker-confirm label input {
   padding: 0.55rem 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   font-size: 0.95rem;
 }
@@ -601,8 +601,8 @@
 .pres-picker-confirm .row button {
   padding: 0.6rem 1rem;
   border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: white;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
   cursor: pointer;
   font-weight: 600;
   font-size: 0.88rem;
@@ -610,7 +610,7 @@
 .pres-picker-confirm .row button.primary {
   background: #2563eb;
   color: white;
-  border-color: #2563eb;
+  border-color: var(--info);
 }
 
 .pres-picker-new-form {
@@ -624,13 +624,13 @@
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.82rem;
-  color: #475569;
+  color: var(--ink-2);
   font-weight: 500;
 }
 .pres-picker-new-form input,
 .pres-picker-new-form textarea {
   padding: 0.55rem 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   font-size: 0.88rem;
   font-family: inherit;
@@ -653,8 +653,8 @@
 .pres-picker-new-form .row button {
   padding: 0.6rem 1rem;
   border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: white;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
   cursor: pointer;
   font-weight: 600;
   font-size: 0.88rem;
@@ -662,12 +662,12 @@
 .pres-picker-new-form .row button.primary {
   background: #16a34a;
   color: white;
-  border-color: #16a34a;
+  border-color: var(--pos);
 }
 .pres-picker-error {
-  background: #fef2f2;
+  background: var(--neg-soft);
   border: 1px solid #fecaca;
-  color: #b91c1c;
+  color: var(--neg);
   padding: 0.55rem 0.75rem;
   border-radius: 8px;
   font-size: 0.82rem;
