@@ -9,7 +9,7 @@
 .apu-back {
   background: transparent;
   border: none;
-  color: #2563eb;
+  color: var(--info);
   font-weight: 600;
   cursor: pointer;
   padding: 0;
@@ -18,8 +18,8 @@
 }
 
 .apu-header {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 1.3rem 1.5rem;
   margin-bottom: 1rem;
@@ -33,7 +33,7 @@
 .apu-codigo {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78rem;
-  color: #64748b;
+  color: var(--ink-3);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   margin-bottom: 0.25rem;
@@ -42,7 +42,7 @@
 .apu-header h1 {
   margin: 0 0 0.5rem;
   font-size: 1.4rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .apu-meta {
@@ -93,8 +93,8 @@
 }
 
 .apu-card {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 1.2rem;
 }
@@ -102,7 +102,7 @@
 .apu-card h2 {
   margin: 0 0 0.85rem;
   font-size: 1rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .apu-card-head {
@@ -128,14 +128,14 @@
 .apu-add input {
   width: 100%;
   padding: 0.55rem 0.85rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   font-size: 0.9rem;
 }
 
 .apu-add input:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--info);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
@@ -144,8 +144,8 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
   max-height: 340px;
@@ -156,7 +156,7 @@
 .apu-picker-empty {
   padding: 1rem;
   text-align: center;
-  color: #94a3b8;
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
@@ -168,7 +168,7 @@
   padding: 0.55rem 0.75rem;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
   text-align: left;
   cursor: pointer;
   font-size: 0.82rem;
@@ -176,39 +176,39 @@
 }
 
 .apu-picker-row:hover {
-  background: #eff6ff;
+  background: var(--info-soft);
 }
 
 .apu-picker-row .desc {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .apu-picker-row .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: #334155;
+  color: var(--ink-2);
 }
 
 .apu-picker-close {
   width: 100%;
   padding: 0.5rem;
-  background: #f8fafc;
+  background: var(--surface2);
   border: none;
-  border-top: 1px solid #e2e8f0;
-  color: #64748b;
+  border-top: 1px solid var(--line);
+  color: var(--ink-3);
   font-weight: 600;
   cursor: pointer;
 }
 
 .apu-empty {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: var(--surface2);
+  border: 1px dashed var(--line-2);
   border-radius: 8px;
   padding: 1.2rem;
   text-align: center;
-  color: #64748b;
+  color: var(--ink-3);
   font-size: 0.88rem;
 }
 
@@ -222,21 +222,21 @@
 .apu-table td {
   padding: 0.5rem 0.55rem;
   text-align: left;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
 }
 
 .apu-table th {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: var(--ink-3);
   font-weight: 600;
 }
 
 .apu-table input[type='number'] {
   width: 100%;
   padding: 0.35rem 0.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 6px;
   font-size: 0.85rem;
   font-family: inherit;
@@ -245,14 +245,14 @@
 
 .apu-table input[type='number']:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--info);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 .apu-table .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.8rem;
-  color: #334155;
+  color: var(--ink-2);
 }
 
 .apu-total-row td {
@@ -265,7 +265,7 @@
 .link-danger {
   background: transparent;
   border: none;
-  color: #ef4444;
+  color: var(--neg);
   cursor: pointer;
   font-size: 1.1rem;
   font-weight: 700;
@@ -275,7 +275,7 @@
 }
 
 .link-danger:hover {
-  background: #fef2f2;
+  background: var(--neg-soft);
 }
 
 .apu-side {
@@ -290,13 +290,13 @@
   gap: 0.25rem;
   font-size: 0.8rem;
   font-weight: 500;
-  color: #475569;
+  color: var(--ink-2);
   margin-bottom: 0.75rem;
 }
 
 .apu-side .apu-card input {
   padding: 0.5rem 0.65rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   font-size: 0.9rem;
   font-family: inherit;
@@ -304,7 +304,7 @@
 
 .apu-side .apu-card input:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--info);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
@@ -314,7 +314,7 @@
   padding: 0.4rem 0;
   border-bottom: 1px dashed #f1f5f9;
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--ink-3);
 }
 
 .apu-summary .row:last-child {
@@ -322,7 +322,7 @@
 }
 
 .apu-summary .row.total {
-  color: #0f172a;
+  color: var(--ink);
   font-size: 1rem;
   padding-top: 0.7rem;
   margin-top: 0.4rem;
@@ -356,7 +356,7 @@
 }
 
 .apu-ok {
-  background: #dcfce7;
+  background: var(--pos-soft);
   border: 1px solid #86efac;
   color: #166534;
   padding: 0.6rem 0.85rem;
@@ -366,18 +366,18 @@
 }
 
 .apu-state {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: var(--surface2);
+  border: 1px dashed var(--line-2);
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
-  color: #475569;
+  color: var(--ink-2);
 }
 
 .apu-error {
-  background: #fef2f2;
+  background: var(--neg-soft);
   border-color: #fecaca;
-  color: #b91c1c;
+  color: var(--neg);
 }
 
 .badge {
@@ -387,9 +387,9 @@
   font-size: 0.72rem;
   font-weight: 600;
   background: #e2e8f0;
-  color: #334155;
+  color: var(--ink-2);
 }
 
 .muted {
-  color: #94a3b8;
+  color: var(--muted);
 }

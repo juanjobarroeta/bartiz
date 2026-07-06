@@ -18,13 +18,13 @@
 .cat-header h1 {
   margin: 0;
   font-size: 1.7rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .cat-tabs {
   display: flex;
   gap: 0.25rem;
-  background: #f1f5f9;
+  background: var(--surface2);
   border-radius: 999px;
   padding: 0.25rem;
 }
@@ -34,15 +34,15 @@
   border: none;
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
-  color: #64748b;
+  color: var(--ink-3);
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
 }
 
 .cat-tabs button.active {
-  background: white;
-  color: #0f172a;
+  background: var(--surface);
+  color: var(--ink);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
 }
 
@@ -57,17 +57,17 @@
   flex: 1;
   min-width: 220px;
   padding: 0.6rem 0.85rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
   font-size: 0.9rem;
 }
 
 .cat-toolbar select {
   padding: 0.6rem 0.85rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
   font-size: 0.9rem;
 }
 
@@ -86,8 +86,8 @@
 }
 
 .cat-form {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 1.2rem;
   margin-bottom: 1rem;
@@ -109,7 +109,7 @@
   gap: 0.3rem;
   font-size: 0.82rem;
   font-weight: 500;
-  color: #334155;
+  color: var(--ink-2);
   flex: 1;
   min-width: 140px;
 }
@@ -123,7 +123,7 @@
 .cat-form select,
 .cat-form textarea {
   padding: 0.55rem 0.75rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   font-size: 0.9rem;
   font-family: inherit;
@@ -132,7 +132,7 @@
 .cat-form input:focus,
 .cat-form select:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--info);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
@@ -152,9 +152,9 @@
 }
 
 .cat-error {
-  background: #fef2f2;
+  background: var(--neg-soft);
   border: 1px solid #fecaca;
-  color: #b91c1c;
+  color: var(--neg);
   padding: 0.7rem 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -163,12 +163,12 @@
 
 .cat-state,
 .cat-empty {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: var(--surface2);
+  border: 1px dashed var(--line-2);
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
-  color: #64748b;
+  color: var(--ink-3);
 }
 
 .cat-group {
@@ -180,13 +180,13 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #64748b;
+  color: var(--ink-3);
 }
 
 .cat-table {
   width: 100%;
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   border-collapse: separate;
   border-spacing: 0;
@@ -195,21 +195,21 @@
 }
 
 .cat-table thead {
-  background: #f8fafc;
+  background: var(--surface2);
 }
 
 .cat-table th,
 .cat-table td {
   padding: 0.7rem 1rem;
   text-align: left;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
 }
 
 .cat-table th {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: var(--ink-3);
   font-weight: 600;
 }
 
@@ -218,19 +218,19 @@
 }
 
 .cat-table tbody tr:hover {
-  background: #f8fafc;
+  background: var(--surface2);
 }
 
 .cat-table .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.82rem;
-  color: #334155;
+  color: var(--ink-2);
 }
 
 .cat-table .link {
   background: transparent;
   border: none;
-  color: #2563eb;
+  color: var(--info);
   cursor: pointer;
   font-weight: 600;
   padding: 0.3rem 0.5rem;

@@ -101,7 +101,7 @@
 
 .estado-badge.cerrado {
   background: #E5E7EB;
-  color: #374151;
+  color: var(--ink-2);
 }
 
 .estado-badge.revision {
@@ -341,7 +341,7 @@
   display: block;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--ink-2);
   margin-bottom: 0.5rem;
 }
 

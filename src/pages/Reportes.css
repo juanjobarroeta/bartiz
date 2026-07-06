@@ -11,22 +11,22 @@
 }
 .reportes-page .toolbar select {
   padding: 0.4rem 0.55rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 5px;
   font-size: 0.88rem;
-  background: #fff;
+  background: var(--surface);
 }
 .years { display: flex; gap: 0.3rem; }
 .years button {
   background: transparent;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   padding: 0.3rem 0.7rem;
   border-radius: 5px;
   font-size: 0.85rem;
   cursor: pointer;
-  color: #334155;
+  color: var(--ink-2);
 }
-.years button.active { background: #0f172a; color: white; border-color: #0f172a; }
+.years button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
 .totals-grid {
   display: grid;
@@ -35,15 +35,15 @@
   margin-bottom: 1.25rem;
 }
 .kpi {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
 }
-.kpi-label { font-size: 0.72rem; text-transform: uppercase; color: #64748b; letter-spacing: 0.04em; }
+.kpi-label { font-size: 0.72rem; text-transform: uppercase; color: var(--ink-3); letter-spacing: 0.04em; }
 .kpi-value { font-size: 1.4rem; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 .month-bars {
@@ -51,8 +51,8 @@
   grid-template-columns: repeat(12, 1fr);
   gap: 0.5rem;
   height: 180px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0.75rem;
   margin-bottom: 1rem;
@@ -91,11 +91,11 @@
 }
 .bar.gasto { background: #fca5a5; }
 .bar.ingreso { background: #86efac; }
-.month-label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; padding-top: 0.25rem; }
+.month-label { font-size: 0.7rem; color: var(--ink-3); text-transform: uppercase; padding-top: 0.25rem; }
 .xs { font-size: 0.65rem; }
 
 .month-detail {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid #c7d2fe;
   border-left: 4px solid #6366f1;
   border-radius: 8px;
@@ -105,13 +105,13 @@
 .month-detail-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem; }
 .month-detail-head h2 { margin: 0; }
 .month-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-.month-detail-grid h3 { margin: 0 0 0.4rem; font-size: 0.85rem; color: #475569; }
+.month-detail-grid h3 { margin: 0 0 0.4rem; font-size: 0.85rem; color: var(--ink-2); }
 .kv { list-style: none; padding: 0; margin: 0; }
 .kv li {
   display: flex;
   justify-content: space-between;
   padding: 0.35rem 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
   font-size: 0.88rem;
 }
 .kv li strong { font-variant-numeric: tabular-nums; }
@@ -119,23 +119,23 @@
 .months-table {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 6px;
   overflow: hidden;
 }
 .months-table th, .months-table td {
   padding: 0.5rem 0.7rem;
   text-align: left;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--line);
   font-size: 0.85rem;
 }
-.months-table thead th { background: #f8fafc; font-size: 0.7rem; text-transform: uppercase; color: #64748b; letter-spacing: 0.04em; }
+.months-table thead th { background: var(--surface2); font-size: 0.7rem; text-transform: uppercase; color: var(--ink-3); letter-spacing: 0.04em; }
 .months-table tr.clickable { cursor: pointer; }
-.months-table tr.clickable:hover { background: #f8fafc; }
+.months-table tr.clickable:hover { background: var(--surface2); }
 .months-table tr.active { background: #e0e7ff; }
 .mono { font-family: ui-monospace, Menlo, monospace; }
 .small { font-size: 0.8rem; }
-.muted { color: #64748b; }
-.pd-empty { padding: 2rem; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px; }
-.link { background: none; border: none; color: #2563eb; cursor: pointer; }
+.muted { color: var(--ink-3); }
+.pd-empty { padding: 2rem; text-align: center; color: var(--ink-3); background: var(--surface2); border-radius: 8px; }
+.link { background: none; border: none; color: var(--info); cursor: pointer; }

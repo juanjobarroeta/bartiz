@@ -543,7 +543,7 @@
 .est-excel-summary-row .lbl { font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.85rem; }
 .est-excel-summary-row .val { font-variant-numeric: tabular-nums; font-family: var(--font-display); font-weight: 600; }
 .est-excel-summary-row.highlight { background: var(--brand-tint); border-radius: var(--r-sm); border-top: 1px solid var(--brand-soft); }
-.est-excel-summary-row.highlight .key { background: var(--brand); color: #fff; border-radius: 6px; }
+.est-excel-summary-row.highlight .key { background: var(--accent); color: var(--accent-ink); border-radius: 6px; }
 .est-excel-summary-row.highlight .val { color: var(--brand-strong); font-size: 1.05rem; }
 
 /* ── Costos del proyecto (Fase C — solicitado/comprometido/facturado/pagado) ── */

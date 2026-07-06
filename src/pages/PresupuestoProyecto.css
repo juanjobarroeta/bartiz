@@ -736,7 +736,7 @@
   display: block;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--ink-2);
   margin-bottom: 0.5rem;
 }
 
@@ -823,8 +823,8 @@
   font-weight: 500;
   cursor: pointer;
   border: 1px solid #D1D5DB;
-  background: white;
-  color: #374151;
+  background: var(--surface);
+  color: var(--ink-2);
   transition: all 0.15s ease;
 }
 
@@ -859,12 +859,12 @@
 }
 
 .margen-negative {
-  color: #ef4444;
+  color: var(--neg);
   font-weight: 600;
 }
 
 .subtotal-cost {
-  color: #ef4444;
+  color: var(--neg);
   font-weight: 600;
 }
 

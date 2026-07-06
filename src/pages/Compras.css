@@ -90,7 +90,7 @@
   border-radius: 8px;
   font-size: 0.875rem;
   min-width: 180px;
-  background: white;
+  background: var(--surface);
 }
 
 .filter-group select:focus,
@@ -278,7 +278,7 @@
   font-size: 0.75rem;
   padding: 0.25rem 0.625rem;
   background: #E5E7EB;
-  color: #374151;
+  color: var(--ink-2);
   border-radius: 12px;
 }
 
@@ -504,8 +504,8 @@
   font-weight: 500;
   cursor: pointer;
   border: 1px solid #D1D5DB;
-  background: white;
-  color: #374151;
+  background: var(--surface);
+  color: var(--ink-2);
   transition: all 0.15s ease;
 }
 
