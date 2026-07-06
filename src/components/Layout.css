@@ -28,6 +28,12 @@
 @media (max-width: 900px) {
   .bz-topnav { padding: 14px 18px; gap: 14px; }
 }
+/* En teléfonos el nav baja a su propia fila (scrolleable) para no pelear
+   con el wordmark. */
+@media (max-width: 700px) {
+  .bz-topnav { flex-wrap: wrap; row-gap: 10px; padding: 12px 14px; }
+  .bz-nav { order: 3; flex-basis: 100%; margin: 0 -14px; padding: 0 14px; }
+}
 
 .bz-wordmark {
   font-family: var(--font-display);
