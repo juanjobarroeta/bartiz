@@ -1,203 +1,201 @@
-/* DECOLSA app shell — geometry for the sidebar + main column.
-   Component-level styling (brand, nav items, topbar inner bits) lives in
-   the design system (design-system.css), scoped under `.ds`. */
+/* ============================================================
+   Shell del rediseño Bartiz — barra de navegación horizontal.
+   Tokens en design-system.css (:root / [data-theme="claro"]).
+   ============================================================ */
 
-.ds-layout {
-  display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+.bz-shell {
   min-height: 100vh;
-  background: var(--canvas);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- Sidebar ---------- */
-.ds-sidebar {
-  background: var(--surface);
-  border-right: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
-
-/* ---------- Main column ---------- */
-.ds-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--canvas);
-}
-
-.ds-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: rgba(242, 239, 233, 0.86);
-  backdrop-filter: saturate(140%) blur(10px);
-  -webkit-backdrop-filter: saturate(140%) blur(10px);
-  border-bottom: 1px solid var(--line);
-  padding: 14px 30px;
+/* ── Top nav ── */
+.bz-topnav {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 28px;
+  padding: 20px 48px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+@media (max-width: 900px) {
+  .bz-topnav { padding: 14px 18px; gap: 14px; }
 }
 
-.ds-content {
-  min-width: 0;
-  flex: 1;
+.bz-wordmark {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 21px;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-/* Mobile-only chrome — hidden on desktop, shown in the narrow media query. */
-.ds-mobilebar {
-  display: none;
+.bz-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
-.ds-drawer-close {
-  display: none;
+.bz-nav::-webkit-scrollbar { display: none; }
+
+.bz-nav-item {
+  background: transparent;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  color: var(--ink3);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.14s, background 0.14s;
 }
-.ds-scrim {
-  display: none;
+.bz-nav-item:hover {
+  color: var(--ink);
+  background: var(--surface2);
+}
+.bz-nav-item.active {
+  color: var(--ink);
+  font-weight: 600;
+}
+.bz-nav-item.active span {
+  border-bottom: 1.5px solid var(--accent);
+  padding-bottom: 3px;
 }
 
-@media (max-width: 1080px) {
-  .ds-topbar .topbar-sub {
-    display: none;
-  }
-  .ds-topbar .searchbox {
-    width: 200px;
-  }
+/* ── Dropdowns (más / usuario) ── */
+.bz-more, .bz-user { position: relative; }
+.bz-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  padding: 6px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+.bz-menu-right { left: auto; right: 0; }
+.bz-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+  color: var(--ink2);
+  padding: 9px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bz-menu-item:hover { background: var(--surface2); color: var(--ink); }
+.bz-menu-item.active { color: var(--ink); font-weight: 600; }
+.bz-menu-item.danger:hover { color: var(--neg); }
+.bz-menu-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  padding: 6px 12px 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@media (max-width: 860px) {
-  .ds-topbar .searchbox span,
-  .ds-topbar .searchbox kbd {
-    display: none;
-  }
-  .ds-topbar .searchbox {
-    width: auto;
-  }
+/* ── Cluster derecho ── */
+.bz-topnav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.bz-date {
+  font-size: 12.5px;
+  color: var(--ink3);
+  white-space: nowrap;
+}
+@media (max-width: 700px) { .bz-date { display: none; } }
+
+.bz-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line2);
+  background: var(--surface);
+  color: var(--ink2);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color 0.14s;
+}
+.bz-theme-toggle:hover { border-color: var(--ink3); }
+.bz-theme-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
-/* ---------- Narrow screens: sidebar becomes an off-canvas drawer ---------- */
-@media (max-width: 768px) {
-  .ds-layout {
-    grid-template-columns: 1fr;
-  }
+.bz-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
 
-  /* Drawer: fixed off-canvas, slides in over the content. */
-  .ds-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    height: 100%;
-    width: 272px;
-    max-width: 84vw;
-    border-right: 1px solid var(--line);
-    transform: translateX(-100%);
-    transition: transform 0.26s ease;
-    z-index: 200;
-  }
-  .ds-sidebar.open {
-    transform: translateX(0);
-    box-shadow: var(--shadow-pop);
-  }
+/* ── Contenedor de página ── */
+.bz-content {
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 28px 24px 80px;
+}
+@media (max-width: 700px) {
+  .bz-content { padding: 16px 4px 60px; }
+}
 
-  /* Close (×) button in the drawer header. */
-  .ds-drawer-close {
-    display: grid;
-    place-items: center;
-    margin-left: auto;
-    width: 34px;
-    height: 34px;
-    flex-shrink: 0;
-    border: 1px solid var(--line-2);
-    border-radius: var(--r-sm);
-    background: var(--surface);
-    color: var(--ink-2);
-    cursor: pointer;
-  }
-  .ds-drawer-close svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  /* Backdrop behind the open drawer. */
-  .ds-scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(34, 29, 24, 0.42);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.26s ease;
-    z-index: 150;
-  }
-  .ds-scrim.open {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  /* Sticky mobile top bar with the hamburger — the menu access on phones. */
-  .ds-mobilebar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    padding: 10px 14px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-  }
-  .ds-menu-btn {
-    display: grid;
-    place-items: center;
-    width: 38px;
-    height: 38px;
-    flex-shrink: 0;
-    border: 1px solid var(--line-2);
-    border-radius: var(--r-md);
-    background: var(--surface);
-    color: var(--ink);
-    cursor: pointer;
-  }
-  .ds-menu-btn svg {
-    width: 20px;
-    height: 20px;
-    stroke-width: 1.9;
-  }
-  .ds-mobilebar-mark {
-    width: 30px;
-    height: 30px;
-    border-radius: 7px;
-    font-size: 15px;
-  }
-  .ds-mobilebar-name {
-    flex: 1;
-    min-width: 0;
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: -0.015em;
-    color: var(--ink);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* On mobile the page-title topbar is not sticky (the mobilebar owns the
-     top); it reads as a plain page header that scrolls with content. */
-  .ds-topbar {
-    position: static;
-    padding: 12px 16px 6px;
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border-bottom: none;
-  }
-  /* The mobilebar already carries search/account affordances elsewhere;
-     keep the page header lean so it never overflows a phone width. */
-  .ds-topbar .searchbox,
-  .ds-topbar .icon-btn {
-    display: none;
-  }
+/* Encabezado de página (rutas rediseñadas): h1 serif + sub. */
+.bz-pagehead {
+  padding: 12px 30px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.bz-pagehead h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 34px;
+  letter-spacing: 0;
+}
+.bz-pagehead-sub {
+  font-size: 13px;
+  color: var(--ink3);
 }

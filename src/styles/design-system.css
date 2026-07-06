@@ -10,61 +10,80 @@
    that live outside `.ds` keep their old look untouched.
    ============================================================ */
 
+/* ============================================================
+   BARTIZ redesign tokens — dual theme.
+   Default = "Nocturno" (dark); [data-theme="claro"] = "Ledger"
+   (warm paper). Set data-theme on <html>; persisted as bz-theme.
+
+   The NEW canonical tokens (--bg/--surface2/--accent/--faint…)
+   come verbatim from the design spec. The LEGACY names the 28
+   page stylesheets consume (--canvas/--brand/--ink-2/…) are kept
+   as aliases so the whole app re-skins from this block alone.
+   ============================================================ */
 :root {
-  /* warm neutral canvas system */
-  --canvas: #f2efe9;
-  --surface: #ffffff;
-  --surface-2: #faf8f4;
-  --surface-sunk: #f4f1eb;
+  color-scheme: dark;
+  /* canonical — Nocturno */
+  --bg: #111417;
+  --surface: #171b1f;
+  --surface2: #1d2227;
+  --line: #242a30;
+  --line2: #2e353c;
+  --ink: #edeae3;
+  --ink2: #b9b4aa;
+  --ink3: #7e7a70;
+  --faint: #5c5952;
+  --accent: #e8a33c;
+  --accent-ink: #14171b;
+  --accent-soft: #2a2418;
+  --pos: #7bc796;
+  --pos-soft: #1b2a20;
+  --warn: #e8a33c;
+  --neg: #e07856;
+  --info: #8fb3e8;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-pop-raw: 0 8px 32px rgba(0, 0, 0, 0.25);
 
-  /* warm ink scale */
-  --ink: #221d18;
-  --ink-2: #5e564d;
-  --ink-3: #8a8175;
-  --muted: #a8a093;
+  /* semantic softs (derived, theme-specific) */
+  --neg-soft: #2a1b16;
+  --warn-soft: #2a2418;
+  --info-soft: #1b2330;
 
-  /* warm lines */
-  --line: #e7e1d7;
-  --line-2: #d9d2c5;
-  --line-strong: #c8c0b1;
+  /* legacy aliases — keep every old name working */
+  --canvas: var(--bg);
+  --surface-2: var(--surface2);
+  --surface-sunk: var(--surface2);
+  --ink-2: var(--ink2);
+  --ink-3: var(--ink3);
+  --muted: var(--faint);
+  --line-2: var(--line2);
+  --line-strong: #3a424b;
+  --brand: var(--accent);
+  --brand-strong: #f2b45a;
+  --brand-soft: var(--accent-soft);
+  --brand-tint: #201c14;
+  /* "deep" era el botón oscuro; en el tema oscuro se invierte (tinta clara
+     sobre fondo). El texto de esos botones usa --on-deep, no #fff. */
+  --deep: var(--ink);
+  --deep-2: #d8d3c8;
+  --on-deep: var(--bg);
 
-  /* brand — refined construction orange */
-  --brand: #e2571e;
-  --brand-strong: #c2470f;
-  --brand-soft: #fbede2;
-  --brand-tint: #fdf5ef;
-
-  /* deep architectural accent */
-  --deep: #2a241f;
-  --deep-2: #3b332c;
-
-  /* semantic */
-  --pos: #2f7d56;
-  --pos-soft: #e6f0e9;
-  --neg: #bf4329;
-  --neg-soft: #f8e9e4;
-  --warn: #b5820f;
-  --warn-soft: #f7efd8;
-  --info: #2c5da8;
-  --info-soft: #e7edf7;
-
-  /* data-viz */
-  --viz-plan: #b8ae9e;
-  --viz-real: #2f7d56;
-  --viz-sched: #2a241f;
+  /* data-viz (per spec: programado --ink2, plan interno --ink3, real --pos) */
+  --viz-plan: var(--ink3);
+  --viz-real: var(--pos);
+  --viz-sched: var(--ink2);
 
   /* geometry */
-  --r-sm: 7px;
-  --r-md: 11px;
+  --r-sm: 8px;
+  --r-md: 10px;
   --r-lg: 16px;
-  --r-xl: 22px;
-  --shadow-sm: 0 1px 2px rgba(34, 29, 24, 0.04), 0 1px 3px rgba(34, 29, 24, 0.05);
-  --shadow-md: 0 2px 6px rgba(34, 29, 24, 0.05), 0 8px 24px rgba(34, 29, 24, 0.06);
-  --shadow-pop: 0 8px 30px rgba(34, 29, 24, 0.12), 0 2px 8px rgba(34, 29, 24, 0.08);
+  --r-xl: 18px;
+  --shadow-sm: var(--shadow);
+  --shadow-md: var(--shadow);
+  --shadow-pop: var(--shadow-pop-raw);
 
-  /* fonts */
-  --font-ui: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  /* fonts — the identity: serif money, sans body, mono labels */
+  --font-ui: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 
   /* density (regular — the chosen production default) */
@@ -73,6 +92,68 @@
   --gap: 18px;
 
   --sidebar-w: 244px;
+}
+
+/* "Ledger" — warm paper light theme */
+:root[data-theme="claro"] {
+  color-scheme: light;
+  --bg: #f4f0e8;
+  --surface: #fbf8f2;
+  --surface2: #f0eadd;
+  --line: #e4dcce;
+  --line2: #d8cebb;
+  --ink: #221b12;
+  --ink2: #5c5344;
+  --ink3: #8b8070;
+  --faint: #b4a98f;
+  --accent: #c05b2e;
+  --accent-ink: #ffffff;
+  --accent-soft: #f3e2d6;
+  --pos: #2f7d56;
+  --pos-soft: #e2ede4;
+  --warn: #b5820f;
+  --neg: #bf4329;
+  --info: #2c5da8;
+  --shadow: 0 1px 3px rgba(34, 29, 24, 0.07);
+  --shadow-pop-raw: 0 8px 32px rgba(34, 29, 24, 0.16);
+
+  --neg-soft: #f5e3dc;
+  --warn-soft: #f3ead2;
+  --info-soft: #e3eaf6;
+
+  --line-strong: #c8bda6;
+  --brand-strong: #a84d24;
+  --brand-tint: #f8efe7;
+  --deep-2: #3b332c;
+}
+
+/* El lienzo aplica a toda la app (páginas dentro y fuera de .ds). */
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+  transition: background 0.25s;
+}
+
+/* Controles de formulario con tokens dentro del shell (los checkboxes/radios
+   nativos se tematizan solos vía color-scheme). */
+.bz-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.bz-shell select,
+.bz-shell textarea {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  font-family: var(--font-ui);
+}
+.bz-shell input:focus-visible,
+.bz-shell select:focus-visible,
+.bz-shell textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.bz-shell ::placeholder {
+  color: var(--faint);
 }
 
 /* ---------- Scope root ---------- */
@@ -94,21 +175,33 @@
 }
 
 /* ---------- Type helpers ---------- */
+/* Dinero y números protagonistas en serif (Instrument Serif, peso 400 —
+   nunca en bold: la jerarquía la da el tamaño, no el peso). */
 .ds .num {
   font-family: var(--font-display);
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 .ds .mono {
   font-family: var(--font-mono);
 }
+/* Eyebrows/overlines en mono uppercase — el sistema de etiquetas del diseño. */
 .ds .eyebrow {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 600;
-  font-size: 11px;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  font-size: 10.5px;
   color: var(--ink-3);
+}
+/* Headings serif 400 en todo el sistema. */
+.ds h1,
+.ds h2,
+.ds h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0;
 }
 .ds .spacer {
   flex: 1;
@@ -400,27 +493,34 @@
   stroke-width: 1.9;
 }
 .ds .btn-ghost {
-  background: var(--surface);
+  background: transparent;
   border-color: var(--line-2);
-  color: var(--ink);
+  color: var(--ink-2);
 }
 .ds .btn-ghost:hover {
-  border-color: var(--line-strong);
+  border-color: var(--ink-3);
+  color: var(--ink);
 }
+/* Primario = ámbar/terracota con tinta de acento — el acento se reserva para
+   acción, así que este botón es EL llamado a la acción de la pantalla. */
 .ds .btn-primary {
-  background: var(--brand);
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(226, 87, 30, 0.3);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  box-shadow: none;
 }
 .ds .btn-primary:hover {
-  background: var(--brand-strong);
+  filter: brightness(1.06);
+  background: var(--accent);
 }
+/* "Dark" se invierte con el tema: tinta sobre lienzo (como el filtro activo). */
 .ds .btn-dark {
-  background: var(--deep);
-  color: #fff;
+  background: var(--ink);
+  color: var(--bg);
 }
 .ds .btn-dark:hover {
   background: var(--deep-2);
+  color: var(--bg);
 }
 
 /* ---------- Cards ---------- */
@@ -446,9 +546,10 @@
 }
 .ds .card-head h3 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: 0;
   color: var(--ink);
 }
 .ds .card-head .hint {
@@ -484,9 +585,9 @@
   overflow: hidden;
 }
 .ds .kpi.feature {
-  background: linear-gradient(160deg, var(--deep), #1d1813);
-  border-color: var(--deep);
-  color: #fff;
+  background: var(--surface2);
+  border-color: var(--line2);
+  color: var(--ink);
 }
 .ds .kpi-top {
   display: flex;
@@ -504,8 +605,8 @@
   color: var(--brand-strong);
 }
 .ds .kpi.feature .kpi-ic {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .ds .kpi-ic svg {
   width: 16px;
@@ -513,31 +614,37 @@
   stroke-width: 1.9;
 }
 .ds .kpi-label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-2);
-  letter-spacing: 0.005em;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-3);
 }
 .ds .kpi.feature .kpi-label {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--ink-2);
 }
+/* Números protagonistas en serif 400 — la jerarquía la da el tamaño. */
 .ds .kpi-value {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 29px;
-  letter-spacing: -0.03em;
+  font-weight: 400;
+  font-size: 34px;
+  letter-spacing: 0;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.ds .kpi.feature .kpi-value {
+  font-size: 40px;
+}
 .ds .kpi-value .cents,
 .ds .kpi-value .small {
-  font-size: 18px;
-  color: var(--ink-3);
-  font-weight: 600;
+  font-size: 20px;
+  color: var(--faint);
+  font-weight: 400;
 }
 .ds .kpi.feature .kpi-value .cents {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--faint);
 }
 .ds .kpi-sub {
   display: flex;
@@ -616,17 +723,19 @@
   width: 100%;
   border-collapse: collapse;
 }
+/* Encabezado de tabla: mono uppercase con regla pesada bajo el título —
+   la firma tipográfica del rediseño. */
 .ds .ptable thead th {
   text-align: left;
   padding: 11px var(--pad);
-  font-size: 11px;
-  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
   color: var(--ink-3);
-  font-weight: 600;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-2);
+  font-weight: 500;
+  border-bottom: 1.5px solid var(--ink);
+  background: transparent;
 }
 .ds .ptable thead th.r {
   text-align: right;
@@ -680,15 +789,15 @@
 .ds .money {
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 16px;
 }
 .ds .money.big {
-  font-size: 15px;
+  font-size: 19px;
 }
 .ds .money.muted {
   color: var(--ink-3);
-  font-weight: 500;
 }
 .ds .progress-wrap {
   display: flex;
@@ -1153,7 +1262,7 @@
 }
 .ds .seg button.active {
   background: var(--surface);
-  color: var(--brand-strong);
+  color: var(--ink);
   box-shadow: var(--shadow-sm);
 }
 

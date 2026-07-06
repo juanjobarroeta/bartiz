@@ -86,7 +86,7 @@
 .cpa .btn-primary.small, .cpa .btn-ghost.small {
   font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer;
 }
-.cpa .btn-primary.small { background: var(--ink, #2a241f); color: #fff; border: none; }
+.cpa .btn-primary.small { background: var(--accent); color: var(--accent-ink); border: none; }
 .cpa .btn-primary.small:disabled { opacity: 0.5; cursor: default; }
 .cpa .btn-ghost.small { background: transparent; border: 1px solid var(--border, #e5e1da); color: var(--ink, #2a241f); }
 .cpa .btn-ghost.small:disabled { opacity: 0.5; cursor: default; }

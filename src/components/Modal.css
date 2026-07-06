@@ -11,7 +11,7 @@
 }
 
 .modal-panel {
-  background: #fff;
+  background: var(--surface);
   border-radius: 10px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   width: 100%;
@@ -30,7 +30,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
 }
 .modal-head h2 { margin: 0; font-size: 1.05rem; }
 .modal-close {
@@ -39,11 +39,11 @@
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
-  color: #64748b;
+  color: var(--ink-3);
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
 }
-.modal-close:hover { background: #f1f5f9; color: #0f172a; }
+.modal-close:hover { background: var(--surface2); color: var(--ink); }
 
 .modal-body {
   padding: 1rem 1.25rem;
@@ -57,19 +57,19 @@
   gap: 0.4rem;
   padding-top: 1rem;
   margin-top: 1rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--line);
 }
 .modal-actions button {
   padding: 0.45rem 0.9rem;
   border-radius: 5px;
   border: 1px solid #cbd5e1;
-  background: #fff;
+  background: var(--surface);
   font-size: 0.9rem;
   cursor: pointer;
 }
 .modal-actions button[type='submit'], .modal-actions button.primary {
-  background: #0f172a;
-  color: white;
-  border-color: #0f172a;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--ink);
 }
 .modal-actions button:disabled { opacity: 0.55; cursor: not-allowed; }
