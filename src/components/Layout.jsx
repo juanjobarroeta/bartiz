@@ -13,8 +13,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { useIsMobile } from '../lib/useIsMobile'
-import MobileApp from '../mobile/MobileApp'
 import './Layout.css'
 
 // Nav primario (orden y nombres cortos del diseño). El resto de módulos
@@ -39,10 +37,6 @@ const MORE_NAV = [
   { path: '/destajo',             label: 'Destajo' },
   { path: '/reportes',            label: 'Reportes' },
 ]
-
-// Entry routes owned by the mobile PWA shell (bottom tabs). Other routes on
-// phones use this same top-nav layout (horizontally scrollable).
-const MOBILE_PWA_ROUTES = new Set(['/', '/proyectos', '/tesoreria-bartiz'])
 
 // Rutas rediseñadas que reciben el encabezado de página (h1 serif) del shell;
 // las páginas legacy siguen pintando su propio header.
@@ -73,7 +67,6 @@ const fmtHoy = () =>
 const Layout = ({ children }) => {
   const location = useLocation()
   const { user, activeCompany, logout } = useAuth()
-  const isMobile = useIsMobile()
   const [theme, toggleTheme] = useTheme()
   const [moreOpen, setMoreOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
@@ -91,7 +84,9 @@ const Layout = ({ children }) => {
     return () => document.removeEventListener('mousedown', fn)
   }, [])
 
-  if (isMobile && MOBILE_PWA_ROUTES.has(location.pathname)) return <MobileApp />
+  // Nota: el antiguo shell PWA móvil (src/mobile) quedó retirado — montaba una
+  // UI distinta en /, /proyectos y /tesoreria-bartiz en teléfonos y se veían
+  // dos apps mezcladas. El Layout responsivo es ahora la única UI.
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/'
