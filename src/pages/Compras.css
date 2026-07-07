@@ -8,7 +8,7 @@
   gap: 1rem;
   padding: 1.5rem 2rem;
   background: var(--color-white);
-  border-bottom: 1px solid #E8E8E8;
+  border-bottom: 1px solid var(--line);
   overflow-x: auto;
 }
 
@@ -17,7 +17,7 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.25rem;
-  background: #F9FAFB;
+  background: var(--surface2);
   border-radius: 12px;
   min-width: 160px;
 }
@@ -59,7 +59,7 @@
 .filters-section {
   padding: 1rem 2rem;
   background: var(--color-white);
-  border-bottom: 1px solid #E8E8E8;
+  border-bottom: 1px solid var(--line);
 }
 
 .filters-row {
@@ -114,8 +114,8 @@
   display: flex;
   gap: 0.5rem;
   padding: 1rem 2rem;
-  background: #F9FAFB;
-  border-bottom: 1px solid #E8E8E8;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--line);
 }
 
 .view-tab {
@@ -155,7 +155,7 @@
 
 .group-card {
   background: var(--color-white);
-  border: 1px solid #E8E8E8;
+  border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -170,7 +170,7 @@
 }
 
 .group-header:hover {
-  background: #FAFAFA;
+  background: var(--surface2);
 }
 
 .group-info {
@@ -198,7 +198,7 @@
 .group-count {
   font-size: 0.75rem;
   color: #9CA3AF;
-  background: #F3F4F6;
+  background: var(--surface2);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
 }
@@ -210,9 +210,9 @@
 }
 
 .group-content {
-  border-top: 1px solid #E8E8E8;
+  border-top: 1px solid var(--line);
   padding: 1rem 1.25rem;
-  background: #FAFAFA;
+  background: var(--surface2);
 }
 
 /* Articulo Card */
@@ -308,7 +308,7 @@
 }
 
 .items-table tbody tr:hover {
-  background: #F9FAFB;
+  background: var(--surface2);
 }
 
 .item-cell {
@@ -340,7 +340,7 @@
 
 .detail-card {
   background: var(--color-white);
-  border: 1px solid #E8E8E8;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 1.25rem;
 }
@@ -510,7 +510,7 @@
 }
 
 .btn:hover {
-  background: #F9FAFB;
+  background: var(--surface2);
 }
 
 .btn-sm {

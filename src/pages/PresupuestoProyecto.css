@@ -40,7 +40,7 @@
   gap: 1rem;
   padding: 1.5rem 2rem;
   background: var(--color-white);
-  border-bottom: 1px solid #E8E8E8;
+  border-bottom: 1px solid var(--line);
 }
 
 .summary-card {
@@ -48,7 +48,7 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem 1.25rem;
-  background: #F9FAFB;
+  background: var(--surface2);
   border-radius: 10px;
 }
 
@@ -86,7 +86,7 @@
 .overall-progress {
   padding: 1.5rem 2rem;
   background: var(--color-white);
-  border-bottom: 1px solid #E8E8E8;
+  border-bottom: 1px solid var(--line);
 }
 
 .overall-progress h4 {
@@ -199,7 +199,7 @@
 /* Phase Card */
 .phase-card {
   background: var(--color-white);
-  border: 1px solid #E8E8E8;
+  border: 1px solid var(--line);
   border-radius: 12px;
   margin-bottom: 1rem;
 }
@@ -218,7 +218,7 @@
 }
 
 .phase-header:hover {
-  background: #FAFAFA;
+  background: var(--surface2);
 }
 
 .phase-info {
@@ -243,7 +243,7 @@
 .phase-count {
   font-size: 0.75rem;
   color: #9CA3AF;
-  background: #F3F4F6;
+  background: var(--surface2);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
 }
@@ -280,7 +280,7 @@
 
 /* Phase Content */
 .phase-content {
-  border-top: 1px solid #E8E8E8;
+  border-top: 1px solid var(--line);
   padding: 1rem 1.25rem;
   overflow: visible;
   position: relative;
@@ -302,7 +302,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid #E5E7EB;
-  background: #F9FAFB;
+  background: var(--surface2);
 }
 
 .budget-table td {
@@ -395,7 +395,7 @@
 .add-item-form {
   margin-top: 1rem;
   padding: 1rem;
-  background: #F9FAFB;
+  background: var(--surface2);
   border-radius: 8px;
   position: relative;
   overflow: visible;
@@ -441,7 +441,7 @@
 }
 
 .search-result-inline:hover {
-  background: #F9FAFB;
+  background: var(--surface2);
 }
 
 .search-result-inline:last-child {
@@ -541,7 +541,7 @@
 
 .pending-items-list .label {
   padding: 0.75rem 1rem;
-  background: #F9FAFB;
+  background: var(--surface2);
   border-bottom: 1px solid #E5E7EB;
   margin: 0;
 }
@@ -573,7 +573,7 @@
 .pending-fase {
   font-size: 0.75rem;
   color: #9CA3AF;
-  background: #F3F4F6;
+  background: var(--surface2);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
 }
@@ -599,7 +599,7 @@
   text-align: right;
   color: var(--color-secondary);
   padding-top: 1rem;
-  border-top: 1px solid #E8E8E8;
+  border-top: 1px solid var(--line);
 }
 
 /* Loading & Error */
@@ -679,7 +679,7 @@
   text-align: center;
   color: #6B7280;
   font-size: 0.875rem;
-  background: #F9FAFB;
+  background: var(--surface2);
   border-bottom: 1px solid #E5E7EB;
 }
 
@@ -783,7 +783,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #E8E8E8;
+  border-bottom: 1px solid var(--line);
 }
 
 .modal-header h2 {
@@ -812,8 +812,8 @@
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  background: #F9FAFB;
-  border-top: 1px solid #E8E8E8;
+  background: var(--surface2);
+  border-top: 1px solid var(--line);
 }
 
 .btn {
@@ -829,7 +829,7 @@
 }
 
 .btn:hover {
-  background: #F9FAFB;
+  background: var(--surface2);
 }
 
 .btn-primary {
@@ -877,7 +877,7 @@
   width: 90px;
   padding: 4px 8px;
   font-size: 13px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--line-2);
   border-radius: 4px;
 }
 
