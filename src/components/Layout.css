@@ -182,6 +182,11 @@
   width: 100%;
   padding: 28px 24px 80px;
 }
+/* Rutas densas en datos (tablas anchas — bancos, facturas, requisiciones…):
+   el contenedor editorial de 1120px las recorta en desktop, así que crecen. */
+.bz-content--wide {
+  max-width: 1440px;
+}
 @media (max-width: 700px) {
   .bz-content { padding: 16px 4px 60px; }
 }

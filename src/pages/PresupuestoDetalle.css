@@ -220,7 +220,7 @@
 }
 
 .pres-table tbody tr:hover {
-  background: #fafafa;
+  background: var(--surface2);
 }
 
 .pres-table .mono {

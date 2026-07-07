@@ -38,6 +38,24 @@ const MORE_NAV = [
   { path: '/reportes',            label: 'Reportes' },
 ]
 
+// Rutas densas en datos (tablas anchas): usan el contenedor ancho del shell
+// en lugar del editorial de 1120px, que las recortaba en desktop.
+const WIDE_ROUTES = [
+  '/tesoreria-bartiz',
+  '/facturas',
+  '/requisiciones',
+  '/compras-por-autorizar',
+  '/cuentas-por-pagar',
+  '/pagos-tesoreria',
+  '/cuentas-proveedores',
+  '/proyectos/', // detalle de obra (tablas de costos/adjudicaciones)
+  '/presupuesto', // cubre /presupuestos y /presupuesto/:id
+  '/estimaciones',
+  '/estimacion-viviendas',
+  '/catalogo',
+  '/destajo',
+]
+
 // Rutas rediseñadas que reciben el encabezado de página (h1 serif) del shell;
 // las páginas legacy siguen pintando su propio header.
 const REDESIGNED_ROUTES = {
@@ -97,6 +115,9 @@ const Layout = ({ children }) => {
   const moreActive = MORE_NAV.some((i) => isActive(i.path))
 
   const pageHead = REDESIGNED_ROUTES[location.pathname]
+  const isWide = WIDE_ROUTES.some(
+    (p) => location.pathname === p || location.pathname.startsWith(p)
+  )
   const wordmark = activeCompany?.razonSocial?.split(/[,\s]+/).slice(0, 1).join(' ') || 'Bartiz'
   const initial = (user?.name || user?.email || 'B')[0]?.toUpperCase()
 
@@ -182,7 +203,7 @@ const Layout = ({ children }) => {
         </div>
       </header>
 
-      <div className="ds bz-content">
+      <div className={`ds bz-content${isWide ? ' bz-content--wide' : ''}`}>
         {pageHead && (
           <div className="bz-pagehead">
             <h1>{pageHead.title}</h1>
