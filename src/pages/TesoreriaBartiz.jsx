@@ -170,7 +170,7 @@ export default function TesoreriaBartiz() {
             </div>
           </div>
         ) : (
-          <div className="grid-main" style={{ gridTemplateColumns: '320px 1fr' }}>
+          <div className="grid-main teso-grid">
             {/* Left: accounts */}
             <div className="col">
               <div className="card">
