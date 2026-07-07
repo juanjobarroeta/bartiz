@@ -1788,11 +1788,11 @@ function NewEstimacionModal({ open, onClose, proyectoId, prevEstimacion, onCreat
             </p>
             <label style={{ display: 'block', marginTop: '0.75rem' }}>
               <span className="muted small">Período inicio</span>
-              <input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: 6 }} />
+              <input type="date" value={periodoInicio} onChange={(e) => setPeriodoInicio(e.target.value)} required style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--line2)', borderRadius: 6 }} />
             </label>
             <label style={{ display: 'block', marginTop: '0.5rem' }}>
               <span className="muted small">Período fin</span>
-              <input type="date" value={periodoFin} onChange={(e) => setPeriodoFin(e.target.value)} required style={{ width: '100%', padding: '0.5rem', border: '1px solid #cbd5e1', borderRadius: 6 }} />
+              <input type="date" value={periodoFin} onChange={(e) => setPeriodoFin(e.target.value)} required style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--line2)', borderRadius: 6 }} />
             </label>
           </div>
           <div className="modal-actions">
@@ -1988,7 +1988,7 @@ function BitacoraTab({ proyecto, ejecutado, onRefresh }) {
           </div>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.82rem', fontWeight: 500, color: '#334155' }}>
             Nota
-            <textarea rows={4} required value={form.texto} onChange={e => setForm({...form, texto: e.target.value})} placeholder="Observaciones, descubrimientos, decisiones tomadas en obra…" style={{ padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: '0.9rem', fontFamily: 'inherit', resize: 'vertical' }} />
+            <textarea rows={4} required value={form.texto} onChange={e => setForm({...form, texto: e.target.value})} placeholder="Observaciones, descubrimientos, decisiones tomadas en obra…" style={{ padding: '0.6rem', border: '1px solid var(--line2)', borderRadius: 8, fontSize: '0.9rem', fontFamily: 'inherit', resize: 'vertical' }} />
           </label>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
             <button type="submit" className="primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar entrada'}</button>

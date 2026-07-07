@@ -17,7 +17,7 @@
   flex-direction: column;
   gap: 0.375rem;
   padding: 1rem;
-  background: #F9FAFB;
+  background: var(--surface2);
   border-radius: 10px;
 }
 
@@ -325,8 +325,8 @@
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 1rem 1.5rem;
-  background: #F9FAFB;
-  border-top: 1px solid #E8E8E8;
+  background: var(--surface2);
+  border-top: 1px solid var(--line);
 }
 
 .form-group {
