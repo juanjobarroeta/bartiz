@@ -139,6 +139,23 @@ body {
   overflow-x: clip;
 }
 
+/* Modales legacy (patrón .modal-overlay > .modal-content SIN el wrapper
+   .modal): el fondo del panel vivía en .modal, que estas páginas nunca
+   renderizan — el panel quedaba transparente y el contenido de la página se
+   mezclaba con el modal (visto al crear una estimación). El hijo directo del
+   overlay ES el panel: se le da superficie completa. */
+.modal-overlay > .modal-content {
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 16px;
+  box-shadow: var(--shadow-pop);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0;
+}
+
 /* Controles de formulario con tokens dentro del shell (los checkboxes/radios
    nativos se tematizan solos vía color-scheme). */
 .bz-shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
