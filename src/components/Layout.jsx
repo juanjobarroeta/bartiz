@@ -25,7 +25,7 @@ const PRIMARY_NAV = [
   { path: '/facturas',              label: 'Facturas' },
   { path: '/cuentas-por-pagar',     label: 'Pagos' },
   { path: '/tesoreria-bartiz',      label: 'Bancos' },
-  { path: '/gastos',                label: 'Caja' },
+  { path: '/gastos',                label: 'Gastos' },
 ]
 
 const MORE_NAV = [
