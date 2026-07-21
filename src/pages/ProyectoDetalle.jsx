@@ -1807,9 +1807,189 @@ function NewEstimacionModal({ open, onClose, proyectoId, prevEstimacion, onCreat
 
 // ── Compras Tab ─────────────────────────────────────────────────────────────
 
+// Compras del proyecto contra la explosión de insumos: cuánto de cada insumo
+// presupuestado ya está comprado/comprometido (requisiciones PENDIENTE +
+// APROBADA + PAGADA) y cuánto falta. El endpoint /explosion ya trae comprado
+// vs presupuestado por insumo — aquí solo se pinta el avance.
+const TIPO_INSUMO_LABEL = {
+  MATERIAL: 'Material',
+  MANO_OBRA: 'Mano de obra',
+  EQUIPO: 'Equipo',
+  HERRAMIENTA: 'Herramienta',
+  BASICO: 'Básico',
+}
+
 function ComprasTab({ proyecto }) {
+  const [explosionData, setExplosionData] = useState(null)
+  const [expLoading, setExpLoading] = useState(true)
+  const [tipoFilter, setTipoFilter] = useState('TODOS')
+
+  // Presupuesto base: mismo criterio que Compras por autorizar.
+  const basis = useMemo(() => {
+    const ps = proyecto.presupuestos ?? []
+    return (
+      ps.find((p) => p.tipoPresupuesto === 'EJECUTADO') ??
+      ps.find((p) => p.estado === 'APROBADO' || p.estado === 'EN_EJECUCION') ??
+      ps[0] ??
+      null
+    )
+  }, [proyecto.presupuestos])
+
+  useEffect(() => {
+    let alive = true
+    if (!basis) { setExpLoading(false); return }
+    setExpLoading(true)
+    apiFetch(`/api/construccion/presupuestos/${basis.id}/explosion`)
+      .then((d) => { if (alive) setExplosionData(d) })
+      .catch(() => { if (alive) setExplosionData(null) })
+      .finally(() => { if (alive) setExpLoading(false) })
+    return () => { alive = false }
+  }, [basis])
+
+  const tiposPresentes = useMemo(() => {
+    const set = new Set((explosionData?.explosion ?? []).map((e) => e.tipo))
+    return ['TODOS', ...Object.keys(TIPO_INSUMO_LABEL).filter((t) => set.has(t))]
+  }, [explosionData])
+
+  const rows = useMemo(() => {
+    const ex = explosionData?.explosion ?? []
+    const filtered = tipoFilter === 'TODOS' ? ex : ex.filter((e) => e.tipo === tipoFilter)
+    // Lo más comprado primero; entre iguales, lo más pesado del presupuesto.
+    return [...filtered].sort(
+      (a, b) => b.compradoImporte - a.compradoImporte || b.importeTotal - a.importeTotal
+    )
+  }, [explosionData, tipoFilter])
+
+  const fmtQty = (n) => Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 2 })
+  const presupuestado = explosionData?.resumen?.totalCostoDirecto ?? 0
+  const comprado = explosionData?.resumen?.totalComprado ?? 0
+  const pctGlobal = presupuestado > 0 ? (comprado / presupuestado) * 100 : 0
+  const porComprar = Math.max(0, presupuestado - comprado)
+
   return (
     <div>
+      {/* ── Avance de compras vs explosión ── */}
+      <h3 style={{ marginTop: 0 }}>Compras vs explosión de insumos</h3>
+      {expLoading ? (
+        <div className="pd-empty">Cargando explosión…</div>
+      ) : !basis ? (
+        <div className="pd-empty">
+          Este proyecto no tiene presupuesto. Importa uno para dar seguimiento a las compras
+          contra la explosión de insumos.
+        </div>
+      ) : !explosionData || (explosionData.explosion ?? []).length === 0 ? (
+        <div className="pd-empty">
+          El presupuesto no tiene explosión de insumos (sin hoja de insumos ni APUs cargados).
+        </div>
+      ) : (
+        <>
+          <div className="pd-kpis" style={{ marginBottom: '0.75rem' }}>
+            <div className="pd-kpi">
+              <div className="pd-kpi-label">Presupuestado (explosión)</div>
+              <div className="pd-kpi-value">{fmtMoney(presupuestado)}</div>
+            </div>
+            <div className="pd-kpi">
+              <div className="pd-kpi-label">Comprado / comprometido</div>
+              <div className="pd-kpi-value">{fmtMoney(comprado)}</div>
+              <div className="small muted">incluye requisiciones pendientes y aprobadas</div>
+            </div>
+            <div className="pd-kpi">
+              <div className="pd-kpi-label">Por comprar</div>
+              <div className="pd-kpi-value">{fmtMoney(porComprar)}</div>
+            </div>
+            <div className="pd-kpi">
+              <div className="pd-kpi-label">Avance de compras</div>
+              <div className="pd-kpi-value">{pctGlobal.toFixed(1)}%</div>
+            </div>
+          </div>
+
+          <div className="pd-avance-bars" style={{ marginBottom: '1rem' }}>
+            <div className="pd-avance-bar-row">
+              <span className="label">Global</span>
+              <div className="pd-avance-bar">
+                <div
+                  className={`pd-avance-bar-fill gasto${pctGlobal > 100 ? ' over' : ''}`}
+                  style={{ width: `${Math.min(100, pctGlobal)}%` }}
+                />
+              </div>
+              <span className="pct">{pctGlobal.toFixed(1)}%</span>
+            </div>
+          </div>
+
+          {tiposPresentes.length > 2 && (
+            <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+              <span className="muted small">Tipo:</span>
+              {tiposPresentes.map((t) => (
+                <button
+                  key={t}
+                  className="link small"
+                  style={{ fontWeight: tipoFilter === t ? 600 : 400, background: tipoFilter === t ? '#e0e7ff' : 'transparent', padding: '0.1rem 0.4rem', borderRadius: 4, border: 'none', cursor: 'pointer' }}
+                  onClick={() => setTipoFilter(t)}
+                >
+                  {t === 'TODOS' ? 'todos' : TIPO_INSUMO_LABEL[t]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div style={{ overflowX: 'auto' }}>
+            <table className="pd-table">
+              <thead>
+                <tr>
+                  <th>Insumo</th>
+                  <th>Tipo</th>
+                  <th style={{ textAlign: 'right' }}>Presupuestado</th>
+                  <th style={{ textAlign: 'right' }}>Comprado</th>
+                  <th style={{ textAlign: 'right' }}>Restante</th>
+                  <th style={{ minWidth: 130 }}>Avance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((e) => {
+                  const pct = e.importeTotal > 0 ? (e.compradoImporte / e.importeTotal) * 100 : (e.compradoImporte > 0 ? 101 : 0)
+                  const over = pct > 100.5
+                  return (
+                    <tr key={e.insumoId}>
+                      <td>
+                        {e.descripcion}
+                        <div className="muted small mono">{e.codigo}</div>
+                      </td>
+                      <td className="small">{TIPO_INSUMO_LABEL[e.tipo] ?? e.tipo}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {fmtMoney(e.importeTotal)}
+                        <div className="muted small">{fmtQty(e.cantidadTotal)} {e.unidad}</div>
+                      </td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {fmtMoney(e.compradoImporte)}
+                        <div className="muted small">{fmtQty(e.compradoCantidad)} {e.unidad}</div>
+                      </td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        <div className={over ? 'pd-compra-over' : undefined}>
+                          {over ? 'excedido' : `${fmtQty(e.restanteCantidad)} ${e.unidad}`}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="pd-avance-bar-row" style={{ gridTemplateColumns: '1fr auto' }}>
+                          <div className="pd-avance-bar" style={{ height: 10 }}>
+                            <div
+                              className={`pd-avance-bar-fill gasto${over ? ' over' : ''}`}
+                              style={{ width: `${Math.min(100, pct)}%` }}
+                            />
+                          </div>
+                          <span className="pct">{pct.toFixed(0)}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ── Requisiciones del proyecto ── */}
+      <h3 style={{ marginTop: '1.5rem' }}>Requisiciones del proyecto</h3>
       {(proyecto.solicitudesCompra ?? []).length === 0 ? (
         <div className="pd-empty">No hay solicitudes de compra para este proyecto.</div>
       ) : (
