@@ -1992,22 +1992,41 @@ function ComprasTab({ proyecto }) {
       <h3 style={{ marginTop: '1.5rem' }}>Requisiciones del proyecto</h3>
       {(proyecto.solicitudesCompra ?? []).length === 0 ? (
         <div className="pd-empty">No hay solicitudes de compra para este proyecto.</div>
-      ) : (
-        <table className="pd-table">
-          <thead><tr><th>Folio</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th style={{textAlign:'right'}}>Total</th></tr></thead>
-          <tbody>
-            {(proyecto.solicitudesCompra ?? []).map(s => (
-              <tr key={s.id}>
-                <td className="mono">{s.folio}</td>
-                <td>{s.supplier?.razonSocial ?? '—'}</td>
-                <td className="small">{fmtDate(s.createdAt)}</td>
-                <td><span className={`badge solicitud-${s.estado?.toLowerCase()}`}>{SOL_ESTADO[s.estado] ?? s.estado}</span></td>
-                <td style={{textAlign:'right'}}>{fmtMoney(s.total)}</td>
+      ) : (() => {
+        const sols = proyecto.solicitudesCompra ?? []
+        const sum = (pred) => sols.filter(pred).reduce((a, s) => a + (Number(s.total) || 0), 0)
+        const totalPagado = sum((s) => s.estado === 'PAGADA')
+        const totalAprobado = sum((s) => s.estado === 'APROBADA')
+        const totalPendiente = sum((s) => s.estado === 'PENDIENTE')
+        const granTotal = totalPagado + totalAprobado + totalPendiente
+        return (
+          <table className="pd-table">
+            <thead><tr><th>Folio</th><th>Proveedor</th><th>Fecha</th><th>Estado</th><th style={{textAlign:'right'}}>Total</th></tr></thead>
+            <tbody>
+              {sols.map(s => (
+                <tr key={s.id}>
+                  <td className="mono">{s.folio}</td>
+                  <td>{s.supplier?.razonSocial ?? '—'}</td>
+                  <td className="small">{fmtDate(s.createdAt)}</td>
+                  <td><span className={`badge solicitud-${s.estado?.toLowerCase()}`}>{SOL_ESTADO[s.estado] ?? s.estado}</span></td>
+                  <td style={{textAlign:'right'}}>{fmtMoney(s.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={4}>
+                  <strong>Total</strong>
+                  <span className="muted small">
+                    {' '}· pagado {fmtMoney(totalPagado)} · aprobado {fmtMoney(totalAprobado)} · pendiente {fmtMoney(totalPendiente)}
+                  </span>
+                </td>
+                <td style={{ textAlign: 'right' }}><strong>{fmtMoney(granTotal)}</strong></td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </tfoot>
+          </table>
+        )
+      })()}
     </div>
   )
 }
