@@ -302,7 +302,7 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
                     const won = award[p.id] === c.id
                     const isCheapest = cheapestCot[p.id] === c.id
                     if (!line || !(line.precioUnitario > 0)) {
-                      return <td key={c.id} className="cpa-cell cpa-empty-cell">—</td>
+                      return <td key={c.id} className="cpa-cell cpa-empty-cell" title="Este proveedor no cotizó este concepto">no ofertó</td>
                     }
                     return (
                       <td
