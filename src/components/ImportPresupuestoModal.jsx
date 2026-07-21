@@ -161,10 +161,12 @@ export default function ImportPresupuestoModal({
           <p className="muted small" style={{ marginTop: 0 }}>
             Sube el archivo Excel del presupuesto. Se detecta el formato
             automáticamente: hoja <strong>PRESUPUESTO</strong> (capítulos
-            numerados <span className="mono">1.1.3.5.1</span> + hoja INSUMOS) u
+            numerados <span className="mono">1.1.3.5.1</span> + hoja INSUMOS),
             hoja <strong>Matrices</strong> (análisis de precios unitarios estilo
-            Opus). En ambos casos se crea el presupuesto del proyecto con sus
-            conceptos e insumos.
+            Opus), u hoja <strong>LISTA DE CONCEPTOS</strong> (filas
+            CAPITULO/CONCEPTO agrupadas por local + hoja MATERIALES). En todos
+            los casos se crea el presupuesto del proyecto con sus conceptos e
+            insumos.
           </p>
           <label
             className="imp-drop"
