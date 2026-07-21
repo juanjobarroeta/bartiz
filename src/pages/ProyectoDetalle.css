@@ -567,3 +567,6 @@
 .pd-costos-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--ink-3, #8a8178); }
 .pd-costos-value { font-size: 1.15rem; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
 .pd-costos-pct { font-size: 11px; color: var(--ink-3, #8a8178); margin-top: 2px; }
+
+/* Compras vs explosión — cantidad restante excedida */
+.pd-compra-over { color: var(--neg); font-weight: 600; font-size: 0.82rem; }
