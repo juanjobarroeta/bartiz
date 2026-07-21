@@ -406,12 +406,23 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
   // Aggregate: for each presupuestoPartida (contrato version — that's what estimaciones reference)
   // compute cantidadEjecutadaAcumulada from estimaciones.partidas
   const avancePorPartida = new Map()
+  // Estimaciones en modo plantilla (viviendas — Decolsa): no traen
+  // cantidadEjecutada por partida sino pctAcumulado contra una RAMA del árbol
+  // (via templatePartida.presupuestoPartidaId). Guardamos el máximo acumulado
+  // por rama y lo aplicamos proporcionalmente a las hojas de esa rama.
+  const templatePctPorPartida = new Map() // presupuestoPartidaId (contrato) → pct 0..100
+  const ESTADOS_AVANCE = ['BORRADOR', 'APROBADA', 'TIMBRADA', 'PAGADA']
   for (const est of proyecto.estimaciones ?? []) {
-    if (est.estado !== 'TIMBRADA' && est.estado !== 'PAGADA' && est.estado !== 'BORRADOR') continue
+    if (!ESTADOS_AVANCE.includes(est.estado)) continue
     for (const p of est.partidas ?? []) {
-      if (!p.presupuestoPartidaId) continue
-      const cur = avancePorPartida.get(p.presupuestoPartidaId) ?? 0
-      avancePorPartida.set(p.presupuestoPartidaId, cur + (Number(p.cantidadEjecutada) || 0))
+      if (p.presupuestoPartidaId) {
+        const cur = avancePorPartida.get(p.presupuestoPartidaId) ?? 0
+        avancePorPartida.set(p.presupuestoPartidaId, cur + (Number(p.cantidadEjecutada) || 0))
+      } else if (p.templatePartida?.presupuestoPartidaId && p.pctAcumulado != null) {
+        const target = p.templatePartida.presupuestoPartidaId
+        const pct = (Number(p.pctAcumulado) || 0) * 100 // backend guarda fracción 0..1
+        if (pct > (templatePctPorPartida.get(target) ?? 0)) templatePctPorPartida.set(target, pct)
+      }
     }
   }
 
@@ -443,6 +454,19 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
   // tree metadata, fall back to the flat zona/partida strings so
   // Bartiz's pre-tree data keeps grouping the way it always did.
   const byId = new Map((basis.partidas ?? []).map((p) => [p.id, p]))
+  // Pct de plantilla para una hoja: buscar la rama más cercana (la hoja misma
+  // o un ancestro) que tenga pctAcumulado de estimaciones-plantilla. Las
+  // referencias de plantilla apuntan al árbol CONTRATO, por eso la búsqueda
+  // usa contratoPartidaId cuando la base es el presupuesto ejecutado.
+  const templatePctForLeaf = (leaf) => {
+    let cursor = leaf
+    while (cursor) {
+      const hit = templatePctPorPartida.get(cursor.contratoPartidaId ?? cursor.id)
+      if (hit != null) return hit
+      cursor = cursor.parentPartidaId ? byId.get(cursor.parentPartidaId) : null
+    }
+    return null
+  }
   const ancestorChain = (leaf) => {
     const chain = []
     let cursor = leaf.parentPartidaId ? byId.get(leaf.parentPartidaId) : null
@@ -490,7 +514,7 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
   // look like the page is broken.
   const totalAvance = [...avancePorPartida.values()].reduce((a, n) => a + n, 0)
   const totalGastoPartida = [...gastadoPorPartida.values()].reduce((a, n) => a + n, 0)
-  const everythingEmpty = totalAvance === 0 && totalGastoPartida === 0
+  const everythingEmpty = totalAvance === 0 && totalGastoPartida === 0 && templatePctPorPartida.size === 0
 
   return (
     <details className="pd-avance-section" {...(!everythingEmpty && { open: true })}>
@@ -508,7 +532,16 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
         const groupGastado = g.rows.reduce((a, r) => a + (gastadoPorPartida.get(r.id) ?? 0), 0)
         const groupCantTotal = g.rows.reduce((a, r) => a + (Number(r.cantidad) || 0), 0)
         const groupCantEjec = g.rows.reduce((a, r) => a + (avancePorPartida.get(r.contratoPartidaId ?? r.id) ?? 0), 0)
-        const avancePct = groupCantTotal > 0 ? (groupCantEjec / groupCantTotal * 100) : 0
+        let avancePct = groupCantTotal > 0 ? (groupCantEjec / groupCantTotal * 100) : 0
+        // Sin cantidades ejecutadas: usar el pct de estimaciones-plantilla,
+        // ponderado por importe de cada hoja del grupo.
+        if (groupCantEjec === 0 && groupPresup > 0) {
+          const wImporte = g.rows.reduce((a, r) => {
+            const t = templatePctForLeaf(r)
+            return t != null ? a + (t / 100) * (Number(r.importe) || 0) : a
+          }, 0)
+          if (wImporte > 0) avancePct = (wImporte / groupPresup) * 100
+        }
         const gastoPct = groupPresup > 0 ? (groupGastado / groupPresup * 100) : 0
 
         return (
@@ -559,7 +592,8 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
                   const avanceKey = r.contratoPartidaId ?? r.id
                   const ejec = avancePorPartida.get(avanceKey) ?? 0
                   const gast = gastadoPorPartida.get(r.id) ?? 0
-                  const pctAvance = r.cantidad > 0 ? (ejec / r.cantidad * 100) : 0
+                  const tPct = ejec === 0 ? templatePctForLeaf(r) : null
+                  const pctAvance = r.cantidad > 0 && ejec > 0 ? (ejec / r.cantidad * 100) : (tPct ?? 0)
                   const pctGasto = r.importe > 0 ? (gast / r.importe * 100) : 0
                   return (
                     <tr key={r.id}>

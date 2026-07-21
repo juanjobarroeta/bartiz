@@ -153,6 +153,7 @@ export default function Estimaciones() {
               estimacion={est}
               presupuesto={presAprobado}
               estimaciones={estimaciones}
+              aplicaIva={proyecto?.aplicaIva ?? false}
               onSave={() => { setEditing(null); cargar() }}
               onTimbrar={() => timbrar(est.id)}
               onCancel={() => setEditing(null)}
@@ -202,7 +203,7 @@ function CreateEstimacion({ onCancel, onCreate }) {
   )
 }
 
-function AvanceEditor({ estimacion, presupuesto, estimaciones, onSave, onTimbrar, onCancel }) {
+function AvanceEditor({ estimacion, presupuesto, estimaciones, aplicaIva, onSave, onTimbrar, onCancel }) {
   const [avance, setAvance] = useState({}) // { presupuestoPartidaId: cantidadEjecutada }
   const [saving, setSaving] = useState(false)
 
@@ -253,7 +254,8 @@ function AvanceEditor({ estimacion, presupuesto, estimaciones, onSave, onTimbrar
     const qty = Number(avance[p.id]) || 0
     subtotal += qty * p.precioUnitario
   }
-  const iva = subtotal * 0.16
+  // Preview del IVA gated igual que el backend (vivienda no causa IVA).
+  const iva = aplicaIva ? subtotal * 0.16 : 0
 
   const save = async () => {
     setSaving(true)
@@ -329,7 +331,7 @@ function AvanceEditor({ estimacion, presupuesto, estimaciones, onSave, onTimbrar
 
       <div className="est-summary">
         <div className="row"><span>Subtotal este período</span><strong>{fmtMoney(subtotal)}</strong></div>
-        <div className="row"><span>IVA 16%</span><strong>{fmtMoney(iva)}</strong></div>
+        {aplicaIva && <div className="row"><span>IVA 16%</span><strong>{fmtMoney(iva)}</strong></div>}
         <div className="row total"><span>Total</span><strong>{fmtMoney(subtotal + iva)}</strong></div>
       </div>
 
