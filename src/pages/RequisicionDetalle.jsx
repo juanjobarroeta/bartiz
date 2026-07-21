@@ -6,9 +6,12 @@
  *   Each cell shows precio + importe per line for that vendor.
  *   Row footer highlights the best price + the difference vs the
  *   selected cotización.
- * Tools:
- *   • "+ Nueva cotización" modal — vendor name + per-line PUs.
- *   • Per-cotización "Elegir como ganadora" button → atomic seleccionar.
+ * Esta pantalla es SOLO captura y comparación: se crean la requisición y sus
+ * cotizaciones (cada línea puede quedar "no ofertó" si el proveedor no cotizó
+ * ese concepto) y se comparan precios lado a lado. La adjudicación por
+ * concepto y la autorización viven en "Compras por autorizar" — aquí no se
+ * elige ganador. Los tags "✓ adjudicado" que se muestran son de solo lectura,
+ * reflejo de lo decidido en Compras (partida.cotizacionGanadoraId).
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -38,12 +41,10 @@ export default function RequisicionDetalle() {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
   const [newCotOpen, setNewCotOpen] = useState(false)
-  // Per-concept award: { [partidaId]: cotizacionId }. Lets the buyer split one
-  // requisición across suppliers — concept A to vendor X, concept B to vendor Y.
+  // Adjudicación decidida en "Compras por autorizar" — aquí solo se muestra:
+  // { [partidaId]: cotizacionId } sembrado del backend, sin mutaciones.
   const [awards, setAwards] = useState({})
-  const [awardLocalOnly, setAwardLocalOnly] = useState(false)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -93,101 +94,13 @@ export default function RequisicionDetalle() {
       }
     }
     setAwards(init)
-    setAwardLocalOnly(false)
   }, [data])
 
-  // Persist the full award map. Optimistic: if the endpoint isn't live yet we
-  // keep the local selection so the screen stays usable (same pattern as
-  // Facturas). The backend contract lives in BACKEND-SPLIT-AWARD.md.
-  const persistAwards = useCallback(async (map) => {
-    try {
-      await apiFetch(`/api/construccion/solicitudes-compra/${id}/adjudicaciones`, {
-        method: 'PUT',
-        body: { adjudicaciones: map },
-      })
-      setAwardLocalOnly(false)
-    } catch {
-      setAwardLocalOnly(true)
-    }
-  }, [id])
-
-  // Edit locking (#4): a PAGADA/cerrada requisición is read-only; an APROBADA
-  // one already generated cuentas por pagar, so changing an award warns first.
+  // Edit locking (#4): a PAGADA/cerrada requisición is read-only.
   const estado = data?.estado
   const locked = estado === 'PAGADA' || estado === 'RECHAZADA' || estado === 'CANCELADA'
   const approved = estado === 'APROBADA'
-  const guardMutation = async () => {
-    if (locked) {
-      alertDialog({ message: `Esta requisición está ${String(estado).toLowerCase()}; ya no se puede modificar.` })
-      return false
-    }
-    if (approved) {
-      return confirmDialog({
-        title: 'Requisición ya autorizada',
-        message: 'Esta requisición ya fue autorizada y generó cuentas por pagar. Cambiar la adjudicación de un proveedor ya aprobado puede desincronizarlas. ¿Cambiar de todos modos?',
-        okLabel: 'Cambiar de todos modos',
-      })
-    }
-    return true
-  }
 
-  const award = async (partidaId, cotizacionId) => {
-    if (!(await guardMutation())) return
-    const next = { ...awards }
-    if (next[partidaId] === cotizacionId) delete next[partidaId]
-    else next[partidaId] = cotizacionId
-    setAwards(next)
-    persistAwards(next)
-  }
-
-  const awardCheapestAll = async () => {
-    if (!(await guardMutation())) return
-    const next = {}
-    for (const row of matrix ?? []) if (row.cheapest) next[row.partida.id] = row.cheapest.cotizacionId
-    setAwards(next)
-    persistAwards(next)
-  }
-
-  const clearAwards = async () => { if (!(await guardMutation())) return; setAwards({}); persistAwards({}) }
-
-  // Group the awarded concepts by supplier for the summary: one purchase order
-  // per supplier, plus the combined cost of the split award.
-  const adjudicacion = useMemo(() => {
-    if (!data) return null
-    const cots = data.cotizaciones ?? []
-    const groups = new Map()
-    let total = 0
-    let assigned = 0
-    for (const p of data.partidas) {
-      const cotId = awards[p.id]
-      if (!cotId) continue
-      const c = cots.find((x) => x.id === cotId)
-      const ln = c?.partidas?.find((cp) => cp.solicitudPartidaId === p.id)
-      if (!c || !ln) continue
-      const importe = ln.importe ?? (Number(ln.precioUnitario) || 0) * (Number(p.cantidad) || 0)
-      assigned += 1
-      total += importe
-      if (!groups.has(cotId)) groups.set(cotId, { cotizacion: c, concepts: [], subtotal: 0 })
-      const g = groups.get(cotId)
-      g.concepts.push({ partida: p, line: ln, importe })
-      g.subtotal += importe
-    }
-    return { groups: [...groups.values()], total, assigned, totalConcepts: data.partidas.length }
-  }, [data, awards])
-
-  const selectCot = async (cotId) => {
-    if (locked) { alertDialog({ message: `Esta requisición está ${String(estado).toLowerCase()}; ya no se puede modificar.` }); return }
-    if (!(await confirmDialog({ title: 'Elegir cotización ganadora', message: 'Se actualizarán precios y proveedor en la requisición. ¿Continuar?', okLabel: 'Sí, elegir' }))) return
-    setBusy(true)
-    try {
-      await apiFetch(`/api/construccion/solicitudes-compra/${id}/cotizaciones/${cotId}/seleccionar`, { method: 'POST' })
-      await reload()
-    } catch (err) {
-      alertDialog({ message: err.message || 'Error' })
-    } finally {
-      setBusy(false)
-    }
-  }
 
   if (loading) return <div className="pd-empty">Cargando…</div>
   if (!data) return <div className="pd-empty">No encontrado.</div>
@@ -242,7 +155,7 @@ export default function RequisicionDetalle() {
       )}
       {approved && (
         <div className="req-approved-banner">
-          Esta requisición ya fue autorizada. Cambiar adjudicaciones pedirá confirmación (ya generaron cuentas por pagar).
+          Esta requisición ya fue autorizada en Compras por autorizar y generó cuentas por pagar.
         </div>
       )}
 
@@ -303,31 +216,23 @@ export default function RequisicionDetalle() {
       {/* Matrix */}
       {(data.cotizaciones ?? []).length === 0 ? (
         <div className="pd-empty">
-          Aún no hay cotizaciones. Agrega la primera con "Agregar cotización" para comparar proveedores y adjudicar por concepto.
+          Aún no hay cotizaciones. Agrega la primera con "Agregar cotización"; la adjudicación se hace después en Compras por autorizar.
         </div>
       ) : (
         <>
         <div className="adjudicacion-bar">
           <div>
-            <strong>Adjudicación por concepto</strong>
+            <strong>Comparativa de cotizaciones</strong>
             <div className="muted small">
-              Haz clic en una celda de precio para adjudicar ese concepto a ese proveedor.
-              Puedes repartir la requisición entre varios proveedores.
-              {awardLocalOnly && (
-                <span className="adj-local"> · guardado localmente (pendiente del backend)</span>
-              )}
+              Aquí solo se capturan y comparan precios. La adjudicación por concepto y la
+              autorización se hacen en <strong>Compras por autorizar</strong>.
             </div>
           </div>
-          {!locked && (
+          {estado === 'PENDIENTE' && (
             <div className="aq-actions">
-              <button type="button" className="link small" onClick={awardCheapestAll}>
-                Adjudicar lo más barato
+              <button type="button" className="link small" onClick={() => navigate('/compras-por-autorizar')}>
+                Ir a Compras por autorizar →
               </button>
-              {adjudicacion?.assigned > 0 && (
-                <button type="button" className="link small danger" onClick={clearAwards}>
-                  Limpiar
-                </button>
-              )}
             </div>
           )}
         </div>
@@ -342,14 +247,6 @@ export default function RequisicionDetalle() {
                   <th key={c.id} className={c.isSelected ? 'cot-selected' : ''}>
                     <div className="cot-head">
                       <strong>{c.supplierNombre}</strong>
-                      <button
-                        type="button"
-                        className={c.isSelected ? 'link small selected' : 'link small'}
-                        onClick={() => !c.isSelected && selectCot(c.id)}
-                        disabled={busy || c.isSelected}
-                      >
-                        {c.isSelected ? '✓ ganadora' : 'elegir'}
-                      </button>
                     </div>
                     <div className="muted small">
                       <span className={c.tieneCredito ? 'cot-credit has' : 'cot-credit cash'}>
@@ -382,9 +279,7 @@ export default function RequisicionDetalle() {
                       <td
                         key={cotizacionId}
                         className={`matrix-cell ${isSelected ? 'cot-selected' : ''} ${isCheapest ? 'cheapest' : ''} ${isAwarded ? 'awarded' : ''}`}
-                        role={line ? 'button' : undefined}
-                        onClick={line ? () => award(partida.id, cotizacionId) : undefined}
-                        title={line ? (isAwarded ? 'Adjudicado a este proveedor — clic para quitar' : 'Adjudicar este concepto a este proveedor') : undefined}
+                        title={isAwarded ? 'Adjudicado a este proveedor (decidido en Compras por autorizar)' : undefined}
                       >
                         {line ? (
                           <>
@@ -393,7 +288,7 @@ export default function RequisicionDetalle() {
                             {isAwarded && <div className="awarded-tag">✓ adjudicado</div>}
                           </>
                         ) : (
-                          <span className="muted small">—</span>
+                          <span className="muted small">no ofertó</span>
                         )}
                       </td>
                     )
@@ -413,41 +308,6 @@ export default function RequisicionDetalle() {
           </table>
         </div>
 
-        {adjudicacion?.assigned > 0 && (
-          <div className="adjudicacion-summary">
-            <h3>Resumen de adjudicación</h3>
-            <p className="muted small">
-              {adjudicacion.assigned} de {adjudicacion.totalConcepts} conceptos adjudicados ·{' '}
-              {adjudicacion.groups.length} proveedor{adjudicacion.groups.length === 1 ? '' : 'es'}
-              {adjudicacion.groups.length > 1 && ' (se generaría una orden de compra por proveedor)'}
-            </p>
-            {adjudicacion.groups.map((g) => (
-              <div key={g.cotizacion.id} className="adj-supplier">
-                <div className="adj-supplier-head">
-                  <span>{g.cotizacion.supplierNombre}</span>
-                  <span className="num">{fmtMoney(g.subtotal)}</span>
-                </div>
-                <ul className="adj-concepts">
-                  {g.concepts.map(({ partida, importe }) => (
-                    <li key={partida.id}>
-                      <span>{partida.descripcion}</span>
-                      <span className="num">{fmtMoney(importe)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-            <div className="adj-total-row">
-              <span>Total adjudicado</span>
-              <span className="num">{fmtMoney(adjudicacion.total)}</span>
-            </div>
-            {adjudicacion.assigned < adjudicacion.totalConcepts && (
-              <div className="adj-warn">
-                Faltan {adjudicacion.totalConcepts - adjudicacion.assigned} concepto(s) por adjudicar.
-              </div>
-            )}
-          </div>
-        )}
         </>
       )}
     </div>
@@ -744,6 +604,13 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
     for (const p of requisicion.partidas) o[p.id] = ''
     return o
   })
+  // Líneas que el proveedor NO cotizó — explícitas, para distinguir "no
+  // ofertó" de "se me olvidó capturar el precio". No se envían al backend.
+  const [noOferto, setNoOferto] = useState({})
+  const toggleNoOferto = (partidaId) => {
+    setNoOferto((o) => ({ ...o, [partidaId]: !o[partidaId] }))
+    setPus((o) => ({ ...o, [partidaId]: '' }))
+  }
   const [busy, setBusy] = useState(false)
 
   const totalPreview = useMemo(() => {
@@ -760,7 +627,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       : supplier?.razonSocial?.trim() ?? ''
     if (!finalSupplierNombre) { alertDialog({ message: 'Elige un proveedor del catálogo o escribe un nombre.' }); return }
     const lineas = requisicion.partidas
-      .filter((p) => parseFloat(pus[p.id]) >= 0)
+      .filter((p) => !noOferto[p.id] && parseFloat(pus[p.id]) >= 0)
       .map((p) => ({
         solicitudPartidaId: p.id,
         precioUnitario: parseFloat(pus[p.id]) || 0,
@@ -768,6 +635,18 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       .filter((l) => l.precioUnitario > 0)
     if (lineas.length === 0) {
       alertDialog({ message: 'Captura al menos un precio.' }); return
+    }
+    // Precios en blanco que NO están marcados "no ofertó" — probable olvido.
+    const sinPrecio = requisicion.partidas.filter(
+      (p) => !noOferto[p.id] && !(parseFloat(pus[p.id]) > 0)
+    )
+    if (sinPrecio.length > 0) {
+      const ok = await confirmDialog({
+        title: 'Conceptos sin precio',
+        message: `${sinPrecio.length} concepto(s) quedaron sin precio y sin marcar "no ofertó"; se guardarán como no ofertados. ¿Continuar?`,
+        okLabel: 'Sí, guardar',
+      })
+      if (!ok) return
     }
     setBusy(true)
     try {
@@ -868,20 +747,36 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
         </div>
         {requisicion.partidas.map((p) => {
           const pu = parseFloat(pus[p.id]) || 0
+          const omitida = !!noOferto[p.id]
           return (
             <div key={p.id} className="line-row">
-              <span>{p.descripcion}</span>
+              <span>
+                {p.descripcion}
+                {' '}
+                <button
+                  type="button"
+                  className="link small"
+                  onClick={() => toggleNoOferto(p.id)}
+                  title={omitida ? 'Volver a capturar precio para este concepto' : 'El proveedor no cotizó este concepto'}
+                >
+                  {omitida ? 'sí ofertó' : 'no ofertó'}
+                </button>
+              </span>
               <span className="mono small" style={{ width: 70 }}>{p.unidad ?? '—'}</span>
               <span style={{ width: 80 }}>{p.cantidad}</span>
-              <input
-                type="number"
-                step="0.01"
-                value={pus[p.id]}
-                onChange={(e) => setPus((o) => ({ ...o, [p.id]: e.target.value }))}
-                placeholder="0.00"
-                style={{ width: 100 }}
-              />
-              <span style={{ width: 100, textAlign: 'right' }}>{fmtMoney(pu * p.cantidad)}</span>
+              {omitida ? (
+                <span className="muted small" style={{ width: 100 }}>no ofertó</span>
+              ) : (
+                <input
+                  type="number"
+                  step="0.01"
+                  value={pus[p.id]}
+                  onChange={(e) => setPus((o) => ({ ...o, [p.id]: e.target.value }))}
+                  placeholder="0.00"
+                  style={{ width: 100 }}
+                />
+              )}
+              <span style={{ width: 100, textAlign: 'right' }}>{omitida ? '—' : fmtMoney(pu * p.cantidad)}</span>
             </div>
           )
         })}
