@@ -396,7 +396,10 @@ export default function PresupuestoDetalle() {
   }
 
   const subtotal = presupuesto.montoTotal
-  const iva = subtotal * 0.16
+  // IVA sólo si el proyecto lo causa (vivienda no causa IVA). El flag vive en
+  // Proyecto.aplicaIva, capturado en el wizard de importación.
+  const aplicaIva = presupuesto.proyecto?.aplicaIva ?? false
+  const iva = aplicaIva ? subtotal * 0.16 : 0
   const total = subtotal + iva
 
   return (
@@ -427,10 +430,17 @@ export default function PresupuestoDetalle() {
             <span>Subtotal</span>
             <strong>{fmtMoney(subtotal)}</strong>
           </div>
-          <div className="row">
-            <span>IVA 16%</span>
-            <strong>{fmtMoney(iva)}</strong>
-          </div>
+          {aplicaIva ? (
+            <div className="row">
+              <span>IVA 16%</span>
+              <strong>{fmtMoney(iva)}</strong>
+            </div>
+          ) : (
+            <div className="row">
+              <span className="muted small">IVA — no aplica (vivienda)</span>
+              <strong className="muted small">$0.00</strong>
+            </div>
+          )}
           <div className="row total">
             <span>Total</span>
             <strong>{fmtMoney(total)}</strong>
@@ -595,10 +605,12 @@ export default function PresupuestoDetalle() {
             <span>Total del presupuesto sin IVA</span>
             <strong>{fmtMoney(subtotal)}</strong>
           </div>
-          <div className="row">
-            <span>IVA 16%</span>
-            <strong>{fmtMoney(iva)}</strong>
-          </div>
+          {aplicaIva && (
+            <div className="row">
+              <span>IVA 16%</span>
+              <strong>{fmtMoney(iva)}</strong>
+            </div>
+          )}
           <div className="row total">
             <span>Total del presupuesto</span>
             <strong>{fmtMoney(total)}</strong>
