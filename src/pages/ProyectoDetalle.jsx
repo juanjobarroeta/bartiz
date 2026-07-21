@@ -418,8 +418,8 @@ function AvancePresupuestoPorPartida({ proyecto, contrato, ejecutado }) {
       if (p.presupuestoPartidaId) {
         const cur = avancePorPartida.get(p.presupuestoPartidaId) ?? 0
         avancePorPartida.set(p.presupuestoPartidaId, cur + (Number(p.cantidadEjecutada) || 0))
-      } else if (p.templatePartida?.presupuestoPartidaId && p.pctAcumulado != null) {
-        const target = p.templatePartida.presupuestoPartidaId
+      } else if (p.template?.presupuestoPartidaId && p.pctAcumulado != null) {
+        const target = p.template.presupuestoPartidaId
         const pct = (Number(p.pctAcumulado) || 0) * 100 // backend guarda fracción 0..1
         if (pct > (templatePctPorPartida.get(target) ?? 0)) templatePctPorPartida.set(target, pct)
       }
