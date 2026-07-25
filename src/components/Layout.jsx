@@ -69,13 +69,15 @@ const REDESIGNED_ROUTES = {
   '/facturas': { title: 'Facturas (CFDI)', sub: 'Inbox y conciliación de comprobantes' },
 }
 
-// ── Tema (oscuro "Nocturno" / claro "Ledger") ────────────────────────────────
+// ── Tema (claro neutro default / oscuro "Nocturno" en el toggle) ─────────────
 function useTheme() {
-  // Default claro (look neutro tipo dashboard); Nocturno queda en el toggle.
-  const [theme, setTheme] = useState(() => localStorage.getItem('bz-theme') || 'claro')
+  // Migración de una sola vez al rediseño claro: la preferencia vieja
+  // (bz-theme) se ignora para que TODOS aterricen en claro; la elección
+  // hecha después del rediseño se persiste bajo bz-theme2.
+  const [theme, setTheme] = useState(() => localStorage.getItem('bz-theme2') || 'claro')
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    localStorage.setItem('bz-theme', theme)
+    localStorage.setItem('bz-theme2', theme)
   }, [theme])
   return [theme, () => setTheme((t) => (t === 'oscuro' ? 'claro' : 'oscuro'))]
 }
