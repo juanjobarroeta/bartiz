@@ -71,7 +71,8 @@ const REDESIGNED_ROUTES = {
 
 // ── Tema (oscuro "Nocturno" / claro "Ledger") ────────────────────────────────
 function useTheme() {
-  const [theme, setTheme] = useState(() => localStorage.getItem('bz-theme') || 'oscuro')
+  // Default claro (look neutro tipo dashboard); Nocturno queda en el toggle.
+  const [theme, setTheme] = useState(() => localStorage.getItem('bz-theme') || 'claro')
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('bz-theme', theme)

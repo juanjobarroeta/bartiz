@@ -12,8 +12,9 @@
 
 /* ============================================================
    BARTIZ redesign tokens — dual theme.
-   Default = "Nocturno" (dark); [data-theme="claro"] = "Ledger"
-   (warm paper). Set data-theme on <html>; persisted as bz-theme.
+   Default = "Claro" (light neutro, tarjetas blancas + acento verde);
+   :root sin data-theme = "Nocturno" (dark, serif display), disponible
+   en el toggle. Set data-theme on <html>; persisted as bz-theme.
 
    The NEW canonical tokens (--bg/--surface2/--accent/--faint…)
    come verbatim from the design spec. The LEGACY names the 28
@@ -94,37 +95,46 @@
   --sidebar-w: 244px;
 }
 
-/* "Ledger" — warm paper light theme */
+/* "Claro" — light theme neutro: fondo gris muy claro, tarjetas blancas,
+   tinta casi negra y acento verde (look del dashboard de referencia).
+   Los números en claro van en sans (--font-display → --font-ui); la
+   identidad serif se conserva en Nocturno. */
 :root[data-theme="claro"] {
   color-scheme: light;
-  --bg: #f4f0e8;
-  --surface: #fbf8f2;
-  --surface2: #f0eadd;
-  --line: #e4dcce;
-  --line2: #d8cebb;
-  --ink: #221b12;
-  --ink2: #5c5344;
-  --ink3: #8b8070;
-  --faint: #b4a98f;
-  --accent: #c05b2e;
+  --bg: #f5f5f3;
+  --surface: #ffffff;
+  --surface2: #f1f1ef;
+  --line: #e7e7e4;
+  --line2: #d8d8d4;
+  --ink: #17181a;
+  --ink2: #5f6368;
+  --ink3: #8b8f94;
+  --faint: #b3b7bb;
+  --accent: #1f7a4c;
   --accent-ink: #ffffff;
-  --accent-soft: #f3e2d6;
-  --pos: #2f7d56;
-  --pos-soft: #e2ede4;
+  --accent-soft: #e3efe7;
+  --pos: #1f7a4c;
+  --pos-soft: #e3efe7;
   --warn: #b5820f;
-  --neg: #bf4329;
+  --neg: #c0392b;
   --info: #2c5da8;
-  --shadow: 0 1px 3px rgba(34, 29, 24, 0.07);
-  --shadow-pop-raw: 0 8px 32px rgba(34, 29, 24, 0.16);
+  --shadow: 0 1px 3px rgba(20, 22, 24, 0.06);
+  --shadow-pop-raw: 0 8px 32px rgba(20, 22, 24, 0.14);
 
-  --neg-soft: #f5e3dc;
+  --neg-soft: #f7e4e0;
   --warn-soft: #f3ead2;
   --info-soft: #e3eaf6;
 
-  --line-strong: #c8bda6;
-  --brand-strong: #a84d24;
-  --brand-tint: #f8efe7;
-  --deep-2: #3b332c;
+  --line-strong: #c4c6c2;
+  --brand-strong: #16603a;
+  --brand-tint: #eef5f0;
+  --deep-2: #33363a;
+
+  /* Números y display en sans para el look neutro del mockup. El serif
+     usaba peso 400 (jerarquía por tamaño); en sans eso se ve débil, así
+     que el peso display sube a 600 vía token. */
+  --font-display: var(--font-ui);
+  --fw-display: 600;
 }
 
 /* El lienzo aplica a toda la app (páginas dentro y fuera de .ds). */
@@ -200,7 +210,7 @@ body {
    nunca en bold: la jerarquía la da el tamaño, no el peso). */
 .ds .num {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: var(--fw-display, 400);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
@@ -221,7 +231,7 @@ body {
 .ds h2,
 .ds h3 {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: var(--fw-display, 400);
   letter-spacing: 0;
 }
 .ds .spacer {
@@ -648,7 +658,7 @@ body {
 /* Números protagonistas en serif 400 — la jerarquía la da el tamaño. */
 .ds .kpi-value {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: var(--fw-display, 400);
   font-size: 34px;
   letter-spacing: 0;
   line-height: 1;
