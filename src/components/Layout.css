@@ -317,6 +317,59 @@
 }
 .bz-menu-up { top: auto; bottom: calc(100% + 8px); }
 
+/* ── Modal cambiar contraseña ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 14, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 60;
+  padding: 20px;
+}
+.bz-pwd { padding: 22px 24px !important; max-width: 400px !important; }
+.bz-pwd h3 { margin: 0 0 14px; font-size: 17px; }
+.bz-pwd label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink2);
+  margin-bottom: 12px;
+}
+.bz-pwd input {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 9px 11px;
+  font-size: 14px;
+}
+.bz-pwd-error { color: var(--neg); font-size: 13px; margin: 4px 0 0; }
+.bz-pwd-ok { color: var(--pos); font-size: 14px; }
+.bz-pwd-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+.bz-pwd-primary {
+  border: none;
+  background: var(--deep);
+  color: var(--on-deep);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.bz-pwd-ghost {
+  border: 1px solid var(--line2);
+  background: transparent;
+  color: var(--ink2);
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
 /* ── Contenedor de página ── */
 .bz-content {
   max-width: 1120px;

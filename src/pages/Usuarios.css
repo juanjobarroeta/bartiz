@@ -1,0 +1,107 @@
+/* Usuarios — gestión de acceso (sólo admin). Encima del design system .ds. */
+
+.ds .usr-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 4px 0 20px;
+}
+.ds .usr-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--fw-display, 400);
+  font-size: 32px;
+}
+.ds .usr-add {
+  border: none;
+  background: var(--deep);
+  color: var(--on-deep);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.ds .usr-add:hover { opacity: 0.88; }
+
+.ds .usr-empty { padding: 22px; font-size: 13.5px; color: var(--ink-3); }
+.ds .usr-table td { vertical-align: middle; }
+.ds .usr-name { font-weight: 600; font-size: 14px; }
+.ds .usr-you { color: var(--ink-3); font-weight: 400; font-size: 12.5px; }
+.ds .usr-mail { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.ds .usr-since { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+
+.ds .usr-rol {
+  font-size: 13px;
+  padding: 6px 8px;
+}
+.ds .usr-rol-fixed { font-size: 13px; color: var(--ink-2); }
+
+.ds .usr-actions { display: flex; gap: 14px; justify-content: flex-end; }
+.ds .usr-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12.5px;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ds .usr-link.danger { color: var(--neg); }
+
+.ds .usr-roles-help {
+  margin: 16px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+  max-width: 860px;
+}
+.ds .usr-roles-help strong { color: var(--ink-2); }
+
+/* Modales */
+.usr-modal { padding: 22px 24px !important; max-width: 420px !important; }
+.usr-modal h3 { margin: 0 0 14px; font-size: 17px; }
+.usr-modal label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink2);
+  margin-bottom: 12px;
+}
+.usr-modal input,
+.usr-modal select {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 9px 11px;
+  font-size: 14px;
+}
+.usr-modal .usr-rol-desc { font-size: 12.5px; color: var(--ink-3); margin: 2px 0 0; }
+.usr-modal .usr-error { color: var(--neg); font-size: 13px; margin: 6px 0 0; }
+.usr-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+.usr-primary {
+  border: none;
+  background: var(--deep);
+  color: var(--on-deep);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.usr-ghost {
+  border: 1px solid var(--line2);
+  background: transparent;
+  color: var(--ink2);
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}

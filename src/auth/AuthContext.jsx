@@ -143,19 +143,25 @@ export function AuthProvider({ children }) {
     [companies, activeCompanyId]
   )
 
+  // Rol de construcción en la empresa activa. null (usuarios existentes,
+  // dueños/admins) equivale a ADMIN = sin restricción. TESORERIA y RESIDENTE
+  // ven navegación/rutas encajonadas (el backend además lo hace cumplir).
+  const rol = activeCompany?.construccionRol ?? 'ADMIN'
+
   const value = useMemo(
     () => ({
       user,
       companies,
       activeCompany,
       activeCompanyId,
+      rol,
       isAuthenticated: !!user,
       booting,
       login,
       logout,
       selectCompany,
     }),
-    [user, companies, activeCompany, activeCompanyId, booting, login, logout, selectCompany]
+    [user, companies, activeCompany, activeCompanyId, rol, booting, login, logout, selectCompany]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

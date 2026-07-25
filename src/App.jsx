@@ -1,5 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
+import { rutaPermitida, ROL_HOME } from './auth/roles'
 import Layout from './components/Layout'
 import { DialogHost } from './components/Dialog'
 import Login from './pages/Login'
@@ -23,6 +24,7 @@ import CuentasPorPagar from './pages/CuentasPorPagar'
 import CuentasProveedores from './pages/CuentasProveedores'
 import Facturas from './pages/Facturas'
 import Reportes from './pages/Reportes'
+import Usuarios from './pages/Usuarios'
 import ProveedoresBartiz from './pages/ProveedoresBartiz'
 import ProveedorBartizDetalle from './pages/ProveedorBartizDetalle'
 
@@ -38,6 +40,21 @@ function RequireAuth({ children }) {
   return children
 }
 
+/**
+ * Gate por rol de construcción: TESORERIA sólo ve su cola de pagos y
+ * RESIDENTE sus rutas (requisiciones, obras/presupuestos en lectura, caja
+ * chica). Cualquier otra ruta redirige al home del rol. El backend aplica
+ * la misma allowlist sobre los endpoints, esto es sólo la capa de UX.
+ */
+function RolGate({ children }) {
+  const { rol } = useAuth()
+  const location = useLocation()
+  if (!rutaPermitida(rol, location.pathname)) {
+    return <Navigate to={ROL_HOME[rol] ?? '/'} replace />
+  }
+  return children
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -49,6 +66,7 @@ function App() {
             path="/*"
             element={
               <RequireAuth>
+                <RolGate>
                 <Layout>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
@@ -76,10 +94,12 @@ function App() {
                     <Route path="/cuentas-proveedores" element={<CuentasProveedores />} />
                     <Route path="/facturas" element={<Facturas />} />
                     <Route path="/reportes" element={<Reportes />} />
+                    <Route path="/usuarios" element={<Usuarios />} />
                     <Route path="/proveedores-bartiz" element={<ProveedoresBartiz />} />
                     <Route path="/proveedores-bartiz/:id" element={<ProveedorBartizDetalle />} />
                   </Routes>
                 </Layout>
+                </RolGate>
               </RequireAuth>
             }
           />
