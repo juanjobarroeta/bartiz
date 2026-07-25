@@ -825,7 +825,7 @@ function ExplosionModal({ explosion, presupuesto, onClose, navigate }) {
       })
       window.alert(`✓ Solicitud de compra ${folio} creada con ${selectedItems.length} partida(s).`)
       onClose()
-      navigate('/solicitudes-compra')
+      navigate('/compras-por-autorizar')
     } catch (err) {
       window.alert(err.message || 'Error al generar orden de compra')
     } finally {

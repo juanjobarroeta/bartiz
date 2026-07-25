@@ -29,27 +29,55 @@ const PRIMARY_NAV = [
   { path: '/gastos',                label: 'Gastos' },
 ]
 
+// Nav secundaria móvil (dropdown "más"). Nota: /pagos-tesoreria ya no tiene
+// entrada propia — es la misma cola de Pagos pre-filtrada (la URL sigue viva
+// como bookmark de la tesorera). "Estados de cuenta" = saldos/anticipos de
+// proveedores (antes "Cuentas de proveedores", fácil de confundir con el
+// directorio de Proveedores).
 const MORE_NAV = [
-  { path: '/pagos-tesoreria',     label: 'Pagos (tesorería)' },
-  { path: '/cuentas-proveedores', label: 'Cuentas de proveedores' },
   { path: '/proveedores-bartiz',  label: 'Proveedores' },
+  { path: '/cuentas-proveedores', label: 'Estados de cuenta' },
   { path: '/catalogo',            label: 'Catálogo' },
   { path: '/caja-chica',          label: 'Caja chica' },
   { path: '/destajo',             label: 'Destajo' },
   { path: '/reportes',            label: 'Reportes' },
 ]
 
-// Sidebar de desktop (patrón del mockup): etiquetas completas + contadores.
-// `badge` es una llave del objeto de counts que carga el shell.
-const SIDE_NAV = [
-  { path: '/',                      label: 'Panel' },
-  { path: '/proyectos',             label: 'Obras' },
-  { path: '/requisiciones',         label: 'Requisiciones' },
-  { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
-  { path: '/facturas',              label: 'Facturas', badge: 'facturas' },
-  { path: '/cuentas-por-pagar',     label: 'Pagos' },
-  { path: '/tesoreria-bartiz',      label: 'Bancos' },
-  { path: '/gastos',                label: 'Gastos' },
+// Sidebar de desktop, agrupado por dominio (patrón del mockup): etiquetas
+// completas + contadores. `badge` es una llave del objeto de counts.
+const SIDE_SECTIONS = [
+  {
+    title: null,
+    items: [{ path: '/', label: 'Panel' }],
+  },
+  {
+    title: 'Obra',
+    items: [
+      { path: '/proyectos',             label: 'Obras' },
+      { path: '/requisiciones',         label: 'Requisiciones' },
+      { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
+      { path: '/destajo',               label: 'Destajo' },
+    ],
+  },
+  {
+    title: 'Dinero',
+    items: [
+      { path: '/cuentas-por-pagar', label: 'Pagos' },
+      { path: '/tesoreria-bartiz',  label: 'Bancos' },
+      { path: '/facturas',          label: 'Facturas', badge: 'facturas' },
+      { path: '/gastos',            label: 'Gastos' },
+      { path: '/caja-chica',        label: 'Caja chica' },
+    ],
+  },
+  {
+    title: 'Administración',
+    items: [
+      { path: '/proveedores-bartiz',  label: 'Proveedores' },
+      { path: '/cuentas-proveedores', label: 'Estados de cuenta' },
+      { path: '/catalogo',            label: 'Catálogo' },
+      { path: '/reportes',            label: 'Reportes' },
+    ],
+  },
 ]
 
 // Contadores del sidebar: compras por autorizar (badge accent) y CFDIs por
@@ -156,6 +184,10 @@ const Layout = ({ children }) => {
     if (path === '/') return location.pathname === '/'
     if (path === '/proyectos') return location.pathname.startsWith('/proyectos')
     if (path === '/requisiciones') return location.pathname.startsWith('/requisiciones')
+    // Aliases: /pagos-tesoreria es la cola de Pagos pre-filtrada; /reembolsos
+    // es la ruta vieja de Caja chica (el botón "volver" del detalle aún la usa).
+    if (path === '/cuentas-por-pagar' && location.pathname.startsWith('/pagos-tesoreria')) return true
+    if (path === '/caja-chica' && location.pathname.startsWith('/reembolsos')) return true
     return location.pathname === path || location.pathname.startsWith(path + '/')
   }
   const moreActive = MORE_NAV.some((i) => isActive(i.path))
@@ -187,25 +219,20 @@ const Layout = ({ children }) => {
           <span className="bz-side-name">{wordmark}</span>
         </Link>
         <nav className="bz-side-nav">
-          {SIDE_NAV.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`bz-side-item${isActive(item.path) ? ' active' : ''}`}
-            >
-              <span>{item.label}</span>
-              {sideBadge(item)}
-            </Link>
-          ))}
-          <div className="bz-side-sep" />
-          {MORE_NAV.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`bz-side-item secondary${isActive(item.path) ? ' active' : ''}`}
-            >
-              <span>{item.label}</span>
-            </Link>
+          {SIDE_SECTIONS.map((sec, si) => (
+            <div className="bz-side-group" key={sec.title ?? si}>
+              {sec.title && <div className="bz-side-title">{sec.title}</div>}
+              {sec.items.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`bz-side-item${isActive(item.path) ? ' active' : ''}`}
+                >
+                  <span>{item.label}</span>
+                  {sideBadge(item)}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="bz-side-foot">
