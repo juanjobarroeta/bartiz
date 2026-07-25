@@ -65,7 +65,7 @@ function toRow(p, i) {
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { activeCompany, user } = useAuth()
+  const { activeCompany } = useAuth()
   const [rows, setRows] = useState([])
   const [usingSample, setUsingSample] = useState(false)
   const [sort, setSort] = useState('contratado')
@@ -153,55 +153,63 @@ const Dashboard = () => {
   }
 
 
-  // Saludo editorial + pendientes como prosa (no lista de alertas).
-  const hora = new Date().getHours()
-  const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches'
-  const nombre = (user?.name || user?.email || '').split(/[\s@]/)[0]
-  const prosa = []
-  if (pend.compras > 0) prosa.push({ n: `${pend.compras} compra${pend.compras === 1 ? '' : 's'} por autorizar`, to: '/compras-por-autorizar' })
-  if (pend.porPagar > 0) prosa.push({ n: `${pend.porPagar} cuenta${pend.porPagar === 1 ? '' : 's'} por pagar (${money(pend.porPagarMonto)})`, to: '/cuentas-por-pagar' })
-  if (cfdiResumen?.porVincular > 0) prosa.push({ n: `${cfdiResumen.porVincular} factura${cfdiResumen.porVincular === 1 ? '' : 's'} por vincular`, to: '/facturas' })
-  if (pend.sinConciliar > 0) prosa.push({ n: `${pend.sinConciliar} movimiento${pend.sinConciliar === 1 ? '' : 's'} sin conciliar`, to: '/tesoreria-bartiz' })
+  // Pendientes del día — alimentan la tarjeta "Hoy en la obra" (mockup:
+  // lista numerada 01/02/03, no prosa).
+  const pendientes = []
+  if (pend.compras > 0) pendientes.push({ n: `${pend.compras} compra${pend.compras === 1 ? '' : 's'} por autorizar`, to: '/compras-por-autorizar' })
+  if (pend.porPagar > 0) pendientes.push({ n: `${pend.porPagar} cuenta${pend.porPagar === 1 ? '' : 's'} por pagar (${money(pend.porPagarMonto)})`, to: '/cuentas-por-pagar' })
+  if (cfdiResumen?.porVincular > 0) pendientes.push({ n: `${cfdiResumen.porVincular} factura${cfdiResumen.porVincular === 1 ? '' : 's'} por vincular`, to: '/facturas' })
+  if (pend.sinConciliar > 0) pendientes.push({ n: `${pend.sinConciliar} movimiento${pend.sinConciliar === 1 ? '' : 's'} sin conciliar`, to: '/tesoreria-bartiz' })
+
+  // Encabezado con la fecha (patrón mockup: "Sábado 25 de julio")
+  const hoyRaw = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+  const hoyTitulo = hoyRaw.charAt(0).toUpperCase() + hoyRaw.slice(1)
+  const corte = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 
   return (
     <div className="ds">
       <div className="page">
-        {/* Hoy — saludo + números protagonistas */}
-        <div className="hoy-greeting">{saludo}{nombre ? `, ${nombre}` : ''}.</div>
-        <div className="hoy-heroes">
-          <div className="hoy-hero main">
-            <div className="eyebrow">Valor de cartera</div>
-            <div className="hoy-hero-v"><MoneyParts value={totals.contratado} /></div>
-            <div className="hoy-hero-sub">{totals.activos} obra{totals.activos === 1 ? '' : 's'} activa{totals.activos === 1 ? '' : 's'}</div>
+        {/* Encabezado — fecha grande + contexto + acción primaria */}
+        <div className="hoy-head">
+          <div className="hoy-head-l">
+            <h1 className="hoy-title">{hoyTitulo}</h1>
+            <span className="hoy-head-sub">
+              {activeCompany?.razonSocial ?? 'Bartiz'} · corte {corte}
+            </span>
           </div>
-          <div className="hoy-hero">
-            <div className="eyebrow">En bancos</div>
-            <div className="hoy-hero-v"><MoneyParts value={saldoBancos ?? SAMPLE_SALDO_TOTAL} /></div>
-            <div className="hoy-hero-sub">{pend.sinConciliar > 0 ? `${pend.sinConciliar} mov. sin conciliar` : 'conciliado'}</div>
-          </div>
-          <div className="hoy-hero">
-            <div className="eyebrow">Por pagar</div>
-            <div className="hoy-hero-v"><MoneyParts value={pend.porPagarMonto} /></div>
-            <div className="hoy-hero-sub accent">{pend.porPagar} proveedor{pend.porPagar === 1 ? '' : 'es'} con saldo</div>
-          </div>
+          <button className="hoy-op" onClick={() => navigate('/requisiciones')}>
+            + Requisición
+          </button>
         </div>
 
-        {/* Pendientes en prosa — una oración, no una lista de alertas */}
-        <div className="hoy-prosa">
-          {prosa.length === 0 ? (
-            pend.loaded ? 'Todo al día — no hay pendientes que requieran tu atención.' : 'Cargando pendientes…'
-          ) : (
-            <>
-              {'Hoy tienes '}
-              {prosa.map((p, i) => (
-                <span key={p.to}>
-                  <a onClick={(e) => { e.preventDefault(); navigate(p.to) }} href={p.to}>{p.n}</a>
-                  {i < prosa.length - 2 ? ', ' : i === prosa.length - 2 ? ' y ' : ''}
-                </span>
-              ))}
-              {'.'}
-            </>
-          )}
+        {/* KPI strip — 4 columnas con divisores finos (mockup) */}
+        <div className="hoy-kpis">
+          <div className="kpi">
+            <div className="eyebrow">Valor de cartera</div>
+            <div className="kpi-v num"><MoneyParts value={totals.contratado} /></div>
+            <div className="kpi-s">{totals.activos} obra{totals.activos === 1 ? '' : 's'} activa{totals.activos === 1 ? '' : 's'}</div>
+          </div>
+          <div className="kpi">
+            <div className="eyebrow">En bancos</div>
+            <div className="kpi-v num"><MoneyParts value={saldoBancos ?? SAMPLE_SALDO_TOTAL} /></div>
+            <div className="kpi-s">{pend.sinConciliar > 0 ? `${pend.sinConciliar} mov. sin conciliar` : 'conciliado'}</div>
+          </div>
+          <div className="kpi">
+            <div className="eyebrow">Por pagar</div>
+            <div className="kpi-v num"><MoneyParts value={pend.porPagarMonto} /></div>
+            <div className="kpi-s accent">{pend.porPagar} proveedor{pend.porPagar === 1 ? '' : 'es'} con saldo</div>
+          </div>
+          <div className="kpi">
+            <div className="eyebrow">Por autorizar</div>
+            <div className="kpi-v num">{pend.compras}</div>
+            <div className="kpi-s">
+              {pend.compras > 0 ? (
+                <a href="/compras-por-autorizar" onClick={(e) => { e.preventDefault(); navigate('/compras-por-autorizar') }}>
+                  ir a compras →
+                </a>
+              ) : 'sin pendientes'}
+            </div>
+          </div>
         </div>
 
         {/* main two-column */}
@@ -380,6 +388,32 @@ const Dashboard = () => {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Hoy en la obra — pendientes numerados (mockup 01/02/03) */}
+            <div className="card">
+              <div className="card-head">
+                <h3>Hoy en la obra</h3>
+              </div>
+              {pendientes.length === 0 ? (
+                <div className="hoy-lista-empty">
+                  {pend.loaded ? 'Todo al día — no hay pendientes que requieran tu atención.' : 'Cargando pendientes…'}
+                </div>
+              ) : (
+                <div className="hoy-lista">
+                  {pendientes.map((p, i) => (
+                    <a
+                      key={p.to}
+                      className="hoy-lista-item"
+                      href={p.to}
+                      onClick={(e) => { e.preventDefault(); navigate(p.to) }}
+                    >
+                      <span className="hoy-lista-n">{String(i + 1).padStart(2, '0')}</span>
+                      <span>{p.n}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>
