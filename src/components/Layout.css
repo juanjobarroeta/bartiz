@@ -176,6 +176,138 @@
   cursor: pointer;
 }
 
+/* ── Sidebar de desktop (patrón mockup) ─────────────────────────────────────
+   ≥1025px: sidebar izquierdo fijo + contenido a la derecha; la top nav se
+   oculta. <1025px: el sidebar se oculta y la top nav sigue mandando. */
+.bz-sidebar { display: none; }
+@media (min-width: 1025px) {
+  .bz-shell { display: flex; align-items: stretch; }
+  .bz-topnav { display: none; }
+  .bz-main { flex: 1; min-width: 0; }
+  .bz-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: var(--sidebar-w);
+    flex: 0 0 var(--sidebar-w);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    border-right: 1px solid var(--line);
+    background: var(--bg);
+    padding: 18px 14px 16px;
+    gap: 14px;
+    z-index: 12;
+  }
+}
+
+.bz-side-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.bz-side-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line2);
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+.bz-side-name {
+  font-family: var(--font-display);
+  font-weight: var(--fw-display, 400);
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bz-side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.bz-side-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  color: var(--ink2);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.bz-side-item:hover { background: var(--surface2); color: var(--ink); }
+/* Activo = tarjeta blanca con borde (mockup "Panel") */
+.bz-side-item.active {
+  background: var(--surface);
+  border-color: var(--line2);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+.bz-side-item.secondary { font-size: 13px; color: var(--ink3); padding: 6px 12px; }
+.bz-side-item.secondary:hover { color: var(--ink); }
+.bz-side-sep { border-top: 1px solid var(--line); margin: 8px 6px; }
+
+.bz-side-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink3);
+  font-variant-numeric: tabular-nums;
+}
+/* Contador "caliente" (compras por autorizar) — pill accent como el mockup */
+.bz-side-count.hot {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-weight: 600;
+}
+
+.bz-side-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.bz-side-user { position: relative; }
+.bz-side-userbtn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  border-radius: 9px;
+  cursor: pointer;
+  color: var(--ink2);
+  font-family: var(--font-ui);
+  font-size: 13.5px;
+}
+.bz-side-userbtn:hover { background: var(--surface2); color: var(--ink); }
+.bz-avatar.sm { width: 28px; height: 28px; font-size: 12px; }
+.bz-side-username {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bz-menu-up { top: auto; bottom: calc(100% + 8px); }
+
 /* ── Contenedor de página ── */
 .bz-content {
   max-width: 1120px;

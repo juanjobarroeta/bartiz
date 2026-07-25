@@ -12,6 +12,96 @@
   border-radius: var(--r-md);
 }
 
+/* ── Encabezado del Panel (mockup): fecha grande + corte + acción ── */
+.ds .hoy-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 4px 0 8px;
+}
+.ds .hoy-head-l { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.ds .hoy-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--fw-display, 400);
+  font-size: 32px;
+  letter-spacing: -0.01em;
+}
+.ds .hoy-head-sub { font-size: 13px; color: var(--ink-3); }
+/* Botón primario oscuro (mockup "+ Operación"): tinta sobre fondo claro,
+   invertido en Nocturno vía --deep/--on-deep. */
+.ds .hoy-op {
+  border: none;
+  background: var(--deep);
+  color: var(--on-deep);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ds .hoy-op:hover { opacity: 0.88; }
+
+/* ── KPI strip: 4 columnas con divisores finos (mockup) ── */
+.ds .hoy-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 28px;
+  padding: 18px 0 22px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 26px;
+}
+.ds .hoy-kpis .kpi + .kpi {
+  border-left: 1px solid var(--line);
+  padding-left: 28px;
+}
+.ds .kpi-v {
+  font-size: 30px;
+  line-height: 1.1;
+  margin-top: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ds .kpi-s { font-size: 12.5px; color: var(--ink-3); margin-top: 6px; }
+.ds .kpi-s.accent { color: var(--accent); }
+.ds .kpi-s a { color: var(--accent); text-decoration: none; }
+.ds .kpi-s a:hover { text-decoration: underline; }
+@media (max-width: 900px) {
+  .ds .hoy-kpis { grid-template-columns: 1fr 1fr; gap: 18px; }
+  .ds .hoy-kpis .kpi + .kpi { border-left: none; padding-left: 0; }
+  .ds .kpi-v { font-size: 24px; }
+}
+
+/* ── Hoy en la obra — pendientes numerados (mockup 01/02/03) ── */
+.ds .hoy-lista { display: flex; flex-direction: column; }
+.ds .hoy-lista-item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.ds .hoy-lista-item:hover { background: var(--surface2); }
+.ds .hoy-lista-n {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.ds .hoy-lista-empty {
+  padding: 14px 20px 18px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
 /* ── Hoy — saludo editorial + números protagonistas + prosa ── */
 .ds .hoy-greeting {
   font-family: var(--font-display);

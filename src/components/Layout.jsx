@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { apiFetch } from '../config/api'
 import './Layout.css'
 
 // Nav primario (orden y nombres cortos del diseño). El resto de módulos
@@ -38,6 +39,43 @@ const MORE_NAV = [
   { path: '/reportes',            label: 'Reportes' },
 ]
 
+// Sidebar de desktop (patrón del mockup): etiquetas completas + contadores.
+// `badge` es una llave del objeto de counts que carga el shell.
+const SIDE_NAV = [
+  { path: '/',                      label: 'Panel' },
+  { path: '/proyectos',             label: 'Obras' },
+  { path: '/requisiciones',         label: 'Requisiciones' },
+  { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
+  { path: '/facturas',              label: 'Facturas', badge: 'facturas' },
+  { path: '/cuentas-por-pagar',     label: 'Pagos' },
+  { path: '/tesoreria-bartiz',      label: 'Bancos' },
+  { path: '/gastos',                label: 'Gastos' },
+]
+
+// Contadores del sidebar: compras por autorizar (badge accent) y CFDIs por
+// vincular (muted). Best-effort — si el endpoint falla, el badge no aparece.
+function useSideCounts(companyId) {
+  const [counts, setCounts] = useState({})
+  useEffect(() => {
+    if (!companyId) { setCounts({}); return }
+    let alive = true
+    const cid = encodeURIComponent(companyId)
+    ;(async () => {
+      const [compras, cfdis] = await Promise.all([
+        apiFetch(`/api/construccion/solicitudes-compra?companyId=${cid}&estado=PENDIENTE`).catch(() => null),
+        apiFetch(`/api/construccion/cfdis/resumen?companyId=${cid}`).catch(() => null),
+      ])
+      if (!alive) return
+      setCounts({
+        compras: Array.isArray(compras) ? compras.length : 0,
+        facturas: cfdis && typeof cfdis.porVincular === 'number' ? cfdis.porVincular : 0,
+      })
+    })()
+    return () => { alive = false }
+  }, [companyId])
+  return counts
+}
+
 // Rutas densas en datos (tablas anchas): usan el contenedor ancho del shell
 // en lugar del editorial de 1120px, que las recortaba en desktop.
 const WIDE_ROUTES = [
@@ -58,8 +96,9 @@ const WIDE_ROUTES = [
 
 // Rutas rediseñadas que reciben el encabezado de página (h1 serif) del shell;
 // las páginas legacy siguen pintando su propio header.
+// El Dashboard ('/') trae su propio encabezado (fecha + acción primaria,
+// patrón del mockup), así que no aparece aquí.
 const REDESIGNED_ROUTES = {
-  '/': { title: 'Hoy', sub: 'Portafolio · cartera y caja' },
   '/proyectos': { title: 'Obras', sub: 'Cartera de obra' },
   '/tesoreria-bartiz': { title: 'Bancos y conciliación', sub: 'Estados de cuenta importados y su conciliación' },
   '/cuentas-por-pagar': { title: 'Cuentas por pagar', sub: 'Cola de admin · vencimientos y envío a tesorería' },
@@ -91,15 +130,19 @@ const Layout = ({ children }) => {
   const [theme, toggleTheme] = useTheme()
   const [moreOpen, setMoreOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
+  const [sideUserOpen, setSideUserOpen] = useState(false)
   const moreRef = useRef(null)
   const userRef = useRef(null)
+  const sideUserRef = useRef(null)
+  const sideCounts = useSideCounts(activeCompany?.id)
 
   // Cerrar menús al navegar o al hacer clic fuera.
-  useEffect(() => { setMoreOpen(false); setUserOpen(false) }, [location.pathname])
+  useEffect(() => { setMoreOpen(false); setUserOpen(false); setSideUserOpen(false) }, [location.pathname])
   useEffect(() => {
     const fn = (e) => {
       if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false)
       if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false)
+      if (sideUserRef.current && !sideUserRef.current.contains(e.target)) setSideUserOpen(false)
     }
     document.addEventListener('mousedown', fn)
     return () => document.removeEventListener('mousedown', fn)
@@ -124,8 +167,89 @@ const Layout = ({ children }) => {
   const wordmark = activeCompany?.razonSocial?.split(/[,\s]+/).slice(0, 1).join(' ') || 'Bartiz'
   const initial = (user?.name || user?.email || 'B')[0]?.toUpperCase()
 
+  const sideBadge = (item) => {
+    const n = item.badge ? sideCounts[item.badge] : null
+    if (!n) return null
+    return (
+      <span className={`bz-side-count${item.badge === 'compras' ? ' hot' : ''}`}>
+        {n > 999 ? '999+' : n}
+      </span>
+    )
+  }
+
   return (
     <div className="bz-shell">
+      {/* Sidebar de desktop (≥1025px) — patrón del mockup. En móvil se oculta
+          y la top nav de abajo sigue siendo la navegación. */}
+      <aside className="bz-sidebar">
+        <Link to="/" className="bz-side-brand" title={activeCompany?.razonSocial}>
+          <span className="bz-side-mark">{wordmark[0]?.toUpperCase()}</span>
+          <span className="bz-side-name">{wordmark}</span>
+        </Link>
+        <nav className="bz-side-nav">
+          {SIDE_NAV.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`bz-side-item${isActive(item.path) ? ' active' : ''}`}
+            >
+              <span>{item.label}</span>
+              {sideBadge(item)}
+            </Link>
+          ))}
+          <div className="bz-side-sep" />
+          {MORE_NAV.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`bz-side-item secondary${isActive(item.path) ? ' active' : ''}`}
+            >
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+        <div className="bz-side-foot">
+          <button
+            type="button"
+            className="bz-theme-toggle"
+            onClick={toggleTheme}
+            title="Cambiar tema"
+          >
+            <span className="bz-theme-dot" />
+            {theme === 'oscuro' ? 'NOCTURNO' : 'CLARO'}
+          </button>
+          <div className="bz-side-user" ref={sideUserRef}>
+            <button
+              type="button"
+              className="bz-side-userbtn"
+              onClick={() => setSideUserOpen((o) => !o)}
+              title={user?.email}
+            >
+              <span className="bz-avatar sm">{initial}</span>
+              <span className="bz-side-username">{(user?.name || user?.email || '').split('@')[0]}</span>
+            </button>
+            {sideUserOpen && (
+              <div className="bz-menu bz-menu-up">
+                <div className="bz-menu-meta">{user?.email}</div>
+                <div className="bz-menu-meta">{activeCompany?.razonSocial}</div>
+                <a
+                  className="bz-menu-item"
+                  href="https://contabilidad-os-production.up.railway.app"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  contabilidad-os ↗
+                </a>
+                <button type="button" className="bz-menu-item danger" onClick={logout}>
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      <div className="bz-main">
       <header className="bz-topnav">
         <Link to="/" className="bz-wordmark" title={activeCompany?.razonSocial}>
           {wordmark}
@@ -214,6 +338,7 @@ const Layout = ({ children }) => {
           </div>
         )}
         {children}
+      </div>
       </div>
     </div>
   )
