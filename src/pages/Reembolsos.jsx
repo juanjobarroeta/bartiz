@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import GastoFormModal from '../components/GastoFormModal'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import { alertDialog } from '../components/Dialog'
@@ -125,6 +126,9 @@ export default function Reembolsos() {
   // copy / detail-link routes accordingly. Both paths render this same
   // component to preserve old links.
   const isCajaChica = location.pathname.startsWith('/caja-chica')
+  // Captura rápida de un gasto de caja (nota/factura + foto) — es lo que el
+  // residente usa desde campo; el gasto nace PENDIENTE y lo autoriza admin.
+  const [gastoOpen, setGastoOpen] = useState(false)
   const detailBase = isCajaChica ? '/caja-chica' : '/reembolsos'
 
   const [rows, setRows] = useState([])
@@ -202,10 +206,25 @@ export default function Reembolsos() {
             </button>
           ))}
         </div>
-        <button className="primary" onClick={openNewModal}>
-          + {isCajaChica ? 'Nuevo período' : 'Nuevo reembolso'}
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {isCajaChica && (
+            <button className="primary" onClick={() => setGastoOpen(true)}>
+              + Gasto de caja
+            </button>
+          )}
+          <button className="primary" onClick={openNewModal}>
+            + {isCajaChica ? 'Nuevo período' : 'Nuevo reembolso'}
+          </button>
+        </div>
       </div>
+
+      {gastoOpen && (
+        <GastoFormModal
+          presetCaja
+          onClose={() => setGastoOpen(false)}
+          onSaved={() => setGastoOpen(false)}
+        />
+      )}
 
       <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Nuevo período de caja chica">
         <NewReembolsoForm

@@ -1,0 +1,77 @@
+/* GastoFormModal — captura de gasto con comprobante nota/factura. */
+
+.gf-modal { padding: 22px 24px !important; max-width: 460px !important; }
+.gf-modal h3 { margin: 0 0 14px; font-size: 17px; }
+.gf-modal label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink2);
+  margin-bottom: 12px;
+}
+.gf-modal input,
+.gf-modal select {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 9px 11px;
+  font-size: 14px;
+}
+.gf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.gf-comprobante {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: var(--surface2);
+}
+.gf-label {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink2);
+  margin-bottom: 8px;
+}
+.gf-tipo { display: flex; gap: 8px; margin-bottom: 10px; }
+.gf-tipo-btn {
+  flex: 1;
+  border: 1px solid var(--line2);
+  background: var(--surface);
+  color: var(--ink2);
+  font-size: 13.5px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.gf-tipo-btn.active {
+  border-color: var(--accent);
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--accent-soft);
+}
+
+.gf-error { color: var(--neg); font-size: 13px; margin: 6px 0 0; }
+.gf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+.gf-primary {
+  border: none;
+  background: var(--deep);
+  color: var(--on-deep);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.gf-ghost {
+  border: 1px solid var(--line2);
+  background: transparent;
+  color: var(--ink2);
+  font-size: 13.5px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
