@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { esSoloLectura } from '../auth/roles'
 import { apiFetch } from '../config/api'
 import './PresupuestoDetalle.css'
 
@@ -173,7 +174,10 @@ function groupPartidas(rawPartidas) {
 export default function PresupuestoDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { activeCompany } = useAuth()
+  const { activeCompany, rol } = useAuth()
+  // Residente: presupuesto y precios unitarios en sólo lectura (el backend
+  // además bloquea toda escritura de presupuestos/APUs para ese rol).
+  const readOnly = esSoloLectura(rol)
 
   const [presupuesto, setPresupuesto] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -203,7 +207,7 @@ export default function PresupuestoDetalle() {
     cargar()
   }, [cargar])
 
-  const canEdit = presupuesto?.estado === 'BORRADOR' || presupuesto?.estado === 'EN_EJECUCION'
+  const canEdit = !readOnly && (presupuesto?.estado === 'BORRADOR' || presupuesto?.estado === 'EN_EJECUCION')
   const isEditing = canEdit && editMode
 
   // ── State transitions ───────────────────────────────────────────────────
@@ -470,7 +474,7 @@ export default function PresupuestoDetalle() {
         >
           📦 Explosión de insumos
         </button>
-        {presupuesto.estado !== 'APROBADO' && (
+        {!readOnly && presupuesto.estado !== 'APROBADO' && (
           <button
             className="secondary"
             disabled={actioning}
@@ -825,7 +829,7 @@ function ExplosionModal({ explosion, presupuesto, onClose, navigate }) {
       })
       window.alert(`✓ Solicitud de compra ${folio} creada con ${selectedItems.length} partida(s).`)
       onClose()
-      navigate('/solicitudes-compra')
+      navigate('/compras-por-autorizar')
     } catch (err) {
       window.alert(err.message || 'Error al generar orden de compra')
     } finally {

@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { esSoloLectura } from '../auth/roles'
 import { apiFetch } from '../config/api'
 import ImportPresupuestoModal from '../components/ImportPresupuestoModal'
 import BootstrapTemplateModal from '../components/BootstrapTemplateModal'
@@ -73,7 +74,17 @@ const SECONDARY_TABS = [
 export default function ProyectoDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { activeCompany } = useAuth()
+  const { activeCompany, rol } = useAuth()
+  // Residente: sólo los tabs de obra que puede leer (los de dinero —
+  // estimaciones, compras, pagos — están fuera de su allowlist y el
+  // backend los rechazaría de todos modos).
+  const residente = esSoloLectura(rol)
+  const primaryTabs = residente
+    ? PRIMARY_TABS.filter((t) => ['resumen', 'presupuestos', 'programa', 'bitacora'].includes(t.id))
+    : PRIMARY_TABS
+  const secondaryTabs = residente
+    ? SECONDARY_TABS.filter((t) => ['unidades', 'consumo'].includes(t.id))
+    : SECONDARY_TABS
 
   const [proyecto, setProyecto] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -196,21 +207,21 @@ export default function ProyectoDetalle() {
       </div>
 
       <nav className="pd-tabs">
-        {PRIMARY_TABS.map(t => (
+        {primaryTabs.map(t => (
           <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
             {t.label}
             {t.id === 'bitacora' && (proyecto.bitacora?.length > 0) && <span className="tab-count">{proyecto.bitacora.length}</span>}
             {t.id === 'estimaciones' && (proyecto.estimaciones?.length > 0) && <span className="tab-count">{proyecto.estimaciones.length}</span>}
           </button>
         ))}
-        {SECONDARY_TABS.filter(t => t.hasData(proyecto) || tab === t.id).map(t => (
+        {secondaryTabs.filter(t => t.hasData(proyecto) || tab === t.id).map(t => (
           <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>
             {t.label}
             {t.id === 'unidades' && (proyecto.unidades?.length > 0) && <span className="tab-count">{proyecto.unidades.length}</span>}
             {t.id === 'pagos' && (proyecto.pagos?.length > 0) && <span className="tab-count">{proyecto.pagos.length}</span>}
           </button>
         ))}
-        <SecondaryTabsMenu hidden={SECONDARY_TABS.filter(t => !t.hasData(proyecto) && tab !== t.id)} onPick={setTab} />
+        <SecondaryTabsMenu hidden={secondaryTabs.filter(t => !t.hasData(proyecto) && tab !== t.id)} onPick={setTab} />
       </nav>
 
       <div className="pd-tab-content">

@@ -29,28 +29,78 @@ const PRIMARY_NAV = [
   { path: '/gastos',                label: 'Gastos' },
 ]
 
+// Nav secundaria móvil (dropdown "más"). Nota: /pagos-tesoreria ya no tiene
+// entrada propia — es la misma cola de Pagos pre-filtrada (la URL sigue viva
+// como bookmark de la tesorera). "Estados de cuenta" = saldos/anticipos de
+// proveedores (antes "Cuentas de proveedores", fácil de confundir con el
+// directorio de Proveedores).
 const MORE_NAV = [
-  { path: '/pagos-tesoreria',     label: 'Pagos (tesorería)' },
-  { path: '/cuentas-proveedores', label: 'Cuentas de proveedores' },
   { path: '/proveedores-bartiz',  label: 'Proveedores' },
+  { path: '/cuentas-proveedores', label: 'Estados de cuenta' },
   { path: '/catalogo',            label: 'Catálogo' },
   { path: '/caja-chica',          label: 'Caja chica' },
   { path: '/destajo',             label: 'Destajo' },
   { path: '/reportes',            label: 'Reportes' },
 ]
 
-// Sidebar de desktop (patrón del mockup): etiquetas completas + contadores.
-// `badge` es una llave del objeto de counts que carga el shell.
-const SIDE_NAV = [
-  { path: '/',                      label: 'Panel' },
-  { path: '/proyectos',             label: 'Obras' },
-  { path: '/requisiciones',         label: 'Requisiciones' },
-  { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
-  { path: '/facturas',              label: 'Facturas', badge: 'facturas' },
-  { path: '/cuentas-por-pagar',     label: 'Pagos' },
-  { path: '/tesoreria-bartiz',      label: 'Bancos' },
-  { path: '/gastos',                label: 'Gastos' },
+// Sidebar de desktop, agrupado por dominio (patrón del mockup): etiquetas
+// completas + contadores. `badge` es una llave del objeto de counts.
+const SIDE_SECTIONS = [
+  {
+    title: null,
+    items: [{ path: '/', label: 'Panel' }],
+  },
+  {
+    title: 'Obra',
+    items: [
+      { path: '/proyectos',             label: 'Obras' },
+      { path: '/requisiciones',         label: 'Requisiciones' },
+      { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
+      { path: '/destajo',               label: 'Destajo' },
+    ],
+  },
+  {
+    title: 'Dinero',
+    items: [
+      { path: '/cuentas-por-pagar', label: 'Pagos' },
+      { path: '/tesoreria-bartiz',  label: 'Bancos' },
+      { path: '/facturas',          label: 'Facturas', badge: 'facturas' },
+      { path: '/gastos',            label: 'Gastos' },
+      { path: '/caja-chica',        label: 'Caja chica' },
+    ],
+  },
+  {
+    title: 'Administración',
+    items: [
+      { path: '/proveedores-bartiz',  label: 'Proveedores' },
+      { path: '/cuentas-proveedores', label: 'Estados de cuenta' },
+      { path: '/catalogo',            label: 'Catálogo' },
+      { path: '/reportes',            label: 'Reportes' },
+      { path: '/usuarios',            label: 'Usuarios' },
+    ],
+  },
 ]
+
+// Navegación encajonada por rol restringido (ver src/auth/roles.js).
+const SIDE_SECTIONS_TESORERIA = [
+  { title: null, items: [{ path: '/pagos-tesoreria', label: 'Pagos' }] },
+]
+const SIDE_SECTIONS_RESIDENTE = [
+  {
+    title: null,
+    items: [
+      { path: '/requisiciones', label: 'Requisiciones' },
+      { path: '/proyectos',     label: 'Obras' },
+      { path: '/caja-chica',    label: 'Caja chica' },
+    ],
+  },
+]
+
+function seccionesPorRol(rol) {
+  if (rol === 'TESORERIA') return SIDE_SECTIONS_TESORERIA
+  if (rol === 'RESIDENTE') return SIDE_SECTIONS_RESIDENTE
+  return SIDE_SECTIONS
+}
 
 // Contadores del sidebar: compras por autorizar (badge accent) y CFDIs por
 // vincular (muted). Best-effort — si el endpoint falla, el badge no aparece.
@@ -124,9 +174,93 @@ function useTheme() {
 const fmtHoy = () =>
   new Date().toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
 
+// ── Cambiar contraseña (self-serve, disponible para todos los roles) ─────────
+function PasswordModal({ onClose }) {
+  const [form, setForm] = useState({ actual: '', nueva: '', confirma: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const [done, setDone] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError(null)
+    if (form.nueva.length < 8) { setError('La nueva contraseña necesita al menos 8 caracteres.'); return }
+    if (form.nueva !== form.confirma) { setError('La confirmación no coincide.'); return }
+    setBusy(true)
+    try {
+      await apiFetch('/api/auth/change-password', {
+        method: 'POST',
+        body: { currentPassword: form.actual, newPassword: form.nueva },
+      })
+      setDone(true)
+    } catch (err) {
+      setError(err.message || 'No se pudo cambiar la contraseña.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-content bz-pwd">
+        <h3>Cambiar contraseña</h3>
+        {done ? (
+          <>
+            <p className="bz-pwd-ok">✓ Contraseña actualizada.</p>
+            <div className="bz-pwd-actions">
+              <button type="button" className="bz-pwd-primary" onClick={onClose}>Listo</button>
+            </div>
+          </>
+        ) : (
+          <form onSubmit={submit}>
+            <label>
+              Contraseña actual
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={form.actual}
+                onChange={(e) => setForm({ ...form, actual: e.target.value })}
+                required
+              />
+            </label>
+            <label>
+              Nueva contraseña
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={form.nueva}
+                onChange={(e) => setForm({ ...form, nueva: e.target.value })}
+                required
+                minLength={8}
+              />
+            </label>
+            <label>
+              Confirmar nueva contraseña
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={form.confirma}
+                onChange={(e) => setForm({ ...form, confirma: e.target.value })}
+                required
+              />
+            </label>
+            {error && <p className="bz-pwd-error">{error}</p>}
+            <div className="bz-pwd-actions">
+              <button type="button" className="bz-pwd-ghost" onClick={onClose} disabled={busy}>Cancelar</button>
+              <button type="submit" className="bz-pwd-primary" disabled={busy}>
+                {busy ? 'Guardando…' : 'Cambiar contraseña'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const Layout = ({ children }) => {
   const location = useLocation()
-  const { user, activeCompany, logout } = useAuth()
+  const { user, activeCompany, logout, rol } = useAuth()
   const [theme, toggleTheme] = useTheme()
   const [moreOpen, setMoreOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
@@ -134,7 +268,12 @@ const Layout = ({ children }) => {
   const moreRef = useRef(null)
   const userRef = useRef(null)
   const sideUserRef = useRef(null)
-  const sideCounts = useSideCounts(activeCompany?.id)
+  // Contadores sólo para admin: los roles restringidos no tienen esos
+  // endpoints en su allowlist (y su nav tampoco muestra los badges).
+  const esAdmin = !rol || rol === 'ADMIN'
+  const sideCounts = useSideCounts(esAdmin ? activeCompany?.id : null)
+  const secciones = seccionesPorRol(rol)
+  const [pwdOpen, setPwdOpen] = useState(false)
 
   // Cerrar menús al navegar o al hacer clic fuera.
   useEffect(() => { setMoreOpen(false); setUserOpen(false); setSideUserOpen(false) }, [location.pathname])
@@ -156,6 +295,10 @@ const Layout = ({ children }) => {
     if (path === '/') return location.pathname === '/'
     if (path === '/proyectos') return location.pathname.startsWith('/proyectos')
     if (path === '/requisiciones') return location.pathname.startsWith('/requisiciones')
+    // Aliases: /pagos-tesoreria es la cola de Pagos pre-filtrada; /reembolsos
+    // es la ruta vieja de Caja chica (el botón "volver" del detalle aún la usa).
+    if (path === '/cuentas-por-pagar' && location.pathname.startsWith('/pagos-tesoreria')) return true
+    if (path === '/caja-chica' && location.pathname.startsWith('/reembolsos')) return true
     return location.pathname === path || location.pathname.startsWith(path + '/')
   }
   const moreActive = MORE_NAV.some((i) => isActive(i.path))
@@ -187,25 +330,20 @@ const Layout = ({ children }) => {
           <span className="bz-side-name">{wordmark}</span>
         </Link>
         <nav className="bz-side-nav">
-          {SIDE_NAV.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`bz-side-item${isActive(item.path) ? ' active' : ''}`}
-            >
-              <span>{item.label}</span>
-              {sideBadge(item)}
-            </Link>
-          ))}
-          <div className="bz-side-sep" />
-          {MORE_NAV.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`bz-side-item secondary${isActive(item.path) ? ' active' : ''}`}
-            >
-              <span>{item.label}</span>
-            </Link>
+          {secciones.map((sec, si) => (
+            <div className="bz-side-group" key={sec.title ?? si}>
+              {sec.title && <div className="bz-side-title">{sec.title}</div>}
+              {sec.items.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`bz-side-item${isActive(item.path) ? ' active' : ''}`}
+                >
+                  <span>{item.label}</span>
+                  {sideBadge(item)}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="bz-side-foot">
@@ -232,14 +370,23 @@ const Layout = ({ children }) => {
               <div className="bz-menu bz-menu-up">
                 <div className="bz-menu-meta">{user?.email}</div>
                 <div className="bz-menu-meta">{activeCompany?.razonSocial}</div>
-                <a
+                <button
+                  type="button"
                   className="bz-menu-item"
-                  href="https://contabilidad-os-production.up.railway.app"
-                  target="_blank"
-                  rel="noreferrer"
+                  onClick={() => setPwdOpen(true)}
                 >
-                  contabilidad-os ↗
-                </a>
+                  Cambiar contraseña
+                </button>
+                {esAdmin && (
+                  <a
+                    className="bz-menu-item"
+                    href="https://contabilidad-os-production.up.railway.app"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    contabilidad-os ↗
+                  </a>
+                )}
                 <button type="button" className="bz-menu-item danger" onClick={logout}>
                   Cerrar sesión
                 </button>
@@ -256,7 +403,7 @@ const Layout = ({ children }) => {
         </Link>
 
         <nav className="bz-nav">
-          {PRIMARY_NAV.map((item) => (
+          {(esAdmin ? PRIMARY_NAV : secciones.flatMap((sec) => sec.items)).map((item) => (
             <Link
               key={item.path}
               to={item.path}
@@ -265,6 +412,7 @@ const Layout = ({ children }) => {
               <span>{item.label}</span>
             </Link>
           ))}
+          {esAdmin && (
           <div className="bz-more" ref={moreRef}>
             <button
               type="button"
@@ -287,6 +435,7 @@ const Layout = ({ children }) => {
               </div>
             )}
           </div>
+          )}
         </nav>
 
         <div className="bz-topnav-right">
@@ -313,14 +462,23 @@ const Layout = ({ children }) => {
               <div className="bz-menu bz-menu-right">
                 <div className="bz-menu-meta">{user?.email}</div>
                 <div className="bz-menu-meta">{activeCompany?.razonSocial}</div>
-                <a
+                <button
+                  type="button"
                   className="bz-menu-item"
-                  href="https://contabilidad-os-production.up.railway.app"
-                  target="_blank"
-                  rel="noreferrer"
+                  onClick={() => setPwdOpen(true)}
                 >
-                  contabilidad-os ↗
-                </a>
+                  Cambiar contraseña
+                </button>
+                {esAdmin && (
+                  <a
+                    className="bz-menu-item"
+                    href="https://contabilidad-os-production.up.railway.app"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    contabilidad-os ↗
+                  </a>
+                )}
                 <button type="button" className="bz-menu-item danger" onClick={logout}>
                   Cerrar sesión
                 </button>
@@ -340,6 +498,7 @@ const Layout = ({ children }) => {
         {children}
       </div>
       </div>
+      {pwdOpen && <PasswordModal onClose={() => setPwdOpen(false)} />}
     </div>
   )
 }
