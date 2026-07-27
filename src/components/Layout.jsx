@@ -104,7 +104,10 @@ function seccionesPorRol(rol) {
 
 // Contadores del sidebar: compras por autorizar (badge accent) y CFDIs por
 // vincular (muted). Best-effort — si el endpoint falla, el badge no aparece.
-function useSideCounts(companyId) {
+// `refreshKey` (la ruta actual) refresca los contadores en cada navegación:
+// sin esto el badge se quedaba congelado con el conteo del primer load
+// aunque la cola ya estuviera vacía.
+function useSideCounts(companyId, refreshKey) {
   const [counts, setCounts] = useState({})
   useEffect(() => {
     if (!companyId) { setCounts({}); return }
@@ -122,7 +125,7 @@ function useSideCounts(companyId) {
       })
     })()
     return () => { alive = false }
-  }, [companyId])
+  }, [companyId, refreshKey])
   return counts
 }
 
@@ -271,7 +274,7 @@ const Layout = ({ children }) => {
   // Contadores sólo para admin: los roles restringidos no tienen esos
   // endpoints en su allowlist (y su nav tampoco muestra los badges).
   const esAdmin = !rol || rol === 'ADMIN'
-  const sideCounts = useSideCounts(esAdmin ? activeCompany?.id : null)
+  const sideCounts = useSideCounts(esAdmin ? activeCompany?.id : null, location.pathname)
   const secciones = seccionesPorRol(rol)
   const [pwdOpen, setPwdOpen] = useState(false)
 
