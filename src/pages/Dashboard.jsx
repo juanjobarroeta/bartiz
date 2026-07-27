@@ -4,13 +4,11 @@
  * table, an avance-de-cartera S-curve, a cash-position rail and a
  * "pendientes" action list.
  *
- * Data sources:
- *  - Portfolio table + contracted-value total come from the LIVE
- *    `/api/construccion/proyectos` list (scoped to the active company).
- *  - Bank balances, the S-curve, performance split and action items are not
- *    exposed by that endpoint yet, so they come from the documented sample
- *    block in `data/dashboardSample.js`. Swap each for a live fetch as the
- *    contabilidad-os treasury/avance endpoints land.
+ * Todo con datos VIVOS (sin muestras): cartera y totales de
+ * /api/construccion/proyectos, saldos y cuentas de bank-accounts
+ * ?withBalances=true, pendientes de solicitudes/adjudicaciones/CFDIs.
+ * El "programado" de cada obra se deriva del calendario (fechaInicio →
+ * fechaFinPlan) hasta que el backend exponga avance programado real.
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -19,19 +17,8 @@ import './Dashboard.css'
 import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
 import { Icon } from '../components/ds/Icon'
-import { SCurve, Gauge, Delta } from '../components/ds/Charts'
 import { money, compactMoney, MoneyParts } from '../lib/format'
-import {
-  BADGE_COLORS,
-  SAMPLE_PROJECTS,
-  SAMPLE_BANKS,
-  SAMPLE_SALDO_TOTAL,
-  SAMPLE_PERFORMANCE,
-  SAMPLE_CURVE,
-  SAMPLE_FACTURADO,
-  SAMPLE_COBRADO,
-  SAMPLE_SIN_CONCILIAR,
-} from '../data/dashboardSample'
+import { BADGE_COLORS } from '../data/dashboardSample'
 
 // Live `estado` → status chip tone + label.
 const ESTADO_META = {
@@ -58,16 +45,29 @@ function toRow(p, i) {
     statusLabel: meta.label,
     contratado: Number(p.montoContratado) || 0,
     avance: Number(p.avancePct) || 0,
-    plan: 0, // planned-% not exposed by the list endpoint yet
+    // Programado por calendario: fracción transcurrida entre fechaInicio y
+    // fechaFinPlan (el backend aún no expone avance físico programado real).
+    plan: planPorCalendario(p.fechaInicio, p.fechaFinPlan),
     porCobrar: 0, // receivable not exposed by the list endpoint yet
   }
+}
+
+function planPorCalendario(inicio, finPlan) {
+  if (!inicio || !finPlan) return 0
+  const a = new Date(inicio).getTime()
+  const b = new Date(finPlan).getTime()
+  if (!(b > a)) return 0
+  const f = (Date.now() - a) / (b - a)
+  return Math.max(0, Math.min(100, f * 100))
 }
 
 const Dashboard = () => {
   const navigate = useNavigate()
   const { activeCompany } = useAuth()
   const [rows, setRows] = useState([])
-  const [usingSample, setUsingSample] = useState(false)
+  const [cargando, setCargando] = useState(true)
+  // Cuentas bancarias reales (con saldo) para la posición de efectivo.
+  const [cuentas, setCuentas] = useState([])
   const [sort, setSort] = useState('contratado')
   const [cfdiResumen, setCfdiResumen] = useState(null)
   // Real, actionable pendientes for Gerardo's flow (counts only). Gerardo
@@ -105,6 +105,7 @@ const Dashboard = () => {
         loaded: true,
       })
       if (Array.isArray(accts) && accts.length) {
+        setCuentas(accts)
         setSaldoBancos(accts.reduce((s, a) => s + (a.balance ?? 0), 0))
       }
     })()
@@ -112,29 +113,15 @@ const Dashboard = () => {
   }, [activeCompany?.id])
 
   useEffect(() => {
-    if (!activeCompany?.id) {
-      // No company yet (fresh login / switcher not hydrated) — show the
-      // sample portfolio so the command center still renders.
-      setRows(SAMPLE_PROJECTS)
-      setUsingSample(true)
-      return
-    }
+    if (!activeCompany?.id) { setRows([]); setCargando(false); return }
+    setCargando(true)
     apiFetch(`/api/construccion/proyectos?companyId=${encodeURIComponent(activeCompany.id)}`)
-      .then((data) => {
-        const list = Array.isArray(data) ? data : []
-        if (list.length === 0) {
-          setRows(SAMPLE_PROJECTS)
-          setUsingSample(true)
-        } else {
-          setRows(list.map(toRow))
-          setUsingSample(false)
-        }
-      })
+      .then((data) => setRows((Array.isArray(data) ? data : []).map(toRow)))
       .catch((err) => {
         console.error('Error loading dashboard:', err)
-        setRows(SAMPLE_PROJECTS)
-        setUsingSample(true)
+        setRows([])
       })
+      .finally(() => setCargando(false))
   }, [activeCompany?.id])
 
   const projects = useMemo(
@@ -145,7 +132,14 @@ const Dashboard = () => {
   const totals = useMemo(() => {
     const contratado = rows.reduce((s, p) => s + (p.contratado || 0), 0)
     const activos = rows.filter((p) => p.contratado > 0).length
-    return { contratado, activos }
+    // Avance ponderado por monto contratado (real vs plan), con datos vivos.
+    const real = contratado > 0
+      ? rows.reduce((s, p) => s + (p.avance || 0) * (p.contratado || 0), 0) / contratado
+      : 0
+    const plan = contratado > 0
+      ? rows.reduce((s, p) => s + (p.plan || 0) * (p.contratado || 0), 0) / contratado
+      : 0
+    return { contratado, activos, real, plan }
   }, [rows])
 
   const openProject = (row) => {
@@ -191,8 +185,8 @@ const Dashboard = () => {
           </div>
           <div className="kpi">
             <div className="eyebrow">En bancos</div>
-            <div className="kpi-v num"><MoneyParts value={saldoBancos ?? SAMPLE_SALDO_TOTAL} /></div>
-            <div className="kpi-s">{pend.sinConciliar > 0 ? `${pend.sinConciliar} mov. sin conciliar` : 'conciliado'}</div>
+            <div className="kpi-v num"><MoneyParts value={saldoBancos ?? 0} /></div>
+            <div className="kpi-s">{saldoBancos == null ? 'sin cuentas conectadas' : pend.sinConciliar > 0 ? `${pend.sinConciliar} mov. sin conciliar` : 'conciliado'}</div>
           </div>
           <div className="kpi">
             <div className="eyebrow">Por pagar</div>
@@ -230,6 +224,12 @@ const Dashboard = () => {
                   Ordenar: {sort === 'contratado' ? 'Monto' : 'Avance'}
                 </button>
               </div>
+              {!cargando && projects.length === 0 && (
+                <div className="hoy-lista-empty">
+                  Sin obras aún. Crea la primera en Obras y su presupuesto aparecerá aquí.
+                </div>
+              )}
+              {cargando && <div className="hoy-lista-empty">Cargando cartera…</div>}
               <div className="scroll-x">
                 <table className="ptable">
                   <thead>
@@ -332,25 +332,22 @@ const Dashboard = () => {
               <div className="chart-stats">
                 <div className="cstat">
                   <div className="cl2">Real acumulado</div>
-                  <div className="cv green">1.0%</div>
+                  <div className="cv green">{totals.real.toFixed(1)}%</div>
                 </div>
                 <div className="cstat">
-                  <div className="cl2">Programado</div>
-                  <div className="cv">72.0%</div>
+                  <div className="cl2">Programado (calendario)</div>
+                  <div className="cv">{totals.plan.toFixed(1)}%</div>
                 </div>
                 <div className="cstat">
                   <div className="cl2">Desviación</div>
-                  <div className="cv" style={{ color: 'var(--neg)' }}>
-                    −71.0%
+                  <div className="cv" style={{ color: totals.real - totals.plan < 0 ? 'var(--neg)' : 'var(--pos)' }}>
+                    {(totals.real - totals.plan) >= 0 ? '+' : '−'}{Math.abs(totals.real - totals.plan).toFixed(1)}%
                   </div>
                 </div>
                 <div className="cstat">
                   <div className="cl2">Total contrato</div>
                   <div className="cv">{compactMoney(totals.contratado)}</div>
                 </div>
-              </div>
-              <div className="card-pad" style={{ paddingTop: 0 }}>
-                <SCurve curve={SAMPLE_CURVE} />
               </div>
             </div>
           </div>
@@ -362,32 +359,37 @@ const Dashboard = () => {
               <div className="saldo-hero">
                 <div className="lbl">Posición de efectivo</div>
                 <div className="v">
-                  <MoneyParts value={SAMPLE_SALDO_TOTAL} />
+                  <MoneyParts value={saldoBancos ?? 0} />
                 </div>
               </div>
-              {SAMPLE_BANKS.map((b, i) => (
-                <div className="bank" key={i}>
-                  <div className="bank-ic">
-                    <Icon name="bank" />
-                  </div>
-                  <div>
-                    <div className="bank-name">
-                      {b.name}{' '}
-                      <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>{b.sub}</span>
-                    </div>
-                    <div className="bank-meta">
-                      ··{b.acct.slice(-4)} · {b.mov} mov.
-                    </div>
-                  </div>
-                  <div className="bank-amt">
-                    <div className={'v' + (b.balance < 0 ? ' neg' : '')}>
-                      {b.balance < 0 ? '−' : ''}
-                      {money(Math.abs(b.balance))}
-                    </div>
-                    <div className="d">30 días</div>
-                  </div>
+              {cuentas.length === 0 ? (
+                <div className="hoy-lista-empty">
+                  Sin cuentas bancarias conectadas. Impórtalas en Bancos.
                 </div>
-              ))}
+              ) : (
+                cuentas.map((b) => (
+                  <div className="bank" key={b.id}>
+                    <div className="bank-ic">
+                      <Icon name="bank" />
+                    </div>
+                    <div>
+                      <div className="bank-name">
+                        {b.banco}{' '}
+                        <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>{b.nombre}</span>
+                      </div>
+                      <div className="bank-meta">
+                        {b.tipo === 'CAJA' ? 'caja chica' : b.titular || '—'}
+                      </div>
+                    </div>
+                    <div className="bank-amt">
+                      <div className={'v' + ((b.balance ?? 0) < 0 ? ' neg' : '')}>
+                        {(b.balance ?? 0) < 0 ? '−' : ''}
+                        {money(Math.abs(b.balance ?? 0))}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Hoy en la obra — pendientes numerados (mockup 01/02/03) */}
@@ -419,12 +421,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {usingSample && (
-          <p className="ds-sample-note">
-            Mostrando datos de muestra de la cartera. Conecta una empresa con proyectos en
-            contabilidad-os para ver tu cartera real.
-          </p>
-        )}
       </div>
     </div>
   )
