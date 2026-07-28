@@ -50,6 +50,9 @@ const Usuarios = () => {
   // Reset de contraseña por fila
   const [resetFor, setResetFor] = useState(null) // memberId
   const [resetPwd, setResetPwd] = useState('')
+  // Edición de nombre por fila
+  const [nombreFor, setNombreFor] = useState(null) // memberId
+  const [nombreVal, setNombreVal] = useState('')
 
   const cid = activeCompany?.id
 
@@ -114,6 +117,26 @@ const Usuarios = () => {
       window.alert('✓ Contraseña actualizada.')
     } catch (err) {
       window.alert(err.message || 'No se pudo cambiar la contraseña.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const renombrar = async (e) => {
+    e.preventDefault()
+    const name = nombreVal.trim()
+    if (!name) return
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/usuarios/${nombreFor}?companyId=${encodeURIComponent(cid)}`, {
+        method: 'PATCH',
+        body: { name },
+      })
+      setNombreFor(null)
+      setNombreVal('')
+      load()
+    } catch (err) {
+      window.alert(err.message || 'No se pudo cambiar el nombre.')
     } finally {
       setBusy(false)
     }
@@ -191,6 +214,9 @@ const Usuarios = () => {
                       <td className="r">
                         {editable(row) && (
                           <div className="usr-actions">
+                            <button className="usr-link" onClick={() => { setNombreFor(row.memberId); setNombreVal(row.name || '') }}>
+                              nombre
+                            </button>
                             <button className="usr-link" onClick={() => { setResetFor(row.memberId); setResetPwd('') }}>
                               contraseña
                             </button>
@@ -259,6 +285,34 @@ const Usuarios = () => {
                   </button>
                   <button type="submit" className="usr-primary" disabled={busy}>
                     {busy ? 'Creando…' : 'Crear usuario'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {nombreFor && (
+          <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setNombreFor(null) }}>
+            <div className="modal-content usr-modal">
+              <h3>Editar nombre</h3>
+              <form onSubmit={renombrar}>
+                <label>
+                  Nombre para {rows.find((r) => r.memberId === nombreFor)?.email}
+                  <input
+                    value={nombreVal}
+                    onChange={(e) => setNombreVal(e.target.value)}
+                    maxLength={120}
+                    required
+                    autoFocus
+                  />
+                </label>
+                <div className="usr-modal-actions">
+                  <button type="button" className="usr-ghost" onClick={() => setNombreFor(null)} disabled={busy}>
+                    Cancelar
+                  </button>
+                  <button type="submit" className="usr-primary" disabled={busy}>
+                    {busy ? 'Guardando…' : 'Guardar'}
                   </button>
                 </div>
               </form>
