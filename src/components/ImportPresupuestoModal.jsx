@@ -126,6 +126,9 @@ export default function ImportPresupuestoModal({
       const payload = {
         parsed: {
           caratula: scan.caratula,
+          // Formato detectado (p. ej. LISTA_CONCEPTOS): decide la granularidad
+          // de la plantilla de estimaciones (por concepto vs por capítulo).
+          formato: scan.formato,
           branches: scan.branches,
           leaves: scan.leaves,
           insumos: scan.insumos,
