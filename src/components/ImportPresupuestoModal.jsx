@@ -63,11 +63,12 @@ export default function ImportPresupuestoModal({
   const onPick = (f) => {
     if (!f) return
     if (
-      !/\.(xls|xlsx)$/i.test(f.name) &&
+      !/\.(xls|xlsx|pdf)$/i.test(f.name) &&
       f.type !== 'application/vnd.ms-excel' &&
-      f.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      f.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' &&
+      f.type !== 'application/pdf'
     ) {
-      alertDialog({ message: 'Sólo se aceptan archivos .xls o .xlsx.' })
+      alertDialog({ message: 'Sólo se aceptan archivos .xls, .xlsx o .pdf.' })
       return
     }
     setFile({ name: f.name, blob: f })
@@ -158,16 +159,18 @@ export default function ImportPresupuestoModal({
   }
 
   return (
-    <Modal open={open} onClose={close} title="Importar presupuesto desde Excel" size="lg">
+    <Modal open={open} onClose={close} title="Importar presupuesto" size="lg">
       {stage === 'pick' && (
         <div className="imp-pick">
           <p className="muted small" style={{ marginTop: 0 }}>
-            Sube el archivo Excel del presupuesto. Se detecta el formato
+            Sube el archivo del presupuesto (Excel o PDF). Se detecta el formato
             automáticamente: hoja <strong>PRESUPUESTO</strong> (capítulos
             numerados <span className="mono">1.1.3.5.1</span> + hoja INSUMOS),
             hoja <strong>Matrices</strong> (análisis de precios unitarios estilo
-            Opus), u hoja <strong>LISTA DE CONCEPTOS</strong> (filas
-            CAPITULO/CONCEPTO agrupadas por local + hoja MATERIALES). En todos
+            Opus), hoja <strong>LISTA DE CONCEPTOS</strong> (filas
+            CAPITULO/CONCEPTO agrupadas por local + hoja MATERIALES), o un
+            <strong> PDF de "Presupuesto por Actividades"</strong> (licitación —
+            se lee con IA y se valida contra los totales impresos). En todos
             los casos se crea el presupuesto del proyecto con sus conceptos e
             insumos.
           </p>
@@ -187,7 +190,7 @@ export default function ImportPresupuestoModal({
             <input
               ref={inputRef}
               type="file"
-              accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".xls,.xlsx,.pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf"
               onChange={(e) => onPick(e.target.files?.[0])}
               hidden
             />
