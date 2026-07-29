@@ -55,7 +55,35 @@ export function CreditChip({ supplier }) {
 
 export default function ProveedoresBartiz() {
   const navigate = useNavigate()
-  const { activeCompany } = useAuth()
+  const { activeCompany, rol } = useAuth()
+  const esAdmin = !rol || rol === 'ADMIN'
+  const [importandoCfdis, setImportandoCfdis] = useState(false)
+
+  // Siembra el catálogo con todos los emisores que alguna vez nos facturaron
+  // (CFDIs recibidos). Idempotente: repetirlo sólo agrega los nuevos.
+  const importarDeCfdis = async () => {
+    setImportandoCfdis(true)
+    try {
+      const r = await apiFetch('/api/construccion/suppliers/import-cfdis', {
+        method: 'POST',
+        body: { companyId },
+      })
+      const lista = (r.proveedores ?? [])
+        .slice(0, 15)
+        .map((p) => `· ${p.razonSocial} (${p.cfdis} CFDIs)`)
+        .join('\n')
+      window.alert(
+        `✓ ${r.creados} proveedor${r.creados === 1 ? '' : 'es'} dado${r.creados === 1 ? '' : 's'} de alta desde tus CFDIs recibidos` +
+        (r.creados > 0 && lista ? `:\n\n${lista}${(r.proveedores?.length ?? 0) > 15 ? '\n…' : ''}` : '.') +
+        `\n(${r.omitidos} ya existían o se excluyeron)`
+      )
+      reload()
+    } catch (err) {
+      window.alert(err.message || 'No se pudo importar de CFDIs.')
+    } finally {
+      setImportandoCfdis(false)
+    }
+  }
   const companyId = activeCompany?.id
 
   const [rows, setRows] = useState([])
@@ -106,7 +134,15 @@ export default function ProveedoresBartiz() {
           className="search"
         />
         <div className="toolbar-actions">
-          <button className="btn btn-ghost" onClick={() => setImportOpen(true)}>Importar CSV</button>
+          {esAdmin && (
+            <button className="btn btn-ghost" onClick={importarDeCfdis} disabled={importandoCfdis}
+              title="Da de alta como proveedor a todo emisor que alguna vez te facturó (CFDIs recibidos)">
+              {importandoCfdis ? 'Importando…' : 'Importar de facturas'}
+            </button>
+          )}
+          {esAdmin && (
+            <button className="btn btn-ghost" onClick={() => setImportOpen(true)}>Importar CSV</button>
+          )}
           <button className="primary" onClick={() => setNewOpen(true)}>+ Nuevo proveedor</button>
         </div>
       </div>

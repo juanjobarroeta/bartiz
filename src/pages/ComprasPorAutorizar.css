@@ -95,3 +95,7 @@
 .cpa-budget { font-size: 0.72rem; color: var(--ink-3); margin-top: 3px; font-weight: 400; }
 .cpa-budget b { color: var(--ink-2); font-weight: 700; }
 .cpa-budget-over { color: var(--neg, #dc2626); font-weight: 700; }
+
+/* Totales con IVA (los precios canónicos se guardan sin IVA) */
+.cpa-sup-iva { margin-top: 1px; }
+.cpa-grand-iva { font-size: 12.5px; padding-top: 2px; }

@@ -89,9 +89,10 @@ const SIDE_SECTIONS_RESIDENTE = [
   {
     title: null,
     items: [
-      { path: '/requisiciones', label: 'Requisiciones' },
-      { path: '/proyectos',     label: 'Obras' },
-      { path: '/caja-chica',    label: 'Caja chica' },
+      { path: '/requisiciones',      label: 'Requisiciones' },
+      { path: '/proyectos',          label: 'Obras' },
+      { path: '/caja-chica',         label: 'Caja chica' },
+      { path: '/proveedores-bartiz', label: 'Proveedores' },
     ],
   },
 ]

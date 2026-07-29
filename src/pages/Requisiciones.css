@@ -306,3 +306,20 @@
 .line-budget b { color: var(--ink-2); font-weight: 700; }
 .line-budget.over { color: var(--warn, #b5820f); }
 .line-budget-warn { color: var(--neg, #dc2626); font-weight: 700; }
+
+/* Rediseño del picker de proveedor: lo tecleado cuenta como nombre libre */
+.ofs-libre-hint {
+  font-size: 11px;
+  color: var(--pos, #1f7a4c);
+  font-style: italic;
+  white-space: nowrap;
+}
+.ofs-iva {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--ink-2, #555);
+  white-space: nowrap;
+  cursor: pointer;
+}

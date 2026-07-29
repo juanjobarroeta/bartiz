@@ -278,6 +278,7 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
                       <span className="cpa-dias">{c.diasEntrega != null ? `${c.diasEntrega} d entrega` : 'entrega s/d'}</span>
                     </div>
                     <div className="cpa-sup-total mono">{money(c.total)}</div>
+                    <div className="cpa-sup-iva muted small mono">{money(c.total * 1.16)} c/IVA</div>
                   </th>
                 ))}
               </tr>
@@ -336,12 +337,17 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
                 <span className="muted small">{s.dias != null ? `${s.dias} d` : 's/d'}</span>
                 <span className="muted small">{s.n} concepto{s.n > 1 ? 's' : ''}</span>
                 <span className="cpa-summary-total mono">{money(s.total)}</span>
+                <span className="muted small mono">{money(s.total * 1.16)} c/IVA</span>
               </div>
             ))}
           </div>
           <div className="cpa-grand">
-            <span>Total adjudicado</span>
+            <span>Total adjudicado (sin IVA)</span>
             <span className="mono">{money(grandTotal)}</span>
+          </div>
+          <div className="cpa-grand cpa-grand-iva">
+            <span className="muted">Con IVA (16%)</span>
+            <span className="mono muted">{money(grandTotal * 1.16)}</span>
           </div>
           {!allAwarded && (
             <div className="cpa-partial">Faltan {partidas.length - assigned} concepto(s) por adjudicar — puedes autorizar parcialmente.</div>
