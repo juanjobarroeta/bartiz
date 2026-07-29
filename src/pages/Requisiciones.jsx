@@ -81,7 +81,7 @@ function formFromSolicitud(sol) {
       key: uid(),
       supplier: c.supplier ? { id: c.supplier.id, razonSocial: c.supplier.razonSocial, rfc: c.supplier.rfc } : null,
       freeText: c.supplierId ? '' : (c.supplierNombre ?? ''),
-      useFreeText: !c.supplierId,
+      conIva: false, // los precios guardados son SIN IVA (canónico)
       credito: !!c.tieneCredito,
       diasCredito: c.diasCredito != null ? String(c.diasCredito) : '',
       diasEntrega: c.diasEntrega != null ? String(c.diasEntrega) : '',
@@ -436,7 +436,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
   // ── Offers (proveedor columns) ──
   const addOffer = () =>
-    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', useFreeText: false, credito: false, diasCredito: '', diasEntrega: '', prices: {} }])
+    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', conIva: false, credito: false, diasCredito: '', diasEntrega: '', prices: {} }])
   const removeOffer = (idx) =>
     setOffers((arr) => arr.filter((_, i) => i !== idx))
   const updateOffer = (idx, patch) =>
@@ -444,7 +444,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
   const setOfferPrice = (idx, partidaKey, val) =>
     setOffers((arr) => arr.map((o, i) => (i === idx ? { ...o, prices: { ...o.prices, [partidaKey]: val } } : o)))
 
-  const offerName = (o) => (o.useFreeText ? o.freeText.trim() : o.supplier?.razonSocial?.trim() ?? '')
+  const offerName = (o) => (o.supplier?.razonSocial ?? o.freeText ?? '').trim()
   const offerTotal = (o) =>
     partidas.reduce((sum, p) => sum + (parseFloat(o.prices[p.key]) || 0) * (Number(p.cantidad) || 0), 0)
 
@@ -470,23 +470,28 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
     offers: offers
       .filter((o) => offerName(o))
       .map((o) => ({
-        supplierId: o.useFreeText ? null : o.supplier?.id ?? null,
+        supplierId: o.supplier?.id ?? null,
         supplierNombre: offerName(o),
         tieneCredito: !!o.credito,
         // Credit days only meaningful when the offer is a crédito; contado → null.
         diasCredito: o.credito && o.diasCredito !== '' && o.diasCredito != null ? parseInt(o.diasCredito, 10) : null,
         diasEntrega: o.diasEntrega !== '' && o.diasEntrega != null ? parseInt(o.diasEntrega, 10) : null,
         lineas: lines
-          .map((p, idx) => ({ partidaIndex: idx, precioUnitario: parseFloat(o.prices[p.key]) || 0 }))
+          .map((p, idx) => {
+            const raw = parseFloat(o.prices[p.key]) || 0
+            // Canónico sin IVA: lo capturado "con IVA" se convierte (÷1.16).
+            const sinIva = o.conIva ? raw / 1.16 : raw
+            return { partidaIndex: idx, precioUnitario: Math.round(sinIva * 10000) / 10000 }
+          })
           .filter((l) => l.precioUnitario > 0),
       }))
       .filter((o) => o.lineas.length > 0),
   })
 
-  // Offers that carry data (a name and/or prices) but would be dropped by
-  // buildPayload — because the name wasn't committed (typed in the picker but
-  // not confirmed as "nombre libre") or no price falls on a concepto with
-  // cantidad > 0. We surface these instead of dropping them silently.
+  // Offers that carry data but would be dropped by buildPayload. Desde el
+  // rediseño del picker, el texto tecleado YA cuenta como nombre (no hay
+  // fallo silencioso por nombre); sólo queda el caso de columnas sin precio
+  // en conceptos válidos. We surface these instead of dropping them silently.
   const droppedOffers = (lines) =>
     offers
       .map((o) => {
@@ -497,7 +502,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
         if (hasName && hasValidPriced) return null // will be saved
         const label = offerName(o) || 'Un proveedor sin nombre'
         const reason = !hasName
-          ? 'tiene precios pero no confirmaste el nombre (usa "nombre libre")'
+          ? 'tiene precios pero ningún nombre de proveedor'
           : 'no tiene precios en conceptos con cantidad mayor a 0'
         return `• ${label} — ${reason}`
       })
@@ -777,36 +782,32 @@ function defaultDiasCredito(supplier) {
 // One proveedor column header: supplier picker + a forma-de-pago toggle that
 // preloads from the supplier's terms and can be checked/unchecked per offer.
 function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
-  const named = offer.useFreeText ? offer.freeText.trim() : offer.supplier
+  const named = offer.supplier ?? offer.freeText.trim()
   return (
     <div className="offer-supplier-head">
-      {offer.useFreeText ? (
-        <div className="ofs-freetext">
-          <input
-            value={offer.freeText}
-            onChange={(e) => onChange({ freeText: e.target.value })}
-            placeholder="Nombre del proveedor"
-          />
-          <button type="button" className="link small" onClick={() => onChange({ useFreeText: false, freeText: '' })}>
-            catálogo
-          </button>
-        </div>
-      ) : offer.supplier ? (
+      {offer.supplier ? (
         <div className="ofs-picked">
           <strong>{offer.supplier.razonSocial}</strong>
-          <button type="button" className="link small" onClick={() => onChange({ supplier: null })}>cambiar</button>
+          <button type="button" className="link small" onClick={() => onChange({ supplier: null, freeText: '' })}>cambiar</button>
         </div>
       ) : (
         <div className="ofs-pick">
+          {/* Un solo campo: escribe el nombre y ya cuenta (nombre libre);
+              elegir del catálogo lo liga; "+ Crear proveedor" lo da de alta. */}
           <SupplierPicker
             value={null}
-            onChange={(s) => onChange({ supplier: s, credito: defaultCredito(s), diasCredito: defaultDiasCredito(s) })}
+            allowFreeText
+            initialText={offer.freeText}
+            onTextChange={(t) => onChange({ freeText: t })}
+            onChange={(s) => onChange({ supplier: s, freeText: '', credito: defaultCredito(s), diasCredito: defaultDiasCredito(s) })}
             companyId={companyId}
-            placeholder="Proveedor…"
+            placeholder="Proveedor (escribe o elige)…"
           />
-          <button type="button" className="link small" onClick={() => onChange({ useFreeText: true })}>
-            nombre libre
-          </button>
+          {offer.freeText.trim() && (
+            <span className="ofs-libre-hint" title="No está en el catálogo; se guardará con este nombre">
+              nombre libre ✓
+            </span>
+          )}
         </div>
       )}
       {named && (
@@ -833,6 +834,14 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
               <span>días crédito</span>
             </label>
           )}
+          <label className="ofs-iva" title="Marca si los precios que capturas ya incluyen IVA; se guardan sin IVA (÷1.16) para comparar parejo">
+            <input
+              type="checkbox"
+              checked={!!offer.conIva}
+              onChange={(e) => onChange({ conIva: e.target.checked })}
+            />
+            <span>precios con IVA</span>
+          </label>
           <label className="ofs-entrega" title="Días de entrega prometidos por este proveedor">
             <input
               type="number"

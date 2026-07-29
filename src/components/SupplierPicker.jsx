@@ -26,8 +26,14 @@ export default function SupplierPicker({
   onChange,
   companyId,
   placeholder = 'Buscar proveedor por nombre o RFC…',
+  // Modo requisición: el texto tecleado VALE por sí mismo (nombre libre).
+  // Cada tecla se refleja al padre vía onTextChange, así que aunque el
+  // usuario no elija nada del dropdown, el nombre nunca se pierde.
+  allowFreeText = false,
+  initialText = '',
+  onTextChange,
 }) {
-  const [query, setQuery] = useState(value?.razonSocial ?? '')
+  const [query, setQuery] = useState(value?.razonSocial ?? initialText ?? '')
   const [results, setResults] = useState([])
   const [open, setOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -92,7 +98,7 @@ export default function SupplierPicker({
         <>
           <input
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); onTextChange?.(e.target.value) }}
             onFocus={() => setOpen(true)}
             placeholder={placeholder}
             className="supplier-input"
@@ -116,6 +122,15 @@ export default function SupplierPicker({
                   )}
                 </button>
               ))}
+              {allowFreeText && query.trim().length >= 2 && (
+                <button
+                  type="button"
+                  className="supplier-item supplier-freetext"
+                  onClick={() => setOpen(false)}
+                >
+                  Usar "{query.trim()}" tal cual (nombre libre)
+                </button>
+              )}
               {query.trim().length >= 2 && (
                 <button
                   type="button"

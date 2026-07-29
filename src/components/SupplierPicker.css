@@ -68,3 +68,6 @@
   cursor: pointer;
   font-size: 0.8rem;
 }
+
+/* Opción "usar tal cual" (nombre libre) del modo requisición */
+.supplier-freetext { font-style: italic; color: var(--ink2, #555); }

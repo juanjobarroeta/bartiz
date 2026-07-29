@@ -29,6 +29,8 @@ const ROL_PREFIXES = {
     '/presupuesto',
     '/caja-chica',
     '/reembolsos',  // alias viejo de caja chica (botón "volver" del detalle)
+    // Directorio de proveedores: ver y dar de alta (editar sigue siendo admin)
+    '/proveedores-bartiz',
   ],
 }
 
