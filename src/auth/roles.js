@@ -15,6 +15,7 @@ export const ROL_HOME = {
   ADMIN: '/',
   TESORERIA: '/pagos-tesoreria',
   RESIDENTE: '/requisiciones',
+  CONTABILIDAD: '/compras-por-autorizar',
 }
 
 // Prefijos de ruta permitidos por rol restringido. Todo lo demás redirige
@@ -32,6 +33,17 @@ const ROL_PREFIXES = {
     // Directorio de proveedores: ver y dar de alta (editar sigue siendo admin)
     '/proveedores-bartiz',
   ],
+  // Escritorio de compras/pagos: proveedores completos, compras por
+  // autorizar, cuentas por pagar y presupuestos en lectura.
+  CONTABILIDAD: [
+    '/compras-por-autorizar',
+    '/cuentas-por-pagar',
+    '/proveedores-bartiz',
+    '/cuentas-proveedores',
+    '/requisiciones',      // ver y capturar precios de requisiciones existentes
+    '/proyectos',
+    '/presupuesto',        // detalle (sólo lectura vía rol)
+  ],
 }
 
 export function rutaPermitida(rol, pathname) {
@@ -42,5 +54,5 @@ export function rutaPermitida(rol, pathname) {
 
 /** true cuando el rol sólo puede LEER presupuestos/precios unitarios. */
 export function esSoloLectura(rol) {
-  return rol === 'RESIDENTE'
+  return rol === 'RESIDENTE' || rol === 'CONTABILIDAD'
 }

@@ -97,9 +97,24 @@ const SIDE_SECTIONS_RESIDENTE = [
   },
 ]
 
+const SIDE_SECTIONS_CONTABILIDAD = [
+  {
+    title: null,
+    items: [
+      { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
+      { path: '/cuentas-por-pagar',     label: 'Pagos' },
+      { path: '/requisiciones',         label: 'Requisiciones' },
+      { path: '/proveedores-bartiz',    label: 'Proveedores' },
+      { path: '/cuentas-proveedores',   label: 'Estados de cuenta' },
+      { path: '/proyectos',             label: 'Obras' },
+    ],
+  },
+]
+
 function seccionesPorRol(rol) {
   if (rol === 'TESORERIA') return SIDE_SECTIONS_TESORERIA
   if (rol === 'RESIDENTE') return SIDE_SECTIONS_RESIDENTE
+  if (rol === 'CONTABILIDAD') return SIDE_SECTIONS_CONTABILIDAD
   return SIDE_SECTIONS
 }
 
@@ -275,7 +290,7 @@ const Layout = ({ children }) => {
   // Contadores sólo para admin: los roles restringidos no tienen esos
   // endpoints en su allowlist (y su nav tampoco muestra los badges).
   const esAdmin = !rol || rol === 'ADMIN'
-  const sideCounts = useSideCounts(esAdmin ? activeCompany?.id : null, location.pathname)
+  const sideCounts = useSideCounts(esAdmin || rol === 'CONTABILIDAD' ? activeCompany?.id : null, location.pathname)
   const secciones = seccionesPorRol(rol)
   const [pwdOpen, setPwdOpen] = useState(false)
 
