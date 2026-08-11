@@ -102,7 +102,7 @@ function formFromSolicitud(sol) {
 
 export default function Requisiciones() {
   const navigate = useNavigate()
-  const { activeCompany } = useAuth()
+  const { activeCompany, rol } = useAuth()
   const companyId = activeCompany?.id
 
   const [rows, setRows] = useState([])
@@ -196,7 +196,9 @@ export default function Requisiciones() {
               Borradores ({drafts.length})
             </button>
           )}
-          <button className="primary" onClick={openNew}>+ Nueva requisición</button>
+          {rol !== 'CONTABILIDAD' && (
+            <button className="primary" onClick={openNew}>+ Nueva requisición</button>
+          )}
         </div>
       </div>
 

@@ -29,6 +29,11 @@ const ROLES = [
     label: 'Residente',
     desc: 'Genera requisiciones; ve presupuestos, precios unitarios y caja chica (sin editar).',
   },
+  {
+    value: 'CONTABILIDAD',
+    label: 'Contabilidad',
+    desc: 'Proveedores completos, compras por autorizar, cuentas por pagar y presupuestos (lectura).',
+  },
 ]
 
 const ROL_LABEL = Object.fromEntries(ROLES.map((r) => [r.value, r.label]))
