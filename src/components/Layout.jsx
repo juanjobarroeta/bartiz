@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
+import { activarPush, desactivarPush, estadoPush } from '../lib/push'
 import './Layout.css'
 
 // Nav primario (orden y nombres cortos del diseño). El resto de módulos
@@ -194,6 +195,47 @@ const fmtHoy = () =>
   new Date().toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
 
 // ── Cambiar contraseña (self-serve, disponible para todos los roles) ─────────
+/**
+ * Item de menú "Notificaciones": activa/desactiva Web Push para este usuario
+ * y empresa. Se esconde donde el navegador no soporta push (p. ej. Safari de
+ * iOS sin instalar la app en pantalla de inicio); si el usuario las bloqueó,
+ * lo dice — eso sólo se revierte en la configuración del navegador.
+ */
+function PushToggleItem({ companyId }) {
+  const [estado, setEstado] = useState('cargando')
+  useEffect(() => {
+    let vivo = true
+    estadoPush().then((e) => vivo && setEstado(e))
+    return () => { vivo = false }
+  }, [])
+
+  if (estado === 'unsupported' || estado === 'cargando') return null
+  if (estado === 'denied') {
+    return (
+      <div className="bz-menu-meta" title="Desbloquéalas en la configuración del navegador">
+        Notificaciones bloqueadas
+      </div>
+    )
+  }
+
+  const toggle = async () => {
+    const previo = estado
+    setEstado('busy')
+    try {
+      setEstado(previo === 'on' ? await desactivarPush() : await activarPush(companyId))
+    } catch (e) {
+      alert(e.message || 'No se pudieron activar las notificaciones')
+      setEstado(previo)
+    }
+  }
+
+  return (
+    <button type="button" className="bz-menu-item" onClick={toggle} disabled={estado === 'busy'}>
+      {estado === 'on' ? 'Notificaciones: activadas ✓' : 'Activar notificaciones'}
+    </button>
+  )
+}
+
 function PasswordModal({ onClose }) {
   const [form, setForm] = useState({ actual: '', nueva: '', confirma: '' })
   const [busy, setBusy] = useState(false)
@@ -389,6 +431,7 @@ const Layout = ({ children }) => {
               <div className="bz-menu bz-menu-up">
                 <div className="bz-menu-meta">{user?.email}</div>
                 <div className="bz-menu-meta">{activeCompany?.razonSocial}</div>
+                <PushToggleItem companyId={activeCompany?.id} />
                 <button
                   type="button"
                   className="bz-menu-item"
@@ -481,6 +524,7 @@ const Layout = ({ children }) => {
               <div className="bz-menu bz-menu-right">
                 <div className="bz-menu-meta">{user?.email}</div>
                 <div className="bz-menu-meta">{activeCompany?.razonSocial}</div>
+                <PushToggleItem companyId={activeCompany?.id} />
                 <button
                   type="button"
                   className="bz-menu-item"
