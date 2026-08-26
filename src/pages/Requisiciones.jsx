@@ -156,11 +156,16 @@ export default function Requisiciones() {
     }
   }
 
-  // Delete an un-authorized requisición (borrador or pendiente). The backend
-  // rejects authorized ones (APROBADA/PAGADA).
+  // Delete a requisición. Borrador/pendiente: cualquier usuario con
+  // escritura. APROBADA: sólo admin — arrastra sus adjudicaciones y saca la
+  // fila de la cola de pagos, así que el confirm lo advierte. PAGADA: el
+  // backend la rechaza siempre (auditoría).
   const removeSolicitud = async (row) => {
     const label = row.estado === 'BORRADOR' ? 'borrador' : 'requisición'
-    if (!(await confirmDialog({ title: `Eliminar ${label}`, message: `¿Eliminar ${row.folio}? No se puede deshacer.`, okLabel: 'Eliminar' }))) return
+    const msg = row.estado === 'APROBADA'
+      ? `${row.folio} ya está AUTORIZADA: eliminarla borra también sus adjudicaciones y la saca de la cola de pagos. No se puede deshacer. ¿Eliminar?`
+      : `¿Eliminar ${row.folio}? No se puede deshacer.`
+    if (!(await confirmDialog({ title: `Eliminar ${label}`, message: msg, okLabel: 'Eliminar' }))) return
     try {
       await apiFetch(`/api/construccion/solicitudes-compra/${row.id}`, { method: 'DELETE' })
       reload()
@@ -271,12 +276,13 @@ export default function Requisiciones() {
                 <td className="small">{r.supplier?.razonSocial ?? <span className="muted">— sin elegir —</span>}</td>
                 <td className="small muted">{fmtDate(r.createdAt)}</td>
                 <td className="reqs-actions" onClick={(e) => e.stopPropagation()}>
-                  {r.estado === 'PENDIENTE' ? (
-                    <>
-                      <button className="link small" onClick={() => continueDraft(r)}>Editar</button>
-                      <button className="link small danger" onClick={() => removeSolicitud(r)}>Eliminar</button>
-                    </>
-                  ) : null}
+                  {r.estado === 'PENDIENTE' && (
+                    <button className="link small" onClick={() => continueDraft(r)}>Editar</button>
+                  )}
+                  {(r.estado === 'PENDIENTE' ||
+                    (r.estado === 'APROBADA' && (!rol || rol === 'ADMIN'))) && (
+                    <button className="link small danger" onClick={() => removeSolicitud(r)}>Eliminar</button>
+                  )}
                 </td>
               </tr>
             ))}
