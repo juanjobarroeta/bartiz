@@ -206,7 +206,7 @@ export default function Reembolsos() {
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="actions">
           {isCajaChica && (
             <button className="primary" onClick={() => setGastoOpen(true)}>
               + Gasto de caja
