@@ -299,7 +299,11 @@ export default function ReembolsoDetalle() {
         onClose={() => setPickerOpen(false)}
         onPick={onBankTxPicked}
         companyId={activeCompany?.id}
-        bankAccountId={reembolso.bankAccountId}
+        // Período anclado a la caja (efectivo): el SPEI de reembolso sale de
+        // una cuenta bancaria real, así que el picker busca en TODAS las
+        // cuentas. Con cuenta bancaria explícita (reembolsos semanales) se
+        // mantiene el filtro.
+        bankAccountId={reembolso.bankAccount?.tipo === 'CAJA' ? undefined : reembolso.bankAccountId}
         expectedAmount={reembolso.totalReembolso}
         title={`Cerrar período — vincular movimiento bancario (${fmtMoney(reembolso.totalReembolso)})`}
       />
