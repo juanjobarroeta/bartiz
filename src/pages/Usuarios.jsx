@@ -40,16 +40,18 @@ const ROLES = [
 const ROL_LABEL = Object.fromEntries(ROLES.map((r) => [r.value, r.label]))
 
 /**
- * Páginas VISIBLES efectivas de una fila: su lista guardada (o todas las de
- * su rol si está vacía), recortada al alcance del rol. La matriz sólo
- * recorta: una página fuera del alcance del rol no se puede prender aquí —
- * para eso se cambia el rol (el backend igual rechazaría la operación).
+ * Páginas VISIBLES efectivas de una fila: su lista guardada, o las naturales
+ * de su rol si está vacía. Puede incluir GRANTS — páginas fuera del alcance
+ * del rol que se marcaron aquí: el backend les da las funciones de esa
+ * página (bundle en construccion/rol.ts), así que marcar una casilla «extra»
+ * es dar permiso de verdad, no sólo visibilidad.
  */
 const visiblesDe = (row) => {
-  const alcance = paginasDelRol(row.construccionRol)
-  const base = row.paginas?.length ? row.paginas : alcance
-  return new Set(base.filter((k) => alcance.includes(k)))
+  const base = row.paginas?.length ? row.paginas : paginasDelRol(row.construccionRol)
+  return new Set(base)
 }
+
+const mismoSet = (a, b) => a.size === b.size && [...a].every((k) => b.has(k))
 
 const EMPTY_FORM = { name: '', email: '', password: '', construccionRol: 'RESIDENTE' }
 
@@ -121,16 +123,20 @@ const Usuarios = () => {
   }
 
   const togglePagina = async (row, key) => {
-    const alcance = paginasDelRol(row.construccionRol)
-    if (!alcance.includes(key)) return
     const esAdminRow = !row.construccionRol || row.construccionRol === 'ADMIN'
-    if (esAdminRow && key === 'usuarios') return // un admin nunca pierde Usuarios
+    if (key === 'usuarios') return // fija: admins siempre, restringidos nunca
     const vis = visiblesDe(row)
     if (vis.has(key)) vis.delete(key)
     else vis.add(key)
     if (vis.size === 0) { window.alert('Debe quedar al menos una página visible.'); return }
-    // Todas prendidas = sin restricción ([]): así un rol nuevo no arrastra lista.
-    const lista = alcance.every((k) => vis.has(k)) ? [] : [...vis]
+    // Exactamente las naturales del rol = sin lista explícita ([]): así un
+    // cambio de rol no arrastra recortes/grants viejos.
+    const natural = new Set(paginasDelRol(row.construccionRol))
+    if (esAdminRow) {
+      natural.add('usuarios')
+      vis.add('usuarios')
+    }
+    const lista = mismoSet(vis, natural) ? [] : [...vis].filter((k) => k !== 'usuarios' || esAdminRow)
     setRows((rs) => rs.map((r) => (r.memberId === row.memberId ? { ...r, paginas: lista } : r)))
     try {
       await apiFetch(`/api/construccion/usuarios/${row.memberId}?companyId=${encodeURIComponent(cid)}`, {
@@ -259,22 +265,34 @@ const Usuarios = () => {
                         )}
                       </td>
                       {PAGINAS.map((p) => {
-                        const enAlcance = alcance.includes(p.key)
-                        const fija = esAdminRow && p.key === 'usuarios'
-                        if (!enAlcance) {
+                        // Usuarios es especial: los admins siempre la tienen y
+                        // los roles restringidos nunca (la ruta exige admin).
+                        if (p.key === 'usuarios' && !esAdminRow) {
                           return (
-                            <td key={p.key} className="usr-pag c" title={`Fuera del alcance del rol ${ROL_LABEL[row.construccionRol] ?? 'Admin'} — cámbiale el rol para dársela`}>
+                            <td key={p.key} className="usr-pag c" title="Sólo un rol Admin administra usuarios">
                               <span className="usr-pag-na">—</span>
                             </td>
                           )
                         }
+                        const fija = esAdminRow && p.key === 'usuarios'
+                        const marcada = fija || vis.has(p.key)
+                        // Extra = fuera del alcance natural del rol: marcarla
+                        // GRANT-ea la página con sus funciones (backend).
+                        const extra = !alcance.includes(p.key)
                         return (
                           <td key={p.key} className="usr-pag c">
                             <input
                               type="checkbox"
-                              checked={vis.has(p.key)}
+                              className={extra && marcada ? 'usr-pag-extra' : undefined}
+                              checked={marcada}
                               disabled={!puedeEditar || fija}
-                              title={fija ? 'Un admin siempre conserva Usuarios' : `${p.label}: ${vis.has(p.key) ? 'visible' : 'oculta'}`}
+                              title={
+                                fija
+                                  ? 'Un admin siempre conserva Usuarios'
+                                  : extra
+                                    ? `${p.label}: permiso extra al rol ${ROL_LABEL[row.construccionRol] ?? 'Admin'} — da la página con sus funciones`
+                                    : `${p.label}: ${marcada ? 'visible' : 'oculta'}`
+                              }
                               onChange={() => togglePagina(row, p.key)}
                             />
                           </td>
@@ -302,11 +320,12 @@ const Usuarios = () => {
               </table>
             </div>
             <p className="usr-matrix-help">
-              ✓ página visible para ese usuario · casilla vacía = oculta ·
-              «—» = fuera del alcance de su rol (cámbiale el rol para dársela).
-              El rol sigue mandando sobre lo que puede <strong>hacer</strong>
-              (autorizar, pagar, editar); la matriz sólo recorta lo que
-              <strong> ve</strong>.
+              ✓ página visible para ese usuario · casilla vacía = oculta.
+              Dentro del alcance de su rol, la casilla sólo recorta lo que
+              <strong> ve</strong>; una casilla <span className="usr-extra-chip">ámbar</span> es
+              un <strong>permiso extra al rol</strong>: le da esa página con sus
+              funciones (p. ej. un residente con Compras puede cotizar y
+              autorizar). Usuarios es sólo de admins.
             </p>
             </>
           )}

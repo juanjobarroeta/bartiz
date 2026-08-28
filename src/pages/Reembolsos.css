@@ -200,3 +200,10 @@
 .small { font-size: 0.8rem; }
 .muted { color: var(--ink-3); }
 .pd-empty { padding: 2rem; text-align: center; color: var(--ink-3); }
+
+/* Conciliación de caja chica: modal de CFDIs candidatos */
+.cfdi-cands { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+.cfdi-cand {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 1px solid var(--line, #e5e2da); border-radius: 8px; padding: 8px 10px;
+}
