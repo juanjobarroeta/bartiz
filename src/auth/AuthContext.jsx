@@ -148,6 +148,13 @@ export function AuthProvider({ children }) {
   // ven navegación/rutas encajonadas (el backend además lo hace cumplir).
   const rol = activeCompany?.construccionRol ?? 'ADMIN'
 
+  // Matriz de páginas visibles del miembro ([] = todas las que su rol
+  // permite). La manda /api/auth/token como construccionPaginas.
+  const paginas = useMemo(
+    () => activeCompany?.construccionPaginas ?? [],
+    [activeCompany]
+  )
+
   const value = useMemo(
     () => ({
       user,
@@ -155,13 +162,14 @@ export function AuthProvider({ children }) {
       activeCompany,
       activeCompanyId,
       rol,
+      paginas,
       isAuthenticated: !!user,
       booting,
       login,
       logout,
       selectCompany,
     }),
-    [user, companies, activeCompany, activeCompanyId, rol, booting, login, logout, selectCompany]
+    [user, companies, activeCompany, activeCompanyId, rol, paginas, booting, login, logout, selectCompany]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

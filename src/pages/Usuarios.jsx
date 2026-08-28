@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react'
 import './Usuarios.css'
 import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
+import { PAGINAS, paginasDelRol } from '../auth/roles'
 
 const ROLES = [
   {
@@ -38,8 +39,17 @@ const ROLES = [
 
 const ROL_LABEL = Object.fromEntries(ROLES.map((r) => [r.value, r.label]))
 
-const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+/**
+ * Páginas VISIBLES efectivas de una fila: su lista guardada (o todas las de
+ * su rol si está vacía), recortada al alcance del rol. La matriz sólo
+ * recorta: una página fuera del alcance del rol no se puede prender aquí —
+ * para eso se cambia el rol (el backend igual rechazaría la operación).
+ */
+const visiblesDe = (row) => {
+  const alcance = paginasDelRol(row.construccionRol)
+  const base = row.paginas?.length ? row.paginas : alcance
+  return new Set(base.filter((k) => alcance.includes(k)))
+}
 
 const EMPTY_FORM = { name: '', email: '', password: '', construccionRol: 'RESIDENTE' }
 
@@ -98,13 +108,38 @@ const Usuarios = () => {
 
   const cambiarRol = async (row, construccionRol) => {
     try {
+      // Cambiar de rol resetea la matriz de páginas ([] = todas las del rol):
+      // arrastrar recortes del rol anterior daría visibilidades inexplicables.
       await apiFetch(`/api/construccion/usuarios/${row.memberId}?companyId=${encodeURIComponent(cid)}`, {
         method: 'PATCH',
-        body: { construccionRol },
+        body: { construccionRol, paginas: [] },
       })
       load()
     } catch (err) {
       window.alert(err.message || 'No se pudo cambiar el rol.')
+    }
+  }
+
+  const togglePagina = async (row, key) => {
+    const alcance = paginasDelRol(row.construccionRol)
+    if (!alcance.includes(key)) return
+    const esAdminRow = !row.construccionRol || row.construccionRol === 'ADMIN'
+    if (esAdminRow && key === 'usuarios') return // un admin nunca pierde Usuarios
+    const vis = visiblesDe(row)
+    if (vis.has(key)) vis.delete(key)
+    else vis.add(key)
+    if (vis.size === 0) { window.alert('Debe quedar al menos una página visible.'); return }
+    // Todas prendidas = sin restricción ([]): así un rol nuevo no arrastra lista.
+    const lista = alcance.every((k) => vis.has(k)) ? [] : [...vis]
+    setRows((rs) => rs.map((r) => (r.memberId === row.memberId ? { ...r, paginas: lista } : r)))
+    try {
+      await apiFetch(`/api/construccion/usuarios/${row.memberId}?companyId=${encodeURIComponent(cid)}`, {
+        method: 'PATCH',
+        body: { paginas: lista },
+      })
+    } catch (err) {
+      window.alert(err.message || 'No se pudo guardar el cambio.')
+      load()
     }
   }
 
@@ -181,25 +216,33 @@ const Usuarios = () => {
           ) : error ? (
             <div className="usr-empty">{error}</div>
           ) : (
+            <>
             <div className="scroll-x">
-              <table className="ptable usr-table">
+              <table className="ptable usr-table usr-matrix">
                 <thead>
                   <tr>
                     <th>Usuario</th>
                     <th>Rol</th>
-                    <th>Desde</th>
+                    {PAGINAS.map((p) => (
+                      <th key={p.key} className="usr-pag-th"><span>{p.label}</span></th>
+                    ))}
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => (
+                  {rows.map((row) => {
+                    const alcance = paginasDelRol(row.construccionRol)
+                    const vis = visiblesDe(row)
+                    const esAdminRow = !row.construccionRol || row.construccionRol === 'ADMIN'
+                    const puedeEditar = editable(row)
+                    return (
                     <tr key={row.memberId}>
                       <td>
                         <div className="usr-name">{row.name || '—'}{row.userId === me?.id && <span className="usr-you"> (tú)</span>}</div>
                         <div className="usr-mail">{row.email}</div>
                       </td>
                       <td>
-                        {editable(row) ? (
+                        {puedeEditar ? (
                           <select
                             className="usr-rol"
                             value={row.construccionRol ?? 'ADMIN'}
@@ -215,9 +258,30 @@ const Usuarios = () => {
                           </span>
                         )}
                       </td>
-                      <td className="usr-since">{fmtDate(row.createdAt)}</td>
+                      {PAGINAS.map((p) => {
+                        const enAlcance = alcance.includes(p.key)
+                        const fija = esAdminRow && p.key === 'usuarios'
+                        if (!enAlcance) {
+                          return (
+                            <td key={p.key} className="usr-pag c" title={`Fuera del alcance del rol ${ROL_LABEL[row.construccionRol] ?? 'Admin'} — cámbiale el rol para dársela`}>
+                              <span className="usr-pag-na">—</span>
+                            </td>
+                          )
+                        }
+                        return (
+                          <td key={p.key} className="usr-pag c">
+                            <input
+                              type="checkbox"
+                              checked={vis.has(p.key)}
+                              disabled={!puedeEditar || fija}
+                              title={fija ? 'Un admin siempre conserva Usuarios' : `${p.label}: ${vis.has(p.key) ? 'visible' : 'oculta'}`}
+                              onChange={() => togglePagina(row, p.key)}
+                            />
+                          </td>
+                        )
+                      })}
                       <td className="r">
-                        {editable(row) && (
+                        {puedeEditar && (
                           <div className="usr-actions">
                             <button className="usr-link" onClick={() => { setNombreFor(row.memberId); setNombreVal(row.name || '') }}>
                               nombre
@@ -232,10 +296,19 @@ const Usuarios = () => {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
+            <p className="usr-matrix-help">
+              ✓ página visible para ese usuario · casilla vacía = oculta ·
+              «—» = fuera del alcance de su rol (cámbiale el rol para dársela).
+              El rol sigue mandando sobre lo que puede <strong>hacer</strong>
+              (autorizar, pagar, editar); la matriz sólo recorta lo que
+              <strong> ve</strong>.
+            </p>
+            </>
           )}
         </div>
 
