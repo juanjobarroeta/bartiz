@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
-import { rutaPermitida, ROL_HOME } from './auth/roles'
+import { rutaPermitida, homePermitida } from './auth/roles'
 import Layout from './components/Layout'
 import { DialogHost } from './components/Dialog'
 import Login from './pages/Login'
@@ -47,10 +47,10 @@ function RequireAuth({ children }) {
  * la misma allowlist sobre los endpoints, esto es sólo la capa de UX.
  */
 function RolGate({ children }) {
-  const { rol } = useAuth()
+  const { rol, paginas } = useAuth()
   const location = useLocation()
-  if (!rutaPermitida(rol, location.pathname)) {
-    return <Navigate to={ROL_HOME[rol] ?? '/'} replace />
+  if (!rutaPermitida(rol, location.pathname, paginas)) {
+    return <Navigate to={homePermitida(rol, paginas)} replace />
   }
   return children
 }

@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { rutaPermitida } from '../auth/roles'
 import { apiFetch } from '../config/api'
 import { activarPush, desactivarPush, estadoPush } from '../lib/push'
 import './Layout.css'
@@ -321,7 +322,7 @@ function PasswordModal({ onClose }) {
 
 const Layout = ({ children }) => {
   const location = useLocation()
-  const { user, activeCompany, logout, rol } = useAuth()
+  const { user, activeCompany, logout, rol, paginas } = useAuth()
   const [theme, toggleTheme] = useTheme()
   const [moreOpen, setMoreOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
@@ -333,7 +334,12 @@ const Layout = ({ children }) => {
   // endpoints en su allowlist (y su nav tampoco muestra los badges).
   const esAdmin = !rol || rol === 'ADMIN'
   const sideCounts = useSideCounts(esAdmin || rol === 'CONTABILIDAD' ? activeCompany?.id : null, location.pathname)
+  // La matriz de páginas del miembro recorta la navegación de su rol: se
+  // filtra cada item por rutaPermitida y se tiran las secciones vacías.
+  const visible = (item) => rutaPermitida(rol, item.path, paginas)
   const secciones = seccionesPorRol(rol)
+    .map((sec) => ({ ...sec, items: sec.items.filter(visible) }))
+    .filter((sec) => sec.items.length > 0)
   const [pwdOpen, setPwdOpen] = useState(false)
 
   // Cerrar menús al navegar o al hacer clic fuera.
@@ -465,7 +471,7 @@ const Layout = ({ children }) => {
         </Link>
 
         <nav className="bz-nav">
-          {(esAdmin ? PRIMARY_NAV : secciones.flatMap((sec) => sec.items)).map((item) => (
+          {(esAdmin ? PRIMARY_NAV.filter(visible) : secciones.flatMap((sec) => sec.items)).map((item) => (
             <Link
               key={item.path}
               to={item.path}
@@ -485,7 +491,7 @@ const Layout = ({ children }) => {
             </button>
             {moreOpen && (
               <div className="bz-menu">
-                {MORE_NAV.map((item) => (
+                {MORE_NAV.filter(visible).map((item) => (
                   <Link
                     key={item.path}
                     to={item.path}

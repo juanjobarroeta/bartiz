@@ -105,3 +105,36 @@
   border-radius: 999px;
   cursor: pointer;
 }
+
+/* ── Matriz de permisos (páginas por usuario) ─────────────────────────── */
+.usr-matrix .usr-pag-th {
+  padding: 6px 3px;
+  vertical-align: bottom;
+  text-align: center;
+}
+.usr-matrix .usr-pag-th span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--ink-3, var(--ink2));
+  white-space: nowrap;
+}
+.usr-matrix .usr-pag {
+  text-align: center;
+  padding: 6px 3px;
+}
+.usr-matrix .usr-pag input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--deep);
+  cursor: pointer;
+}
+.usr-matrix .usr-pag input[type='checkbox']:disabled { cursor: default; opacity: 0.55; }
+.usr-pag-na { color: var(--ink-3, var(--ink2)); opacity: 0.45; }
+.usr-matrix-help {
+  font-size: 12.5px;
+  color: var(--ink-3, var(--ink2));
+  margin: 10px 2px 0;
+  line-height: 1.5;
+}
