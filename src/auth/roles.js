@@ -89,23 +89,27 @@ export function paginasDelRol(rol) {
 }
 
 /**
- * ¿Puede verse esta ruta? Dos capas:
- *   1. El rol (seguridad, espejo del allowlist del backend).
- *   2. La matriz de páginas (visibilidad): lista no-vacía = sólo esas llaves.
- * Un ADMIN nunca pierde 'usuarios' — evita que un admin deje a los demás
- * (o a sí mismo) sin la página que administra la matriz.
+ * ¿Puede verse esta ruta? La MATRIZ manda sobre las páginas con llave:
+ * lista no-vacía = exactamente esas páginas (incluye GRANTS: páginas fuera
+ * del alcance natural del rol que un admin marcó — el backend amplía el
+ * allowlist con el bundle de esa página); lista vacía = las naturales del
+ * rol. Las rutas sin llave (el Panel) siguen la regla original del rol.
+ *
+ * Un ADMIN nunca pierde 'usuarios'; un rol restringido nunca la gana (la
+ * ruta del backend exige OWNER/ADMIN y un grant no puede abrirla).
  */
 export function rutaPermitida(rol, pathname, paginas = []) {
   const esAdmin = !rol || rol === 'ADMIN'
-  if (!esAdmin) {
-    const allowed = ROL_PREFIXES[rol] ?? []
-    if (!allowed.some((p) => pathname === p || pathname.startsWith(p + '/'))) return false
-  }
-  if (!Array.isArray(paginas) || paginas.length === 0) return true
   const key = paginaDePath(pathname)
-  if (!key) return true // Panel y rutas fuera del catálogo
-  if (esAdmin && key === 'usuarios') return true
-  return paginas.includes(key)
+  if (!key) {
+    if (esAdmin) return true
+    const allowed = ROL_PREFIXES[rol] ?? []
+    return allowed.some((p) => pathname === p || pathname.startsWith(p + '/'))
+  }
+  if (key === 'usuarios') return esAdmin
+  const lista = Array.isArray(paginas) ? paginas : []
+  const visibles = lista.length ? lista : paginasDelRol(rol)
+  return visibles.includes(key)
 }
 
 /** Home efectivo: el del rol, o la primera página visible si se lo taparon. */

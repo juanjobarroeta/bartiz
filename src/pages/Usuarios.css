@@ -138,3 +138,5 @@
   margin: 10px 2px 0;
   line-height: 1.5;
 }
+.usr-matrix .usr-pag input.usr-pag-extra { accent-color: #b8860b; outline: 2px solid rgba(184, 134, 11, 0.35); outline-offset: 1px; border-radius: 3px; }
+.usr-extra-chip { color: #b8860b; font-weight: 600; }

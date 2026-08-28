@@ -45,11 +45,13 @@ const CATEGORIAS_INDIRECTO = [
 export default function ReembolsoDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { activeCompany } = useAuth()
+  const { activeCompany, user, rol } = useAuth()
   const [reembolso, setReembolso] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [showNew, setShowNew] = useState(false)
+  // Gasto al que se le busca CFDI (modal de conciliación de caja chica)
+  const [cfdiFor, setCfdiFor] = useState(null)
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const reload = useCallback(async () => {
@@ -175,6 +177,11 @@ export default function ReembolsoDetalle() {
   if (!reembolso) return <div className="pd-empty">No encontrado.</div>
 
   const frozen = reembolso.estado === 'REEMBOLSADO'
+  // Cada caja tiene dueño: sólo él (y los admins) editan/agregan gastos; las
+  // decisiones (revisar, cerrar) son de admin. El backend hace cumplir ambos.
+  const esAdmin = !rol || rol === 'ADMIN'
+  const esDueno = !!reembolso.creadaPorId && reembolso.creadaPorId === user?.id
+  const puedeEditar = esAdmin || esDueno
 
   return (
     <div className="reembolso-detalle">
@@ -189,8 +196,8 @@ export default function ReembolsoDetalle() {
             {' '}
             <span className="muted small">
               Caja: {reembolso.bankAccount?.nombre}
-              {reembolso.bankAccount?.titular && (
-                <> · responsable: <strong>{reembolso.bankAccount.titular}</strong></>
+              {(reembolso.creadaPorNombre || reembolso.bankAccount?.titular) && (
+                <> · responsable: <strong>{reembolso.creadaPorNombre ?? reembolso.bankAccount?.titular}</strong></>
               )}
             </span>
           </div>
@@ -203,7 +210,7 @@ export default function ReembolsoDetalle() {
           <div className="row">
             <span>
               Anticipo previo
-              {!frozen && <button type="button" className="link small" onClick={setAnticipo}>editar</button>}
+              {!frozen && puedeEditar && <button type="button" className="link small" onClick={setAnticipo}>editar</button>}
             </span>
             <strong>−{fmtMoney(reembolso.anticipoAplicado)}</strong>
           </div>
@@ -218,26 +225,37 @@ export default function ReembolsoDetalle() {
         <div className="reembolso-actions">
           {!frozen && (
             <>
-              <button className="secondary" disabled={busy} onClick={() => setShowNew(true)}>+ Agregar gasto</button>
-              {reembolso.estado === 'SUBMITTED' && (
+              {puedeEditar && (
+                <button className="secondary" disabled={busy} onClick={() => setShowNew(true)}>+ Agregar gasto</button>
+              )}
+              {!puedeEditar && (
+                <span className="muted small">
+                  Caja de {reembolso.creadaPorNombre ?? 'otro usuario'} — sólo su responsable o un admin la editan.
+                </span>
+              )}
+              {esAdmin && reembolso.estado === 'SUBMITTED' && (
                 <button className="secondary" disabled={busy} onClick={marcarRevisado}>Marcar revisado</button>
               )}
-              <button
-                className="primary"
-                disabled={busy || reembolso.gastos.length === 0 || reembolso.totalReembolso <= 0}
-                onClick={reembolsar}
-                title="Cierra el período y vincula un movimiento bancario (preferido si el reembolso pasa por una cuenta del banco)."
-              >
-                ✓ Cerrar con movimiento banco
-              </button>
-              <button
-                className="secondary"
-                disabled={busy || reembolso.gastos.length === 0}
-                onClick={cerrarOffBooks}
-                title="Cierra el período sin crear movimiento bancario. Úsalo cuando el reembolso se maneja fuera del sistema."
-              >
-                Cerrar off-books
-              </button>
+              {esAdmin && (
+                <>
+                  <button
+                    className="primary"
+                    disabled={busy || reembolso.gastos.length === 0 || reembolso.totalReembolso <= 0}
+                    onClick={reembolsar}
+                    title="Cierra el período y vincula un movimiento bancario (preferido si el reembolso pasa por una cuenta del banco)."
+                  >
+                    ✓ Cerrar con movimiento banco
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy || reembolso.gastos.length === 0}
+                    onClick={cerrarOffBooks}
+                    title="Cierra el período sin crear movimiento bancario. Úsalo cuando el reembolso se maneja fuera del sistema."
+                  >
+                    Cerrar off-books
+                  </button>
+                </>
+              )}
             </>
           )}
           {frozen && (
@@ -277,6 +295,8 @@ export default function ReembolsoDetalle() {
                   key={g.id}
                   gasto={g}
                   frozen={frozen}
+                  puedeEditar={puedeEditar}
+                  onCfdi={() => setCfdiFor(g)}
                   onDelete={() => eliminarGasto(g.id)}
                 />
               ))}
@@ -294,6 +314,14 @@ export default function ReembolsoDetalle() {
         )}
       </div>
 
+      {cfdiFor && (
+        <CfdiMatchModal
+          gasto={cfdiFor}
+          onClose={() => setCfdiFor(null)}
+          onLinked={() => { setCfdiFor(null); reload() }}
+        />
+      )}
+
       <BankTxPicker
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
@@ -307,6 +335,77 @@ export default function ReembolsoDetalle() {
         expectedAmount={reembolso.totalReembolso}
         title={`Cerrar período — vincular movimiento bancario (${fmtMoney(reembolso.totalReembolso)})`}
       />
+    </div>
+  )
+}
+
+/**
+ * Modal de conciliación: CFDIs recibidos que probablemente amparan este
+ * gasto (por RFC del proveedor etiquetado, monto y fecha). Elegir uno lo
+ * vincula (targetTipo GASTO) y el gasto queda respaldado por factura —
+ * deducible. Las sugerencias vienen de gastos/[id]/cfdi-candidatos.
+ */
+function CfdiMatchModal({ gasto, onClose, onLinked }) {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    apiFetch(`/api/construccion/gastos/${gasto.id}/cfdi-candidatos`)
+      .then(setData)
+      .catch((e) => setError(e.message || 'No se pudieron cargar sugerencias'))
+  }, [gasto.id])
+
+  const vincular = async (c) => {
+    setBusy(true)
+    try {
+      await apiFetch(`/api/construccion/cfdis/${c.id}/vincular`, {
+        method: 'POST',
+        body: { tipo: 'GASTO', targetId: gasto.id },
+      })
+      onLinked?.()
+    } catch (err) {
+      alertDialog({ message: err.message || 'No se pudo vincular el CFDI' })
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-content" style={{ maxWidth: 560 }}>
+        <h3>CFDI para: {gasto.beneficiarioNombre} · {fmtMoney(gasto.importe)}</h3>
+        {error ? (
+          <p className="muted small">{error}</p>
+        ) : !data ? (
+          <p className="muted small">Buscando facturas que cuadren…</p>
+        ) : data.candidatos.length === 0 ? (
+          <p className="muted small">
+            No hay CFDIs recibidos que cuadren (±45 días, sin vincular).
+            {!gasto.supplierId && ' Etiqueta el proveedor del gasto para buscar por su RFC.'}
+          </p>
+        ) : (
+          <div className="cfdi-cands">
+            {data.candidatos.map((c) => (
+              <div key={c.id} className="cfdi-cand">
+                <div>
+                  <strong>{c.emisorNombre ?? c.emisorRfc ?? 'Emisor desconocido'}</strong>
+                  <div className="muted small">
+                    {new Date(c.fecha).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
+                    {' · '}{fmtMoney(c.total)}
+                    {c.razones.length > 0 && <> · {c.razones.join(' · ')}</>}
+                  </div>
+                </div>
+                <button type="button" className="secondary" disabled={busy} onClick={() => vincular(c)}>
+                  Vincular
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+          <button type="button" className="secondary" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -337,7 +436,7 @@ function ReembolsoComprobanteLink({ gasto }) {
   )
 }
 
-function GastoRowInline({ gasto, frozen, onDelete }) {
+function GastoRowInline({ gasto, frozen, puedeEditar, onCfdi, onDelete }) {
   const puReal = gasto.cantidad ? gasto.importe / gasto.cantidad : null
   const puCatalogo = gasto.insumo?.costoActual ?? null
   const variancePct = puReal && puCatalogo ? ((puReal - puCatalogo) / puCatalogo) * 100 : null
@@ -353,6 +452,19 @@ function GastoRowInline({ gasto, frozen, onDelete }) {
             <ReembolsoComprobanteLink gasto={gasto} />
           </div>
         )}
+        <div className="small" style={{ marginTop: '0.2rem' }}>
+          {gasto.cfdiVinculado ? (
+            <span style={{ color: '#15803d' }} title={gasto.cfdiVinculado.uuid ?? ''}>
+              📄 CFDI ✓ {gasto.cfdiVinculado.emisor ?? ''} · {fmtMoney(gasto.cfdiVinculado.total)}
+            </span>
+          ) : (
+            puedeEditar && !frozen && (
+              <button type="button" className="link small" onClick={onCfdi}>
+                Buscar CFDI…
+              </button>
+            )
+          )}
+        </div>
       </td>
       <td className="small">
         {gasto.insumo ? (
@@ -389,6 +501,10 @@ function GastoRowInline({ gasto, frozen, onDelete }) {
 
 function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
   const [beneficiarioNombre, setBeneficiario] = useState('')
+  // Proveedor etiquetado (opcional): rellena beneficiario y habilita las
+  // sugerencias de CFDI por RFC al conciliar.
+  const [suppliers, setSuppliers] = useState([])
+  const [supplierId, setSupplierId] = useState('')
   const [descripcion, setDesc] = useState('')
   const [importe, setImporte] = useState('')
   const [cantidad, setCantidad] = useState('')
@@ -402,6 +518,19 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
   const [comprobanteFile, setComprobanteFile] = useState(null)
   const [busy, setBusy] = useState(false)
   const timer = useRef(null)
+
+  useEffect(() => {
+    if (!companyId) return
+    apiFetch(`/api/construccion/suppliers?companyId=${encodeURIComponent(companyId)}`)
+      .then((d) => setSuppliers(Array.isArray(d) ? d : []))
+      .catch(() => {})
+  }, [companyId])
+
+  const pickSupplier = (id) => {
+    setSupplierId(id)
+    const s = suppliers.find((x) => x.id === id)
+    if (s && !beneficiarioNombre.trim()) setBeneficiario(s.razonSocial)
+  }
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
@@ -455,6 +584,7 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
         method: 'POST',
         body: {
           beneficiarioNombre: beneficiarioNombre.trim(),
+          supplierId: supplierId || null,
           descripcion: descripcion.trim(),
           importe: imp,
           cantidad: cantNum && cantNum > 0 ? cantNum : null,
@@ -478,6 +608,15 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
 
   return (
     <form className="new-gasto-inline" onSubmit={submit}>
+      <label>
+        <span>Proveedor (opcional — habilita sugerir su CFDI)</span>
+        <select value={supplierId} onChange={(e) => pickSupplier(e.target.value)}>
+          <option value="">— Sin proveedor</option>
+          {suppliers.map((s) => (
+            <option key={s.id} value={s.id}>{s.razonSocial}</option>
+          ))}
+        </select>
+      </label>
       <div className="row">
         <label>
           <span>Beneficiario</span>

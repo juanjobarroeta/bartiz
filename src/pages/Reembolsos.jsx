@@ -279,6 +279,7 @@ export default function Reembolsos() {
                   <tr>
                     <th>Semana</th>
                     <th>Proyecto</th>
+                    <th>Responsable</th>
                     <th>Estado</th>
                     <th style={{ textAlign: 'right' }}># gastos</th>
                     <th style={{ textAlign: 'right' }}>Total gastos</th>
@@ -295,6 +296,7 @@ export default function Reembolsos() {
                     >
                       <td>{fmtDate(r.semanaInicio)} — {fmtDate(r.semanaFin)}</td>
                       <td>{r.proyecto?.codigo} <span className="muted small">{r.proyecto?.nombre}</span></td>
+                      <td className="muted small">{r.creadaPorNombre ?? '—'}</td>
                       <td><span className={`badge estado-${r.estado.toLowerCase()}`}>{r.estado}</span></td>
                       <td style={{ textAlign: 'right' }}>{r._count?.gastos ?? 0}</td>
                       <td style={{ textAlign: 'right' }}>{fmtMoney(r.totalGastos)}</td>

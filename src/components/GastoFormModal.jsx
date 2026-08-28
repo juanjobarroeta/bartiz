@@ -8,7 +8,7 @@
  * admin lo aprueba → cae en Pagos → tesorería lo paga.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
 import FileUpload from './FileUpload'
@@ -45,10 +45,44 @@ export default function GastoFormModal({ onClose, onSaved, presetCaja = false })
     categoria: presetCaja ? 'OTRO' : '',
     comprobanteTipo: 'NOTA',
     notas: '',
+    cantidad: '',
+    unidad: '',
   })
   const [file, setFile] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // Autocompletado desde el catálogo (mismo sugerir que requisiciones/caja):
+  // al escribir la descripción se ofrecen insumos (y partidas si hay obra);
+  // elegir un insumo lo vincula al gasto y rellena la unidad.
+  const [sugerencias, setSugerencias] = useState({ insumos: [], partidas: [] })
+  const [insumoPick, setInsumoPick] = useState(null) // { id, codigo, descripcion, unidad }
+  const sugTimer = useRef(null)
+
+  useEffect(() => {
+    if (sugTimer.current) clearTimeout(sugTimer.current)
+    const q = form.descripcion.trim()
+    if (q.length < 2 || !companyId || insumoPick) {
+      setSugerencias({ insumos: [], partidas: [] })
+      return
+    }
+    sugTimer.current = setTimeout(() => {
+      const proy = form.proyectoId ? `&proyectoId=${encodeURIComponent(form.proyectoId)}` : ''
+      apiFetch(`/api/construccion/gastos/sugerir?companyId=${encodeURIComponent(companyId)}${proy}&q=${encodeURIComponent(q)}`)
+        .then((d) => setSugerencias(d && typeof d === 'object' ? d : { insumos: [], partidas: [] }))
+        .catch(() => {})
+    }, 250)
+    return () => clearTimeout(sugTimer.current)
+  }, [form.descripcion, form.proyectoId, companyId, insumoPick])
+
+  const pickInsumo = (i) => {
+    setInsumoPick(i)
+    setSugerencias({ insumos: [], partidas: [] })
+    setForm((f) => ({
+      ...f,
+      descripcion: i.descripcion,
+      unidad: f.unidad || i.unidad || '',
+    }))
+  }
 
   useEffect(() => {
     if (!companyId) return
@@ -80,10 +114,13 @@ export default function GastoFormModal({ onClose, onSaved, presetCaja = false })
           beneficiarioNombre: beneficiario,
           descripcion: form.descripcion.trim(),
           importe: Number(form.importe),
-          // Gasto de obra sin partida = indirecto con categoría (regla de
-          // atribución del backend); gasto general se atribuye por
-          // proveedor/categoría.
-          indirecto: !!form.proyectoId,
+          cantidad: form.cantidad ? Number(form.cantidad) : null,
+          unidad: form.unidad.trim() || null,
+          // Con insumo del catálogo elegido, el gasto es DIRECTO (se atribuye
+          // al insumo). Si no: gasto de obra = indirecto con categoría;
+          // gasto general se atribuye por proveedor/categoría.
+          insumoId: insumoPick?.id ?? null,
+          indirecto: !insumoPick && !!form.proyectoId,
           categoriaIndirecto: form.categoria || null,
           comprobanteTipo: form.comprobanteTipo,
           comprobanteData: file?.data ?? null,
@@ -133,12 +170,53 @@ export default function GastoFormModal({ onClose, onSaved, presetCaja = false })
             Descripción
             <input
               value={form.descripcion}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-              placeholder="¿Qué se compró / pagó?"
+              onChange={(e) => { setInsumoPick(null); setForm({ ...form, descripcion: e.target.value }) }}
+              placeholder="¿Qué se compró / pagó? (busca en el catálogo)"
               required
               maxLength={500}
             />
           </label>
+          {insumoPick && (
+            <div className="gf-insumo-pick">
+              🟢 <span className="mono">{insumoPick.codigo}</span> {insumoPick.descripcion}
+              {insumoPick.unidad ? ` · ${insumoPick.unidad}` : ''}
+              <button type="button" className="link small" onClick={() => setInsumoPick(null)}>quitar</button>
+            </div>
+          )}
+          {!insumoPick && sugerencias.insumos?.length > 0 && (
+            <div className="gf-sugerencias">
+              {sugerencias.insumos.slice(0, 6).map((i) => (
+                <button key={i.id} type="button" className="gf-sug" onClick={() => pickInsumo(i)}>
+                  <span className="mono">{i.codigo}</span> {i.descripcion}
+                  {i.unidad ? <span className="muted"> · {i.unidad}</span> : null}
+                  {i.costoActual != null ? <span className="muted"> · ${Number(i.costoActual).toFixed(2)}</span> : null}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="gf-row">
+            <label>
+              Cantidad
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={form.cantidad}
+                onChange={(e) => setForm({ ...form, cantidad: e.target.value })}
+                placeholder="opcional"
+              />
+            </label>
+            <label>
+              Unidad
+              <input
+                value={form.unidad}
+                onChange={(e) => setForm({ ...form, unidad: e.target.value })}
+                placeholder="pza, m3, kg…"
+                maxLength={20}
+              />
+            </label>
+          </div>
           <div className="gf-row">
             <label>
               Importe (MXN)
