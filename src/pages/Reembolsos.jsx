@@ -30,8 +30,12 @@ const fmtMoney = (n) =>
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' }) : '—'
 
-function NewReembolsoForm({ proyectos, bankAccounts, defaultMonday, onClose, onCreated }) {
+function NewReembolsoForm({ proyectos, bankAccounts, defaultMonday, isCajaChica, onClose, onCreated }) {
   const [proyectoId, setProyectoId] = useState(proyectos[0]?.id ?? '')
+  // Caja chica es EFECTIVO: no se pregunta cuenta bancaria al abrir el
+  // período (el backend lo ancla a la cuenta CAJA, creándola si no existe);
+  // la cuenta que reembolsa se elige al CERRAR. En reembolsos semanales sí
+  // se pide la cuenta que pagará el SPEI (default: cheques).
   const cheques = bankAccounts.find(a => a.tipo === 'CHEQUES') ?? bankAccounts[0]
   const [bankAccountId, setBankAccountId] = useState(cheques?.id ?? '')
   const [lunes, setLunes] = useState(defaultMonday)
@@ -41,7 +45,7 @@ function NewReembolsoForm({ proyectos, bankAccounts, defaultMonday, onClose, onC
 
   const submit = async (e) => {
     e.preventDefault()
-    if (!proyectoId || !bankAccountId || !lunes) return
+    if (!proyectoId || !lunes || (!isCajaChica && !bankAccountId)) return
     const inicio = new Date(lunes + 'T00:00:00')
     const fin = new Date(inicio)
     fin.setDate(fin.getDate() + 6)
@@ -52,7 +56,7 @@ function NewReembolsoForm({ proyectos, bankAccounts, defaultMonday, onClose, onC
         method: 'POST',
         body: {
           proyectoId,
-          bankAccountId,
+          ...(isCajaChica ? {} : { bankAccountId }),
           semanaInicio: inicio.toISOString(),
           semanaFin: fin.toISOString(),
           anticipoAplicado: parseFloat(anticipo) || 0,
@@ -79,17 +83,24 @@ function NewReembolsoForm({ proyectos, bankAccounts, defaultMonday, onClose, onC
         <span>Lunes de la semana</span>
         <input type="date" value={lunes} onChange={(e) => setLunes(e.target.value)} required />
       </label>
-      <label>
-        <span>Cuenta bancaria (desde donde se paga)</span>
-        <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} required>
-          {bankAccounts.map(a => (
-            <option key={a.id} value={a.id}>
-              {a.banco} — {a.nombre}
-              {a.tipo === 'CAJA' ? ' (Caja chica)' : a.tipo === 'TARJETA_DEPARTAMENTAL' ? ` (TD ${a.titular ?? ''})` : ''}
-            </option>
-          ))}
-        </select>
-      </label>
+      {isCajaChica ? (
+        <p className="muted small" style={{ margin: '0.25rem 0 0.5rem' }}>
+          El período se lleva en efectivo (caja). La cuenta que repone o
+          reembolsa al responsable se elige al <strong>cerrar</strong> el período.
+        </p>
+      ) : (
+        <label>
+          <span>Cuenta bancaria (desde donde se paga)</span>
+          <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} required>
+            {bankAccounts.map(a => (
+              <option key={a.id} value={a.id}>
+                {a.banco} — {a.nombre}
+                {a.tipo === 'CAJA' ? ' (Caja chica)' : a.tipo === 'TARJETA_DEPARTAMENTAL' ? ` (TD ${a.titular ?? ''})` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label>
         <span>Anticipo previo de caja chica (opcional)</span>
         <input type="number" step="0.01" min="0" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} />
@@ -161,7 +172,8 @@ export default function Reembolsos() {
 
   const openNewModal = () => {
     if (proyectos.length === 0) { alertDialog({ message: 'Crea un proyecto primero.' }); return }
-    if (bankAccounts.length === 0) { alertDialog({ message: 'Configura una cuenta bancaria primero (Tesorería).' }); return }
+    // Caja chica no necesita cuenta bancaria para abrir período (es efectivo).
+    if (!isCajaChica && bankAccounts.length === 0) { alertDialog({ message: 'Configura una cuenta bancaria primero (Tesorería).' }); return }
     setNewOpen(true)
   }
 
@@ -230,6 +242,7 @@ export default function Reembolsos() {
         <NewReembolsoForm
           proyectos={proyectos}
           bankAccounts={bankAccounts}
+          isCajaChica={isCajaChica}
           defaultMonday={mondayOf().toISOString().slice(0, 10)}
           onClose={() => setNewOpen(false)}
           onCreated={(id) => { setNewOpen(false); navigate(`${detailBase}/${id}`) }}
