@@ -509,7 +509,6 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
   const [importe, setImporte] = useState('')
   const [cantidad, setCantidad] = useState('')
   const [unidad, setUnidad] = useState('')
-  const [mode, setMode] = useState('directo')
   const [insumoId, setInsumoId] = useState(null)
   const [presupuestoPartidaId, setPartidaId] = useState(null)
   const [picked, setPicked] = useState(null)
@@ -560,11 +559,6 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
     setPicked({ tipo: 'partida', ...p })
   }
   const clearPick = () => { setInsumoId(null); setPartidaId(null); setPicked(null) }
-  const switchMode = (m) => {
-    setMode(m)
-    if (m !== 'directo') clearPick()
-    if (m !== 'indirecto') setCategoriaIndirecto('')
-  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -572,10 +566,12 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
     if (!beneficiarioNombre.trim() || !descripcion.trim() || !(imp > 0)) {
       alertDialog({ message: 'Completa beneficiario, descripción e importe.' }); return
     }
-    const isDirecto = mode === 'directo' && (insumoId || presupuestoPartidaId)
-    const isIndirecto = mode === 'indirecto' && categoriaIndirecto.trim().length > 0
+    // Sin botones de modo: con insumo/partida elegido del catálogo el gasto
+    // es DIRECTO; si no, es indirecto y pide su categoría.
+    const isDirecto = !!(insumoId || presupuestoPartidaId)
+    const isIndirecto = !isDirecto && categoriaIndirecto.trim().length > 0
     if (!isDirecto && !isIndirecto) {
-      alertDialog({ message: 'Elige insumo/partida (directo) o una categoría indirecta.' }); return
+      alertDialog({ message: 'Elige un insumo/partida del catálogo, o una categoría para el gasto.' }); return
     }
     const cantNum = cantidad ? parseFloat(cantidad) : null
     setBusy(true)
@@ -642,54 +638,44 @@ function NewGastoInline({ reembolso, companyId, onClose, onCreated }) {
         </label>
       </div>
 
-      <div className="mode-tabs">
-        <button type="button" className={mode === 'directo' ? 'active' : ''} onClick={() => switchMode('directo')}>
-          🟢 Directo
-        </button>
-        <button type="button" className={mode === 'indirecto' ? 'active' : ''} onClick={() => switchMode('indirecto')}>
-          ⚫ Indirecto
-        </button>
-      </div>
-
-      {mode === 'directo' && (
-        <>
-          {(suggestions.insumos.length > 0 || suggestions.partidas.length > 0) && !picked && (
-            <div className="suggest-box">
-              {suggestions.insumos.slice(0, 4).map(i => (
-                <button type="button" key={i.id} className="suggest-item" onClick={() => pickInsumo(i)}>
-                  <span className="mono">{i.codigo}</span> {i.descripcion.slice(0, 40)}
-                  <span className="muted small"> · {i.unidad} · ${i.costoActual?.toFixed(2)}/u</span>
-                </button>
-              ))}
-              {suggestions.partidas.slice(0, 3).map(p => (
-                <button type="button" key={p.id} className="suggest-item" onClick={() => pickPartida(p)}>
-                  <span className="mono">{p.codigo ?? p.concepto?.codigo}</span> {p.concepto?.descripcion?.slice(0, 30)}
-                  <span className="muted small"> · queda {fmtMoney(p.queda)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {picked && (
-            <div className="picked">
-              Vinculado: <span className="mono">{picked.codigo ?? picked.concepto?.codigo}</span>
-              <button type="button" className="link small" onClick={clearPick}>quitar</button>
-            </div>
-          )}
-        </>
-      )}
-
-      {mode === 'indirecto' && (
-        <div className="cat-chips">
-          {CATEGORIAS_INDIRECTO.map(c => (
-            <button
-              key={c.id}
-              type="button"
-              className={categoriaIndirecto === c.id ? 'active' : ''}
-              onClick={() => setCategoriaIndirecto(c.id)}
-            >
-              {c.label}
+      {/* Sin botones Directo/Indirecto: elegir del catálogo = directo;
+          sin elección, las categorías de abajo lo clasifican solas. */}
+      {(suggestions.insumos.length > 0 || suggestions.partidas.length > 0) && !picked && (
+        <div className="suggest-box">
+          {suggestions.insumos.slice(0, 4).map(i => (
+            <button type="button" key={i.id} className="suggest-item" onClick={() => pickInsumo(i)}>
+              <span className="mono">{i.codigo}</span> {i.descripcion.slice(0, 40)}
+              <span className="muted small"> · {i.unidad} · ${i.costoActual?.toFixed(2)}/u</span>
             </button>
           ))}
+          {suggestions.partidas.slice(0, 3).map(p => (
+            <button type="button" key={p.id} className="suggest-item" onClick={() => pickPartida(p)}>
+              <span className="mono">{p.codigo ?? p.concepto?.codigo}</span> {p.concepto?.descripcion?.slice(0, 30)}
+              <span className="muted small"> · queda {fmtMoney(p.queda)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {picked ? (
+        <div className="picked">
+          Vinculado al catálogo: <span className="mono">{picked.codigo ?? picked.concepto?.codigo}</span>
+          <button type="button" className="link small" onClick={clearPick}>quitar</button>
+        </div>
+      ) : (
+        <div>
+          <span className="muted small">Categoría (si no viene del catálogo):</span>
+          <div className="cat-chips" style={{ marginTop: 4 }}>
+            {CATEGORIAS_INDIRECTO.map(c => (
+              <button
+                key={c.id}
+                type="button"
+                className={categoriaIndirecto === c.id ? 'active' : ''}
+                onClick={() => setCategoriaIndirecto(categoriaIndirecto === c.id ? '' : c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

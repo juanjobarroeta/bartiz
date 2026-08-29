@@ -49,3 +49,20 @@
 .est-avance-actions .secondary { background: #e0e7ff; color: #1e40af; border-color: #c7d2fe; }
 .est-avance-actions .primary-green { background: var(--pos); color: var(--accent-ink); border-color: var(--pos); }
 .est-avance-actions button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Vínculos de la estimación: CFDI, cobro y cobro conciliado en bancos */
+.est-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.est-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.8rem; padding: 3px 9px; border-radius: 999px;
+  background: var(--surface2, #f5f5f2); border: 1px solid var(--line, #e5e2da);
+}
+.est-chip.cobro { background: #dcfce7; border-color: #86efac; color: #166534; }
+.est-chip.conciliado { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+.est-chip .link-action { font-size: 0.75rem; }
+
+.est-cands { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+.est-cand {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  border: 1px solid var(--line, #e5e2da); border-radius: 8px; padding: 8px 10px;
+}
