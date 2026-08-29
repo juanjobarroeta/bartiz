@@ -44,6 +44,9 @@ export default function Estimaciones() {
   const [error, setError] = useState(null)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState(null) // estimacion id being edited
+  // Modales de vinculación (CFDI del cliente / cobro bancario)
+  const [linkCfdiFor, setLinkCfdiFor] = useState(null)
+  const [linkCobroFor, setLinkCobroFor] = useState(null)
 
   const cargar = useCallback(async () => {
     setLoading(true)
@@ -102,6 +105,20 @@ export default function Estimaciones() {
     }
   }
 
+  // Adoptar como cobro un movimiento YA conciliado contra el CFDI de la
+  // estimación (el backend lo acepta sólo en ese caso; no re-concilia nada).
+  const adoptarCobro = async (estId, bankTransactionId) => {
+    try {
+      await apiFetch(`/api/construccion/estimaciones/${estId}/vincular-bt`, {
+        method: 'POST',
+        body: { bankTransactionId },
+      })
+      cargar()
+    } catch (err) {
+      window.alert(err.message || 'No se pudo vincular el cobro.')
+    }
+  }
+
   if (loading) return <div className="est-page"><div className="est-state">Cargando…</div></div>
   if (error) return <div className="est-page"><div className="est-state est-error">{error}</div></div>
 
@@ -133,6 +150,44 @@ export default function Estimaciones() {
         </div>
       )}
 
+      {linkCfdiFor && (
+        <VincularModal
+          titulo={`Ligar CFDI a estimación #${linkCfdiFor.numero} (${fmtMoney(linkCfdiFor.total)})`}
+          candidatosUrl={`/api/construccion/estimaciones/${linkCfdiFor.id}/vincular-invoice`}
+          renderCandidato={(c) => (
+            <>
+              <strong>{c.serie ?? ''}{c.folio ?? (c.uuid ? c.uuid.slice(0, 8) + '…' : c.id.slice(0, 8))}</strong>
+              <div className="muted small">
+                {c.customer?.razonSocial ?? ''} · {fmtDate(c.fecha)} · {fmtMoney(c.total)}
+              </div>
+            </>
+          )}
+          vacio="No hay CFDIs de INGRESO timbrados que cuadren (cliente de la obra, monto ±5%, fecha ±30 días). Timbra la factura en contabilidad-os primero."
+          onPick={(c) => apiFetch(`/api/construccion/estimaciones/${linkCfdiFor.id}/vincular-invoice`, { method: 'POST', body: { invoiceId: c.id } })}
+          onDone={() => { setLinkCfdiFor(null); cargar() }}
+          onClose={() => setLinkCfdiFor(null)}
+        />
+      )}
+      {linkCobroFor && (
+        <VincularModal
+          titulo={`Registrar cobro de estimación #${linkCobroFor.numero} (${fmtMoney(linkCobroFor.total)})`}
+          candidatosUrl={`/api/construccion/estimaciones/${linkCobroFor.id}/vincular-bt`}
+          renderCandidato={(c) => (
+            <>
+              <strong>{fmtMoney(Math.abs(c.monto))}</strong>
+              <div className="muted small">
+                {fmtDate(c.fecha)} · {c.bankAccount ? `${c.bankAccount.banco} · ${c.bankAccount.nombre}` : ''}
+                {c.referencia ? ` · ref ${c.referencia}` : ''}
+              </div>
+            </>
+          )}
+          vacio="No hay depósitos sin conciliar que cuadren (monto ±5%, fecha ±30 días). Importa el estado de cuenta en Bancos, o si el cobro ya se concilió contra el CFDI aparecerá aquí abajo como «cobro conciliado»."
+          onPick={(c) => apiFetch(`/api/construccion/estimaciones/${linkCobroFor.id}/vincular-bt`, { method: 'POST', body: { bankTransactionId: c.id } })}
+          onDone={() => { setLinkCobroFor(null); cargar() }}
+          onClose={() => setLinkCobroFor(null)}
+        />
+      )}
+
       {estimaciones.map(est => (
         <div key={est.id} className="est-card">
           <div className="est-card-head">
@@ -159,10 +214,21 @@ export default function Estimaciones() {
               onCancel={() => setEditing(null)}
             />
           ) : (
+            <>
             <div className="est-card-actions">
               {est.estado === 'BORRADOR' && (
                 <button className="link-action" onClick={() => setEditing(est.id)}>
                   Editar avance
+                </button>
+              )}
+              {(est.estado === 'APROBADA' || est.estado === 'TIMBRADA') && !est.invoice && (
+                <button className="link-action" onClick={() => setLinkCfdiFor(est)}>
+                  Ligar CFDI…
+                </button>
+              )}
+              {(est.estado === 'TIMBRADA' || est.estado === 'APROBADA') && !est.bankTransaction && (
+                <button className="link-action" onClick={() => setLinkCobroFor(est)}>
+                  Registrar cobro…
                 </button>
               )}
               {est.partidas?.length > 0 && (
@@ -171,9 +237,96 @@ export default function Estimaciones() {
               {est.retencionGarantia > 0 && <span className="muted">Retención: {fmtMoney(est.retencionGarantia)}</span>}
               {est.amortizacionAnticipo > 0 && <span className="muted">Amort. anticipo: {fmtMoney(est.amortizacionAnticipo)}</span>}
             </div>
+            <div className="est-links">
+              {est.invoice && (
+                <span className="est-chip" title={est.invoice.uuid ?? ''}>
+                  📄 CFDI {est.invoice.serie ?? ''}{est.invoice.folio ?? (est.invoice.uuid ? est.invoice.uuid.slice(0, 8) + '…' : '')}
+                  {' · '}{fmtMoney(est.invoice.total)}
+                </span>
+              )}
+              {est.bankTransaction && (
+                <span className="est-chip cobro">
+                  🏦 Cobro {fmtDate(est.bankTransaction.fecha)} · {fmtMoney(Math.abs(est.bankTransaction.monto))}
+                  {est.bankTransaction.bankAccount ? ` · ${est.bankTransaction.bankAccount.banco}` : ''}
+                </span>
+              )}
+              {/* Cobro YA identificado en la conciliación de bancos (del CFDI
+                  ligado) que la estimación aún no refleja: se enseña y se
+                  adopta con un clic — no se duplica nada, sólo se refleja. */}
+              {!est.bankTransaction && (est.cobrosConciliados ?? []).map((c) => (
+                <span key={c.id} className="est-chip conciliado">
+                  ✓ Cobro conciliado en bancos: {fmtDate(c.fecha)} · {fmtMoney(c.monto)}
+                  {c.banco ? ` · ${c.banco}` : ''}
+                  <button
+                    className="link-action"
+                    onClick={() => adoptarCobro(est.id, c.id)}
+                    title="Marca la estimación como PAGADA con este movimiento ya conciliado"
+                  >
+                    usar como cobro
+                  </button>
+                </span>
+              ))}
+            </div>
+            </>
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+/**
+ * Modal genérico de vinculación de estimaciones: pide los candidatos a
+ * `candidatosUrl` (GET → { candidates }), los pinta con `renderCandidato`
+ * y al elegir uno ejecuta `onPick` (el POST correspondiente). Mismo patrón
+ * que el buscador de CFDIs de caja chica.
+ */
+function VincularModal({ titulo, candidatosUrl, renderCandidato, vacio, onPick, onDone, onClose }) {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    apiFetch(candidatosUrl)
+      .then(setData)
+      .catch((e) => setError(e.message || 'No se pudieron cargar candidatos'))
+  }, [candidatosUrl])
+
+  const pick = async (c) => {
+    setBusy(true)
+    try {
+      await onPick(c)
+      onDone?.()
+    } catch (err) {
+      window.alert(err.message || 'No se pudo vincular.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-content" style={{ maxWidth: 560 }}>
+        <h3>{titulo}</h3>
+        {error ? (
+          <p className="muted small">{error}</p>
+        ) : !data ? (
+          <p className="muted small">Buscando candidatos…</p>
+        ) : (data.candidates ?? []).length === 0 ? (
+          <p className="muted small">{vacio}</p>
+        ) : (
+          <div className="est-cands">
+            {data.candidates.map((c) => (
+              <div key={c.id} className="est-cand">
+                <div>{renderCandidato(c)}</div>
+                <button type="button" disabled={busy} onClick={() => pick(c)}>Vincular</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+          <button type="button" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
     </div>
   )
 }
