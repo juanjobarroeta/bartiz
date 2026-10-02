@@ -87,23 +87,31 @@ function Segmented({ value, options, onChange, title }) {
   )
 }
 
-/** Precio capturado → precio sin IVA (canónico en backend). */
-export const IVA = 0.16
-export const sinIva = (precio, conIva) => (conIva ? precio / (1 + IVA) : precio)
-
 /**
- * Desglose del total de una oferta según cómo se capturaron los precios:
- * siempre muestra subtotal, IVA y total para que no haya duda de qué número
- * se está comparando.
+ * Desglose de una oferta línea por línea con la tasa de cada línea
+ * (16 %, 0 % o exento): `lineas` = [{ importe, tasa }] con el importe tal
+ * como se capturó; si `conIva`, ese importe ya trae el IVA de SU tasa.
  */
-export function OfferTotals({ total, conIva }) {
-  const sub = conIva ? total / (1 + IVA) : total
-  const iva = sub * IVA
+export function desglose(lineas, conIva) {
+  let sub = 0
+  let iva = 0
+  for (const { importe, tasa } of lineas) {
+    const t = Number(tasa) || 0
+    const base = conIva ? importe / (1 + t) : importe
+    sub += base
+    iva += base * t
+  }
+  return { sub, iva }
+}
+
+/** Subtotal, IVA y total para que no haya duda de qué número se compara. */
+export function OfferTotals({ lineas, conIva }) {
+  const { sub, iva } = desglose(lineas, conIva)
   const fmt = (n) => n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
   return (
     <div className="otot">
       <span>Subtotal</span><b>{fmt(sub)}</b>
-      <span>IVA 16%</span><b>{fmt(iva)}</b>
+      <span>IVA</span><b>{fmt(iva)}</b>
       <span>Total</span><b className="otot-t">{fmt(sub + iva)}</b>
     </div>
   )

@@ -20,10 +20,11 @@ import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import FileUpload from '../components/FileUpload'
 import SupplierPicker from '../components/SupplierPicker'
-import OfferTerms, { OfferTotals, sinIva } from '../components/OfferTerms'
+import OfferTerms, { OfferTotals } from '../components/OfferTerms'
 import { readTerms } from './ProveedoresBartiz'
 import { confirmDialog, alertDialog } from '../components/Dialog'
 import { useAuth } from '../auth/AuthContext'
+import { ivaEtiqueta, tasaNum } from '../lib/iva'
 import '../components/Modal.css'
 import '../components/FileUpload.css'
 import '../components/SupplierPicker.css'
@@ -265,6 +266,9 @@ export default function RequisicionDetalle() {
                 <tr key={partida.id}>
                   <td>
                     <div>{partida.descripcion}</div>
+                    {tasaNum(partida.ivaTasa) !== 0.16 && (
+                      <div className="muted small">IVA: {ivaEtiqueta(partida.ivaTasa)}</div>
+                    )}
                     {partida.insumo && (
                       <div className="muted small">
                         Insumo: <span className="mono">{partida.insumo.codigo}</span>
@@ -623,12 +627,6 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
   }
   const [busy, setBusy] = useState(false)
 
-  const totalPreview = useMemo(() => {
-    return requisicion.partidas.reduce((sum, p) => {
-      const pu = parseFloat(pus[p.id]) || 0
-      return sum + pu * p.cantidad
-    }, 0)
-  }, [pus, requisicion.partidas])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -640,7 +638,8 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       .filter((p) => !noOferto[p.id] && parseFloat(pus[p.id]) >= 0)
       .map((p) => ({
         solicitudPartidaId: p.id,
-        precioUnitario: Math.round(sinIva(parseFloat(pus[p.id]) || 0, conIva) * 10000) / 10000,
+        // Con IVA se divide entre la tasa de ESA línea (exenta / 0 % se queda igual).
+        precioUnitario: Math.round(((parseFloat(pus[p.id]) || 0) / (conIva ? 1 + tasaNum(p.ivaTasa) : 1)) * 10000) / 10000,
       }))
       .filter((l) => l.precioUnitario > 0)
     if (lineas.length === 0) {
@@ -796,7 +795,12 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
         })}
         <div className="line-row">
           <strong className="line-total">Total cotización</strong>
-          <OfferTotals total={totalPreview} conIva={conIva} />
+          <OfferTotals
+            conIva={conIva}
+            lineas={requisicion.partidas
+              .filter((p) => !noOferto[p.id])
+              .map((p) => ({ importe: (parseFloat(pus[p.id]) || 0) * p.cantidad, tasa: tasaNum(p.ivaTasa) }))}
+          />
         </div>
       </div>
 

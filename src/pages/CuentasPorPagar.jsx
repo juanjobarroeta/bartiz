@@ -75,6 +75,9 @@ function fromAdjudicacion(a, suppliersById) {
     proyecto: a.proyecto?.codigo ?? '—',
     folio: a.folio ?? '—',
     total,
+    // IVA ya incluido en total (null = adjudicación anterior al IVA por
+    // línea: se registró sin desglose y su total no cambió).
+    iva: a.iva != null ? Number(a.iva) : null,
     aplicado,
     monto: saldo, // lo que falta por pagar — la cifra operativa de la cola
     formaPago: a.tieneCredito ? 'CREDITO' : 'CONTADO',
@@ -448,6 +451,11 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
                           <span className="money big">{money(p.monto)}</span>
                           {p.aplicado > 0.01 && (
                             <div className="muted" style={{ fontSize: 11 }}>de {money(p.total)} · parcial</div>
+                          )}
+                          {p.iva != null && (
+                            <div className="muted" style={{ fontSize: 11 }}>
+                              {p.iva > 0.005 ? `incl. IVA ${money(p.iva)}` : 'sin IVA'}
+                            </div>
                           )}
                         </td>
                         <td>

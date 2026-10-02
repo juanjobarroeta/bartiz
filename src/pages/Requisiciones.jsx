@@ -24,6 +24,7 @@ import SupplierPicker from '../components/SupplierPicker'
 import OfferTerms, { OfferTotals } from '../components/OfferTerms'
 import { readTerms } from './ProveedoresBartiz'
 import { alertDialog, confirmDialog } from '../components/Dialog'
+import { IVA_OPCIONES, ivaTasaDe, ivaValueDe, tasaNum } from '../lib/iva'
 import '../components/Modal.css'
 import '../components/SupplierPicker.css'
 import './Requisiciones.css'
@@ -58,6 +59,8 @@ const ESTADO_LABEL = {
 let _uidSeq = 0
 const uid = () => `k${Date.now().toString(36)}${(_uidSeq++).toString(36)}`
 
+const nuevaPartida = () => ({ key: uid(), descripcion: '', cantidad: '', unidad: '', insumoId: null, iva: '0.16' })
+
 // Map a server requisición (detail shape) back into editable form state so a
 // BORRADOR can be reopened and finished. Concept rows get fresh local keys;
 // each cotización becomes an offer column with prices keyed by concept.
@@ -68,6 +71,7 @@ function formFromSolicitud(sol) {
     cantidad: p.cantidad != null ? String(p.cantidad) : '',
     unidad: p.unidad ?? '',
     insumoId: p.insumoId ?? null,
+    iva: ivaValueDe(p.ivaTasa),
     _serverId: p.id,
   }))
   const idToKey = {}
@@ -358,7 +362,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
   // Each partida carries a stable `key` so supplier offer prices map to the
   // right concept even as rows are added/removed.
   const [partidas, setPartidas] = useState(
-    () => initialDraft?.partidas ?? [{ key: uid(), descripcion: '', cantidad: '', unidad: '', insumoId: null }]
+    () => initialDraft?.partidas ?? [nuevaPartida()]
   )
   // offers: one per proveedor column. prices keyed by partida.key.
   const [offers, setOffers] = useState(() => initialDraft?.offers ?? [])
@@ -430,7 +434,11 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
     } : p)))
   }
   const addRow = () =>
-    setPartidas((arr) => [...arr, { key: uid(), descripcion: '', cantidad: '', unidad: '', insumoId: null }])
+    setPartidas((arr) => [...arr, nuevaPartida()])
+  // Aplica una tasa a todas las líneas (p. ej. toda la requisición es una
+  // nota sin IVA): un clic en vez de línea por línea.
+  const setIvaTodas = (value) =>
+    setPartidas((arr) => arr.map((p) => ({ ...p, iva: value })))
   const removeRow = (idx) =>
     setPartidas((arr) => {
       if (arr.length <= 1) return arr
@@ -475,6 +483,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
       unidad: p.unidad?.trim() || null,
       cantidad: Number(p.cantidad),
       insumoId: p.insumoId || undefined,
+      ivaTasa: ivaTasaDe(p.iva),
     })),
     offers: offers
       .filter((o) => offerName(o))
@@ -488,8 +497,10 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
         lineas: lines
           .map((p, idx) => {
             const raw = parseFloat(o.prices[p.key]) || 0
-            // Canónico sin IVA: lo capturado "con IVA" se convierte (÷1.16).
-            const sinIva = o.conIva ? raw / 1.16 : raw
+            // Canónico sin IVA: lo capturado "con IVA" se convierte con la
+            // tasa de ESA línea (÷1.16 si es gravada; una línea exenta o al
+            // 0 % no trae IVA dentro y se queda igual).
+            const sinIva = o.conIva ? raw / (1 + (ivaTasaDe(p.iva) ?? 0)) : raw
             return { partidaIndex: idx, precioUnitario: Math.round(sinIva * 10000) / 10000 }
           })
           .filter((l) => l.precioUnitario > 0),
@@ -597,6 +608,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
           <span>Concepto</span>
           <span>Cantidad</span>
           <span>Unidad</span>
+          <span>IVA</span>
           <span></span>
         </div>
         {partidas.map((p, idx) => (
@@ -625,6 +637,16 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
                 aria-label="Unidad"
                 className="line-unit"
               />
+              <select
+                className="line-iva"
+                value={p.iva ?? '0.16'}
+                onChange={(e) => updatePart(idx, 'iva', e.target.value)}
+                title="Tasa de IVA de esta línea: lo exento o al 0 % no suma IVA en Compras ni en lo que se paga"
+              >
+                {IVA_OPCIONES.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
               <button type="button" className="link small danger" onClick={() => removeRow(idx)} disabled={partidas.length === 1}>
                 ×
               </button>
@@ -632,10 +654,23 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
             {p._budget && <LineBudgetHint budget={p._budget} unidad={p.unidad} pedido={p.cantidad} />}
           </div>
         ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
           <button type="button" className="link small" onClick={addRow}>
             + agregar línea
           </button>
+          {partidas.length > 1 && (
+            <span className="muted small">
+              IVA a todas:{' '}
+              {IVA_OPCIONES.map((o, i) => (
+                <span key={o.value}>
+                  {i > 0 && ' · '}
+                  <button type="button" className="link small" onClick={() => setIvaTodas(o.value)}>
+                    {o.label}
+                  </button>
+                </span>
+              ))}
+            </span>
+          )}
           {proyectoId && (
             <span className="muted small">
               {insumos.length > 0
@@ -768,7 +803,15 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
               <tr className="offers-total-row">
                 <td colSpan={2}><strong>Total oferta</strong></td>
                 {offers.map((o) => (
-                  <td key={o.key} className="oc-price"><OfferTotals total={offerTotal(o)} conIva={!!o.conIva} /></td>
+                  <td key={o.key} className="oc-price">
+                    <OfferTotals
+                      conIva={!!o.conIva}
+                      lineas={conceptRows.map((p) => ({
+                        importe: (parseFloat(o.prices[p.key]) || 0) * (Number(p.cantidad) || 0),
+                        tasa: tasaNum(ivaTasaDe(p.iva)),
+                      }))}
+                    />
+                  </td>
                 ))}
               </tr>
             </tbody>

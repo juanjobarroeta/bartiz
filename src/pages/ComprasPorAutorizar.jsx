@@ -18,7 +18,12 @@ import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
 import { money } from '../lib/format'
 import { confirmDialog } from '../components/Dialog'
+import { ivaEtiqueta, tasaNum } from '../lib/iva'
 import './ComprasPorAutorizar.css'
+
+// IVA redondeado por línea — el mismo cálculo que hace el backend al generar
+// el pagable, para que el «c/IVA» que se ve aquí sea lo que tesorería paga.
+const r2 = (n) => Math.round(n * 100) / 100
 
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '—'
@@ -231,6 +236,18 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
     return out
   }, [partidas, cots])
 
+  // Tasa de IVA de cada concepto (exento / 0 % no suman IVA).
+  const tasaDe = useMemo(
+    () => Object.fromEntries(partidas.map((p) => [p.id, tasaNum(p.ivaTasa)])),
+    [partidas]
+  )
+  // IVA de lo que ofertó un proveedor: por línea, con la tasa de su concepto.
+  const ivaDeCot = (c) =>
+    (c.partidas ?? []).reduce(
+      (a, l) => a + r2((Number(l.importe) || 0) * (tasaDe[l.solicitudPartidaId] ?? 0.16)),
+      0
+    )
+
   // Per-supplier award summary (what each winning supplier would be paid).
   const summary = useMemo(() => {
     const bySupplier = new Map()
@@ -240,16 +257,18 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
       const c = cots.find((x) => x.id === cotId)
       if (!c) continue
       const line = (c.partidas ?? []).find((l) => l.solicitudPartidaId === p.id)
-      const imp = line?.importe ?? 0
-      const cur = bySupplier.get(cotId) ?? { nombre: c.supplierNombre, credito: c.tieneCredito, diasCredito: c.diasCredito, dias: c.diasEntrega, total: 0, n: 0 }
+      const imp = Number(line?.importe) || 0
+      const cur = bySupplier.get(cotId) ?? { nombre: c.supplierNombre, credito: c.tieneCredito, diasCredito: c.diasCredito, dias: c.diasEntrega, total: 0, iva: 0, n: 0 }
       cur.total += imp
+      cur.iva += r2(imp * (tasaDe[p.id] ?? 0.16))
       cur.n += 1
       bySupplier.set(cotId, cur)
     }
     return [...bySupplier.values()]
-  }, [partidas, cots, award])
+  }, [partidas, cots, award, tasaDe])
 
   const grandTotal = summary.reduce((a, s) => a + s.total, 0)
+  const grandIva = summary.reduce((a, s) => a + s.iva, 0)
 
   return (
     <div className="cpa-card">
@@ -290,7 +309,7 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
                       <span className="cpa-dias">{c.diasEntrega != null ? `${c.diasEntrega} d entrega` : 'entrega s/d'}</span>
                     </div>
                     <div className="cpa-sup-total mono">{money(c.total)}</div>
-                    <div className="cpa-sup-iva muted small mono">{money(c.total * 1.16)} c/IVA</div>
+                    <div className="cpa-sup-iva muted small mono">{money(Number(c.total) + ivaDeCot(c))} c/IVA</div>
                   </th>
                 ))}
               </tr>
@@ -302,6 +321,9 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
                 <tr key={p.id}>
                   <td className="cpa-concept">
                     {p.descripcion}
+                    {tasaDe[p.id] !== 0.16 && (
+                      <span className="cpa-iva-tag" title="Esta línea no suma IVA del 16%">{ivaEtiqueta(p.ivaTasa)}</span>
+                    )}
                     {b && (
                       <div className="cpa-budget">
                         Presup. <b>{money(b.presupuestadoImporte)}</b> · comprado <b>{money(b.compradoImporte)}</b> · resta <b>{fmtQty(b.restanteCantidad)} {b.unidad}</b>
@@ -349,7 +371,7 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
                 <span className="muted small">{s.dias != null ? `${s.dias} d` : 's/d'}</span>
                 <span className="muted small">{s.n} concepto{s.n > 1 ? 's' : ''}</span>
                 <span className="cpa-summary-total mono">{money(s.total)}</span>
-                <span className="muted small mono">{money(s.total * 1.16)} c/IVA</span>
+                <span className="muted small mono">{money(s.total + s.iva)} c/IVA</span>
               </div>
             ))}
           </div>
@@ -358,8 +380,12 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
             <span className="mono">{money(grandTotal)}</span>
           </div>
           <div className="cpa-grand cpa-grand-iva">
-            <span className="muted">Con IVA (16%)</span>
-            <span className="mono muted">{money(grandTotal * 1.16)}</span>
+            <span className="muted">IVA</span>
+            <span className="mono muted">{money(grandIva)}</span>
+          </div>
+          <div className="cpa-grand cpa-grand-iva">
+            <span className="muted">Con IVA (lo que se paga)</span>
+            <span className="mono muted">{money(grandTotal + grandIva)}</span>
           </div>
           {!allAwarded && (
             <div className="cpa-partial">Faltan {partidas.length - assigned} concepto(s) por adjudicar — puedes autorizar parcialmente.</div>

@@ -71,11 +71,15 @@ export const AREAS = [
 // Listas encajonadas por rol restringido (ver src/auth/roles.js). Son
 // exactamente las que el sidebar mostraba antes del rediseño.
 export const ROLE_NAV = {
-  TESORERIA: [{ path: '/pagos-tesoreria', label: 'Pagos' }],
+  TESORERIA: [
+    { path: '/pagos-tesoreria', label: 'Pagos' },
+    { path: '/destajo',         label: 'Destajo' },
+  ],
   RESIDENTE: [
     { path: '/requisiciones',      label: 'Requisiciones' },
     { path: '/proyectos',          label: 'Obras', match: ['/presupuesto'] },
     { path: '/caja-chica',         label: 'Caja chica', match: ['/reembolsos'] },
+    { path: '/destajo',            label: 'Destajo' },
     { path: '/proveedores-bartiz', label: 'Proveedores' },
   ],
   CONTABILIDAD: [
@@ -85,6 +89,7 @@ export const ROLE_NAV = {
     { path: '/proveedores-bartiz',    label: 'Proveedores' },
     { path: '/cuentas-proveedores',   label: 'Estados de cuenta' },
     { path: '/proyectos',             label: 'Obras', match: ['/presupuesto'] },
+    { path: '/destajo',               label: 'Destajo' },
   ],
 }
 
