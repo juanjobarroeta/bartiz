@@ -20,6 +20,7 @@ import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import FileUpload from '../components/FileUpload'
 import SupplierPicker from '../components/SupplierPicker'
+import OfferTerms, { OfferTotals, sinIva } from '../components/OfferTerms'
 import { readTerms } from './ProveedoresBartiz'
 import { confirmDialog, alertDialog } from '../components/Dialog'
 import { useAuth } from '../auth/AuthContext'
@@ -586,14 +587,23 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
   const [useFreeText, setUseFreeText] = useState(false)
   // Forma de pago de la oferta: precargada de las condiciones del proveedor.
   const [credito, setCredito] = useState(false)
+  const [diasCredito, setDiasCredito] = useState('')
+  // Base de los precios capturados: la cotización del proveedor puede venir
+  // con IVA; se guarda siempre sin IVA (÷1.16) para comparar parejo.
+  const [conIva, setConIva] = useState(false)
   const pickSupplier = (s) => {
     setSupplier(s)
     if (s) {
       const t = readTerms(s)
       setCredito(t.tieneCredito === true || t.diasCredito > 0)
+      setDiasCredito(t.diasCredito > 0 ? String(t.diasCredito) : '')
     }
   }
-  const [fechaCotizacion, setFecha] = useState(new Date().toISOString().slice(0, 10))
+  // Fecha local (no UTC): después de las 18:00 en México el ISO ya es mañana.
+  const [fechaCotizacion, setFecha] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })
   const [vigenciaHasta, setVigencia] = useState('')
   const [diasEntrega, setDiasEntrega] = useState('')
   const [notas, setNotas] = useState('')
@@ -630,7 +640,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       .filter((p) => !noOferto[p.id] && parseFloat(pus[p.id]) >= 0)
       .map((p) => ({
         solicitudPartidaId: p.id,
-        precioUnitario: parseFloat(pus[p.id]) || 0,
+        precioUnitario: Math.round(sinIva(parseFloat(pus[p.id]) || 0, conIva) * 10000) / 10000,
       }))
       .filter((l) => l.precioUnitario > 0)
     if (lineas.length === 0) {
@@ -659,6 +669,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
           supplierId: useFreeText ? null : supplier?.id ?? null,
           supplierNombre: finalSupplierNombre,
           tieneCredito: credito,
+          diasCredito: credito && diasCredito !== '' ? parseInt(diasCredito, 10) : null,
           diasEntrega: diasEntrega !== '' ? parseInt(diasEntrega, 10) : null,
           fechaCotizacion: new Date(fechaCotizacion + 'T12:00:00').toISOString(),
           vigenciaHasta: vigenciaHasta ? new Date(vigenciaHasta + 'T12:00:00').toISOString() : null,
@@ -715,16 +726,18 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
         )}
       </label>
 
-      <div className="ofs-terms" style={{ alignSelf: 'flex-start' }}>
-        <label className="ofs-credito" title="Precargado de las condiciones del proveedor; ajustable">
-          <input type="checkbox" checked={credito} onChange={(e) => setCredito(e.target.checked)} />
-          <span>{credito ? 'A crédito' : 'Contado'}</span>
-        </label>
-        <label className="ofs-entrega" title="Días de entrega prometidos por este proveedor">
-          <input type="number" min="0" step="1" value={diasEntrega} onChange={(e) => setDiasEntrega(e.target.value)} placeholder="—" />
-          <span>días entrega</span>
-        </label>
-      </div>
+      <OfferTerms
+        credito={credito}
+        diasCredito={diasCredito}
+        conIva={conIva}
+        diasEntrega={diasEntrega}
+        onChange={(patch) => {
+          if ('credito' in patch) setCredito(patch.credito)
+          if ('diasCredito' in patch) setDiasCredito(patch.diasCredito)
+          if ('conIva' in patch) setConIva(patch.conIva)
+          if ('diasEntrega' in patch) setDiasEntrega(patch.diasEntrega)
+        }}
+      />
 
       <div className="row">
         <label>
@@ -737,13 +750,13 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
         </label>
       </div>
 
-      <div className="lines">
+      <div className="lines cot-lines">
         <div className="lines-head">
           <span>Concepto</span>
-          <span style={{ width: 70 }}>Unidad</span>
-          <span style={{ width: 80 }}>Cantidad</span>
-          <span style={{ width: 100 }}>P. Unitario</span>
-          <span style={{ width: 100, textAlign: 'right' }}>Importe</span>
+          <span className="cot-unit">Unidad</span>
+          <span className="num">Cantidad</span>
+          <span className="num">P. unitario {conIva ? 'c/IVA' : 's/IVA'}</span>
+          <span className="num">Importe</span>
         </div>
         {requisicion.partidas.map((p) => {
           const pu = parseFloat(pus[p.id]) || 0
@@ -762,10 +775,10 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
                   {omitida ? 'sí ofertó' : 'no ofertó'}
                 </button>
               </span>
-              <span className="mono small" style={{ width: 70 }}>{p.unidad ?? '—'}</span>
-              <span style={{ width: 80 }}>{p.cantidad}</span>
+              <span className="mono small cot-unit">{p.unidad ?? '—'}</span>
+              <span className="num">{p.cantidad}</span>
               {omitida ? (
-                <span className="muted small" style={{ width: 100 }}>no ofertó</span>
+                <span className="muted small">no ofertó</span>
               ) : (
                 <input
                   type="number"
@@ -773,16 +786,17 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
                   value={pus[p.id]}
                   onChange={(e) => setPus((o) => ({ ...o, [p.id]: e.target.value }))}
                   placeholder="0.00"
-                  style={{ width: 100 }}
+                  aria-label={`Precio unitario de ${p.descripcion}`}
+                  className="num"
                 />
               )}
-              <span style={{ width: 100, textAlign: 'right' }}>{omitida ? '—' : fmtMoney(pu * p.cantidad)}</span>
+              <span className="num">{omitida ? '—' : fmtMoney(pu * p.cantidad)}</span>
             </div>
           )
         })}
         <div className="line-row">
-          <strong style={{ flex: 1, textAlign: 'right', paddingRight: '0.5rem' }}>Total cotización</strong>
-          <strong style={{ width: 100, textAlign: 'right' }}>{fmtMoney(totalPreview)}</strong>
+          <strong className="line-total">Total cotización</strong>
+          <OfferTotals total={totalPreview} conIva={conIva} />
         </div>
       </div>
 
