@@ -1,24 +1,26 @@
 /**
- * Dashboard — owner/director portfolio + cash command center (DECOLSA
- * redesign). Replaces the old "Dashboard feed" with a portfolio health
- * table, an avance-de-cartera S-curve, a cash-position rail and a
- * "pendientes" action list.
+ * Inicio (ADMIN) — "Para hoy" estilo Deel.
  *
- * Todo con datos VIVOS (sin muestras): cartera y totales de
- * /api/construccion/proyectos, saldos y cuentas de bank-accounts
- * ?withBalances=true, pendientes de solicitudes/adjudicaciones/CFDIs.
- * El "programado" de cada obra se deriva del calendario (fechaInicio →
- * fechaFinPlan) hasta que el backend exponga avance programado real.
+ * Saludo + buscador (abre la paleta ⌘K del shell), tarjeta "Pagos" (por
+ * pagar / en bancos, alerta de vencidos), tarjeta "Para hoy" (pendientes con
+ * conteo que enlazan a su página) y la cartera de proyectos.
+ *
+ * Todo con datos VIVOS. Cada petición es independiente: si una falla se
+ * registra en consola y sólo su cifra muestra "—" (nunca un 0 falso).
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import './Dashboard.css'
 import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
 import { Icon } from '../components/ds/Icon'
-import { money, compactMoney, MoneyParts } from '../lib/format'
+import { money } from '../lib/format'
 import { BADGE_COLORS } from '../data/dashboardSample'
+import { buildPayables } from '../components/home/payables'
+
+const FAIL = Symbol('fail')
+const isOk = (v) => v !== undefined && v !== FAIL
 
 // Live `estado` → status chip tone + label.
 const ESTADO_META = {
@@ -29,9 +31,6 @@ const ESTADO_META = {
   CANCELADO: { cls: 'risk', label: 'Cancelado' },
 }
 
-const STATUS_LABEL = { active: 'En obra', plan: 'Planeación', risk: 'Riesgo' }
-
-// Map a live proyecto record to the portfolio-row shape the table renders.
 function toRow(p, i) {
   const meta = ESTADO_META[p.estado] ?? { cls: 'plan', label: p.estado ?? '—' }
   return {
@@ -45,10 +44,11 @@ function toRow(p, i) {
     statusLabel: meta.label,
     contratado: Number(p.montoContratado) || 0,
     avance: Number(p.avancePct) || 0,
-    // Programado por calendario: fracción transcurrida entre fechaInicio y
-    // fechaFinPlan (el backend aún no expone avance físico programado real).
+    // Programado por calendario (fechaInicio → fechaFinPlan): el backend aún
+    // no expone avance físico programado real.
     plan: planPorCalendario(p.fechaInicio, p.fechaFinPlan),
-    porCobrar: 0, // receivable not exposed by the list endpoint yet
+    // El endpoint de lista no expone saldo por cobrar → null = "—".
+    porCobrar: p.porCobrar != null ? Number(p.porCobrar) : null,
   }
 }
 
@@ -61,366 +61,359 @@ function planPorCalendario(inicio, finPlan) {
   return Math.max(0, Math.min(100, f * 100))
 }
 
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
+
+function saludo(d = new Date()) {
+  const h = d.getHours()
+  if (h < 12) return 'Buenos días'
+  if (h < 19) return 'Buenas tardes'
+  return 'Buenas noches'
+}
+
+function cuando(days) {
+  if (days === 0) return 'hoy'
+  if (days === 1) return 'mañana'
+  return `en ${days} días`
+}
+
+function listaNombres(names) {
+  const u = [...new Set(names.filter((n) => n && n !== '—'))]
+  if (u.length === 0) return ''
+  if (u.length === 1) return u[0]
+  if (u.length <= 3) return `${u.slice(0, -1).join(', ')} y ${u[u.length - 1]}`
+  return `${u.slice(0, 2).join(', ')} y ${u.length - 2} más`
+}
+
+// Abre la paleta de comandos del shell (Layout escucha ⌘K / Ctrl+K en window).
+function abrirBuscador() {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true }))
+}
+
 const Dashboard = () => {
   const navigate = useNavigate()
-  const { activeCompany } = useAuth()
-  const [rows, setRows] = useState([])
-  const [cargando, setCargando] = useState(true)
-  // Cuentas bancarias reales (con saldo) para la posición de efectivo.
-  const [cuentas, setCuentas] = useState([])
+  const { activeCompany, user } = useAuth()
+  const [d, setD] = useState({})
   const [sort, setSort] = useState('contratado')
-  const [cfdiResumen, setCfdiResumen] = useState(null)
-  // Real, actionable pendientes for Gerardo's flow (counts only). Gerardo
-  // uploads presupuestos already approved, so there is no "presupuestos por
-  // aprobar" here — his approval queue is "compras por autorizar".
-  const [pend, setPend] = useState({ compras: 0, porPagar: 0, porPagarMonto: 0, sinConciliar: 0, loaded: false })
-  // Saldo real en bancos (para el stat protagonista "En bancos").
-  const [saldoBancos, setSaldoBancos] = useState(null)
+  const [vista, setVista] = useState('pagar') // pagar | bancos
 
   useEffect(() => {
+    setD({})
     if (!activeCompany?.id) return
-    apiFetch(`/api/construccion/cfdis/resumen?companyId=${encodeURIComponent(activeCompany.id)}`)
-      .then((d) => { if (d && typeof d.porVincular === 'number') setCfdiResumen(d) })
-      .catch(() => {})
-  }, [activeCompany?.id])
-
-  useEffect(() => {
-    if (!activeCompany?.id) { setPend({ compras: 0, porPagar: 0, porPagarMonto: 0, sinConciliar: 0, loaded: false }); return }
     const cid = encodeURIComponent(activeCompany.id)
     let alive = true
-    ;(async () => {
-      const [compras, porPagar, conc, accts] = await Promise.all([
-        apiFetch(`/api/construccion/solicitudes-compra?companyId=${cid}&estado=PENDIENTE`).catch(() => []),
-        apiFetch(`/api/construccion/adjudicaciones?companyId=${cid}&estado=POR_PAGAR&abiertas=1`).catch(() => []),
-        apiFetch(`/api/construccion/bank-transactions?companyId=${cid}&status=UNMATCHED&count=1`).catch(() => null),
-        apiFetch(`/api/construccion/bank-accounts?companyId=${cid}&withBalances=true`).catch(() => null),
-      ])
-      if (!alive) return
-      const abiertas = Array.isArray(porPagar) ? porPagar : []
-      setPend({
-        compras: Array.isArray(compras) ? compras.length : 0,
-        porPagar: abiertas.length,
-        porPagarMonto: abiertas.reduce((s, a) => s + (Number(a.saldo ?? a.total) || 0), 0),
-        sinConciliar: conc && typeof conc.count === 'number' ? conc.count : 0,
-        loaded: true,
-      })
-      if (Array.isArray(accts) && accts.length) {
-        setCuentas(accts)
-        setSaldoBancos(accts.reduce((s, a) => s + (a.balance ?? 0), 0))
-      }
-    })()
+    const load = (key, path) =>
+      apiFetch(`/api/construccion/${path}${path.includes('?') ? '&' : '?'}companyId=${cid}`)
+        .then((v) => v)
+        .catch((err) => {
+          console.error(`[Inicio] ${key} (${path}) falló:`, err)
+          return FAIL
+        })
+        .then((v) => { if (alive) setD((prev) => ({ ...prev, [key]: v })) })
+    load('cfdi', 'cfdis/resumen')
+    load('compras', 'solicitudes-compra?estado=PENDIENTE')
+    load('borradores', 'solicitudes-compra?estado=BORRADOR')
+    load('adjs', 'adjudicaciones?estado=POR_PAGAR&abiertas=1')
+    load('gastos', 'gastos?estado=APROBADO')
+    load('sups', 'suppliers')
+    load('conc', 'bank-transactions?status=UNMATCHED&count=1')
+    load('accts', 'bank-accounts?withBalances=true')
+    load('reemb', 'reembolsos?estado=SUBMITTED')
+    load('proyectos', 'proyectos')
     return () => { alive = false }
   }, [activeCompany?.id])
 
-  useEffect(() => {
-    if (!activeCompany?.id) { setRows([]); setCargando(false); return }
-    setCargando(true)
-    apiFetch(`/api/construccion/proyectos?companyId=${encodeURIComponent(activeCompany.id)}`)
-      .then((data) => setRows((Array.isArray(data) ? data : []).map(toRow)))
-      .catch((err) => {
-        console.error('Error loading dashboard:', err)
-        setRows([])
-      })
-      .finally(() => setCargando(false))
-  }, [activeCompany?.id])
-
-  const projects = useMemo(
-    () => [...rows].sort((a, b) => (b[sort] || 0) - (a[sort] || 0)),
-    [rows, sort]
+  // ── Pagos ──
+  // Proveedores sólo afinan los días de crédito; si fallan se usa el default.
+  const payablesReady = isOk(d.adjs) && isOk(d.gastos) && d.sups !== undefined
+  const payablesFailed = d.adjs === FAIL || d.gastos === FAIL
+  const payables = useMemo(
+    () => (payablesReady ? buildPayables(d.adjs, d.gastos, d.sups === FAIL ? [] : d.sups) : null),
+    [payablesReady, d.adjs, d.gastos, d.sups]
   )
+  const pagos = useMemo(() => {
+    if (!payables) return null
+    const total = payables.reduce((s, p) => s + p.monto, 0)
+    const vencidos = payables.filter((p) => p.daysUntil != null && p.daysUntil < 0)
+    const semana = payables.filter((p) => p.daysUntil != null && p.daysUntil >= 0 && p.daysUntil <= 7)
+    const sum = (xs) => xs.reduce((s, p) => s + p.monto, 0)
+    return { total, n: payables.length, vencidos, vencidosMonto: sum(vencidos), semana, semanaMonto: sum(semana) }
+  }, [payables])
 
-  const totals = useMemo(() => {
-    const contratado = rows.reduce((s, p) => s + (p.contratado || 0), 0)
-    const activos = rows.filter((p) => p.contratado > 0).length
-    // Avance ponderado por monto contratado (real vs plan), con datos vivos.
-    const real = contratado > 0
-      ? rows.reduce((s, p) => s + (p.avance || 0) * (p.contratado || 0), 0) / contratado
-      : 0
-    const plan = contratado > 0
-      ? rows.reduce((s, p) => s + (p.plan || 0) * (p.contratado || 0), 0) / contratado
-      : 0
-    return { contratado, activos, real, plan }
-  }, [rows])
+  const cuentas = isOk(d.accts) && Array.isArray(d.accts) ? d.accts : null
+  const saldoBancos = cuentas && cuentas.length ? cuentas.reduce((s, a) => s + (Number(a.balance) || 0), 0) : null
+  const sinConciliar = isOk(d.conc) && typeof d.conc?.count === 'number' ? d.conc.count : d.conc === undefined ? undefined : FAIL
 
-  const openProject = (row) => {
-    if (row.id) navigate(`/proyectos/${row.id}`)
-  }
+  // ── Para hoy ──
+  const count = (v, fn) => (v === undefined ? undefined : v === FAIL ? FAIL : fn(v))
+  const arrLen = (v) => (Array.isArray(v) ? v.length : 0)
+  const todos = [
+    { key: 'compras', label: 'Compras por autorizar', to: '/compras-por-autorizar', icon: 'receipt', n: count(d.compras, arrLen), tone: 'warn' },
+    { key: 'cfdi', label: 'Facturas CFDI sin vincular', to: '/facturas', icon: 'file', n: count(d.cfdi, (v) => (typeof v?.porVincular === 'number' ? v.porVincular : FAIL)) },
+    { key: 'conc', label: 'Movimientos bancarios por conciliar', to: '/tesoreria-bartiz', icon: 'bank', n: sinConciliar },
+    { key: 'reemb', label: 'Reembolsos de caja chica por revisar', to: '/caja-chica', icon: 'cajachica', n: count(d.reemb, arrLen) },
+    { key: 'borradores', label: 'Requisiciones en borrador', to: '/requisiciones', icon: 'edit', n: count(d.borradores, arrLen), tone: 'muted' },
+  ]
+  const todosLoading = todos.some((t) => t.n === undefined)
+  const todosVisibles = todos.filter((t) => t.n === FAIL || (typeof t.n === 'number' && t.n > 0))
 
+  // ── Cartera ──
+  const rows = useMemo(
+    () => (isOk(d.proyectos) && Array.isArray(d.proyectos) ? d.proyectos.map(toRow) : []),
+    [d.proyectos]
+  )
+  const projects = useMemo(() => [...rows].sort((a, b) => (b[sort] || 0) - (a[sort] || 0)), [rows, sort])
 
-  // Pendientes del día — alimentan la tarjeta "Hoy en la obra" (mockup:
-  // lista numerada 01/02/03, no prosa).
-  const pendientes = []
-  if (pend.compras > 0) pendientes.push({ n: `${pend.compras} compra${pend.compras === 1 ? '' : 's'} por autorizar`, to: '/compras-por-autorizar' })
-  if (pend.porPagar > 0) pendientes.push({ n: `${pend.porPagar} cuenta${pend.porPagar === 1 ? '' : 's'} por pagar (${money(pend.porPagarMonto)})`, to: '/cuentas-por-pagar' })
-  if (cfdiResumen?.porVincular > 0) pendientes.push({ n: `${cfdiResumen.porVincular} factura${cfdiResumen.porVincular === 1 ? '' : 's'} por vincular`, to: '/facturas' })
-  if (pend.sinConciliar > 0) pendientes.push({ n: `${pend.sinConciliar} movimiento${pend.sinConciliar === 1 ? '' : 's'} sin conciliar`, to: '/tesoreria-bartiz' })
+  const nombre = (user?.name || '').trim().split(/\s+/)[0]
 
-  // Encabezado con la fecha (patrón mockup: "Sábado 25 de julio")
-  const hoyRaw = new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
-  const hoyTitulo = hoyRaw.charAt(0).toUpperCase() + hoyRaw.slice(1)
-  const corte = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+  const fig = (v) => (v === FAIL ? '—' : v)
+  const porPagarValor = payablesFailed ? '—' : pagos ? money(pagos.total) : '…'
+  const porPagarSub = payablesFailed ? 'no se pudo cargar' : pagos ? plural(pagos.n, 'cuenta', 'cuentas') : 'cargando'
+  const bancosValor = d.accts === undefined ? '…' : saldoBancos == null ? '—' : money(saldoBancos)
+  const bancosSub = d.accts === undefined ? 'cargando' : d.accts === FAIL ? 'no se pudo cargar'
+    : !cuentas?.length ? 'sin cuentas conectadas' : plural(cuentas.length, 'cuenta', 'cuentas')
+
+  const vencidos = pagos?.vencidos ?? []
+  const maxAtraso = vencidos.length ? Math.max(...vencidos.map((p) => -p.daysUntil)) : 0
+  const minAtraso = vencidos.length ? Math.min(...vencidos.map((p) => -p.daysUntil)) : 0
+  const proximo = pagos?.semana?.[0]
 
   return (
     <div className="ds">
-      <div className="page">
-        {/* Encabezado — fecha grande + contexto + acción primaria */}
-        <div className="hoy-head">
-          <div className="hoy-head-l">
-            <h1 className="hoy-title">{hoyTitulo}</h1>
-            <span className="hoy-head-sub">
-              {activeCompany?.razonSocial ?? 'Bartiz'} · corte {corte}
-            </span>
-          </div>
-          <button className="hoy-op" onClick={() => navigate('/requisiciones')}>
-            + Requisición
+      <div className="page home">
+        <div className="home-greet">
+          <h1>{saludo()}{nombre ? `, ${nombre}` : ''}</h1>
+          <button type="button" className="home-search" onClick={abrirBuscador}>
+            <Icon name="search" />
+            <span>Busca una página: obras, requisiciones, pagos…</span>
+            <kbd>⌘K</kbd>
           </button>
         </div>
 
-        {/* KPI strip — 4 columnas con divisores finos (mockup) */}
-        <div className="hoy-kpis">
-          <div className="kpi">
-            <div className="eyebrow">Valor de cartera</div>
-            <div className="kpi-v num"><MoneyParts value={totals.contratado} /></div>
-            <div className="kpi-s">{totals.activos} obra{totals.activos === 1 ? '' : 's'} activa{totals.activos === 1 ? '' : 's'}</div>
-          </div>
-          <div className="kpi">
-            <div className="eyebrow">En bancos</div>
-            <div className="kpi-v num"><MoneyParts value={saldoBancos ?? 0} /></div>
-            <div className="kpi-s">{saldoBancos == null ? 'sin cuentas conectadas' : pend.sinConciliar > 0 ? `${pend.sinConciliar} mov. sin conciliar` : 'conciliado'}</div>
-          </div>
-          <div className="kpi">
-            <div className="eyebrow">Por pagar</div>
-            <div className="kpi-v num"><MoneyParts value={pend.porPagarMonto} /></div>
-            <div className="kpi-s accent">{pend.porPagar} proveedor{pend.porPagar === 1 ? '' : 'es'} con saldo</div>
-          </div>
-          <div className="kpi">
-            <div className="eyebrow">Por autorizar</div>
-            <div className="kpi-v num">{pend.compras}</div>
-            <div className="kpi-s">
-              {pend.compras > 0 ? (
-                <a href="/compras-por-autorizar" onClick={(e) => { e.preventDefault(); navigate('/compras-por-autorizar') }}>
-                  ir a compras →
-                </a>
-              ) : 'sin pendientes'}
+        <div className="home-grid">
+          {/* ── Pagos ── */}
+          <section className="home-card">
+            <header className="home-card-head">
+              <span className="home-card-ic"><Icon name="bank" /></span>
+              <h2>Pagos</h2>
+            </header>
+
+            <div className="home-pair" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={vista === 'pagar'}
+                className={'home-fig' + (vista === 'pagar' ? ' on' : '')}
+                onClick={() => setVista('pagar')}
+              >
+                <span className={'home-fig-l' + (vencidos.length ? ' neg' : '')}>
+                  Por pagar
+                  {vencidos.length > 0 && <span className="home-dot" aria-label="Hay pagos vencidos" />}
+                </span>
+                <span className="home-fig-v num">{porPagarValor}</span>
+                <span className="home-fig-s">{porPagarSub}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={vista === 'bancos'}
+                className={'home-fig' + (vista === 'bancos' ? ' on' : '')}
+                onClick={() => setVista('bancos')}
+              >
+                <span className="home-fig-l">En bancos</span>
+                <span className={'home-fig-v num' + (saldoBancos == null ? ' muted' : '')}>{bancosValor}</span>
+                <span className="home-fig-s">{bancosSub}</span>
+              </button>
             </div>
-          </div>
+
+            {vista === 'pagar' ? (
+              <div className="home-detail">
+                {payablesFailed && (
+                  <div className="home-note">No se pudieron cargar las cuentas por pagar.</div>
+                )}
+                {pagos && vencidos.length > 0 && (
+                  <div className="home-alert" role="alert">
+                    <b>Acción requerida: {plural(vencidos.length, 'pago vencido', 'pagos vencidos')}</b>
+                    <span>
+                      {listaNombres(vencidos.map((p) => p.supplierName)) || 'Proveedores'}{' '}
+                      {vencidos.length === 1 ? 'venció' : 'vencieron'} hace{' '}
+                      {minAtraso === maxAtraso ? plural(maxAtraso, 'día', 'días') : `${minAtraso}–${maxAtraso} días`}.
+                    </span>
+                  </div>
+                )}
+                {pagos && vencidos.length > 0 && (
+                  <div className="home-line">
+                    <span className="home-line-ic neg"><Icon name="clock" /></span>
+                    <span className="home-line-t">
+                      <b className="neg">{plural(vencidos.length, 'vencido', 'vencidos')} · {money(pagos.vencidosMonto)}</b>
+                      <small>El más antiguo venció hace {plural(maxAtraso, 'día', 'días')}</small>
+                    </span>
+                    <Link className="btn btn-primary home-btn" to="/cuentas-por-pagar">Pagar ahora</Link>
+                  </div>
+                )}
+                {pagos && pagos.semana.length > 0 && (
+                  <div className="home-line">
+                    <span className="home-line-ic warn"><Icon name="calendar" /></span>
+                    <span className="home-line-t">
+                      <b>{pagos.semana.length} {pagos.semana.length === 1 ? 'vence' : 'vencen'} esta semana · {money(pagos.semanaMonto)}</b>
+                      {proximo && <small>Próximo: {proximo.supplierName}, {cuando(proximo.daysUntil)}</small>}
+                    </span>
+                    <Link className="btn btn-ghost home-btn" to="/cuentas-por-pagar">Revisar</Link>
+                  </div>
+                )}
+                {pagos && vencidos.length === 0 && pagos.semana.length === 0 && (
+                  <div className="home-note">
+                    {pagos.n === 0 ? 'Nada por pagar.' : 'Nada vencido ni por vencer esta semana.'}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="home-detail">
+                {d.accts === FAIL && <div className="home-note">No se pudieron cargar las cuentas bancarias.</div>}
+                {cuentas && cuentas.length === 0 && (
+                  <div className="home-note">Sin cuentas bancarias conectadas. <Link to="/tesoreria-bartiz">Impórtalas en Bancos</Link>.</div>
+                )}
+                {cuentas?.map((b) => (
+                  <div className="home-bank" key={b.id}>
+                    <span className="home-line-ic"><Icon name="bank" /></span>
+                    <span className="home-line-t">
+                      <b>{b.banco} <span className="home-muted">{b.nombre}</span></b>
+                      <small>{b.tipo === 'CAJA' ? 'caja chica' : b.titular || '—'}</small>
+                    </span>
+                    <span className={'home-bank-v num' + ((Number(b.balance) || 0) < 0 ? ' neg' : '')}>
+                      {(Number(b.balance) || 0) < 0 ? '−' : ''}{money(Math.abs(Number(b.balance) || 0))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── Para hoy ── */}
+          <section className="home-card">
+            <header className="home-card-head">
+              <span className="home-card-ic"><Icon name="check" /></span>
+              <h2>Para hoy</h2>
+            </header>
+            <p className="home-card-sub">Pendientes que requieren tu atención</p>
+            {todosVisibles.length === 0 ? (
+              <div className="home-empty">
+                {todosLoading ? 'Cargando pendientes…' : (
+                  <>
+                    <span className="home-empty-ic"><Icon name="check" /></span>
+                    <b>Todo al día</b>
+                    <span>No hay pendientes que requieran tu atención.</span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <ul className="home-todos">
+                {todosVisibles.map((t) => (
+                  <li key={t.key}>
+                    <Link to={t.to} className="home-todo" title={t.n === FAIL ? 'No se pudo cargar este conteo' : undefined}>
+                      <span className={'home-bub' + (t.tone ? ' ' + t.tone : '')}>
+                        <Icon name={t.icon} />
+                        <b className="num">{fig(t.n)}</b>
+                      </span>
+                      <span className="home-todo-l">{t.label}</span>
+                      <Icon name="chevronRight" className="home-todo-go" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
 
-        {/* main two-column */}
-        <div className="grid-main">
-          <div className="col">
-            {/* Portfolio table — the redesigned feed */}
-            <div className="card">
-              <div className="card-head">
-                <h3>Cartera de proyectos</h3>
-                <span className="hint">Avance físico vs. programado · saldo por cobrar</span>
-                <div className="spacer" />
-                <button
-                  className="btn btn-ghost"
-                  style={{ padding: '7px 12px', fontSize: 12.5 }}
-                  onClick={() => setSort(sort === 'contratado' ? 'avance' : 'contratado')}
-                >
-                  <Icon name="filter" style={{ width: 14, height: 14 }} />
-                  Ordenar: {sort === 'contratado' ? 'Monto' : 'Avance'}
-                </button>
-              </div>
-              {!cargando && projects.length === 0 && (
-                <div className="hoy-lista-empty">
-                  Sin obras aún. Crea la primera en Obras y su presupuesto aparecerá aquí.
-                </div>
-              )}
-              {cargando && <div className="hoy-lista-empty">Cargando cartera…</div>}
-              <div className="scroll-x">
-                <table className="ptable">
-                  <thead>
-                    <tr>
-                      <th>Proyecto</th>
-                      <th>Avance</th>
-                      <th className="r">Contratado</th>
-                      <th className="r">Por cobrar</th>
-                      <th>Estado</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projects.map((p) => (
-                      <tr key={p.id || p.code} onClick={() => openProject(p)}>
-                        <td>
-                          <div className="proj-cell">
-                            <div className="proj-badge" style={{ background: p.color }}>
-                              {p.short}
-                            </div>
-                            <div>
-                              <div className="proj-name">{p.name}</div>
-                              <div className="proj-code">
-                                {p.code} · {p.location}
-                              </div>
-                            </div>
+        {/* ── Cartera de proyectos ── */}
+        <section className="home-card home-cartera">
+          <header className="home-card-head">
+            <span className="home-card-ic"><Icon name="projects" /></span>
+            <h2>Cartera de proyectos</h2>
+            <span className="home-card-hint">Avance físico vs. programado</span>
+            <span className="home-spacer" />
+            {rows.length > 1 && (
+              <button
+                type="button"
+                className="btn btn-ghost home-btn"
+                onClick={() => setSort(sort === 'contratado' ? 'avance' : 'contratado')}
+              >
+                <Icon name="filter" />
+                Ordenar: {sort === 'contratado' ? 'Monto' : 'Avance'}
+              </button>
+            )}
+          </header>
+          {d.proyectos === undefined && <div className="home-note pad">Cargando cartera…</div>}
+          {d.proyectos === FAIL && <div className="home-note pad">No se pudo cargar la cartera.</div>}
+          {isOk(d.proyectos) && projects.length === 0 && (
+            <div className="home-note pad">
+              Sin obras aún. Crea la primera en <Link to="/proyectos">Obras</Link> y su presupuesto aparecerá aquí.
+            </div>
+          )}
+          {projects.length > 0 && (
+            <div className="scroll-x">
+              <table className="ptable home-ptable">
+                <thead>
+                  <tr>
+                    <th>Proyecto</th>
+                    <th>Avance</th>
+                    <th className="r">Contratado</th>
+                    <th className="r" title="El saldo por cobrar aún no está disponible en la lista de obras">Por cobrar</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projects.map((p) => (
+                    <tr key={p.id || p.code} onClick={() => p.id && navigate(`/proyectos/${p.id}`)}>
+                      <td>
+                        <div className="proj-cell">
+                          <div className="proj-badge" style={{ background: p.color }}>{p.short}</div>
+                          <div>
+                            <div className="proj-name">{p.name}</div>
+                            <div className="proj-code">{p.code} · {p.location}</div>
                           </div>
-                        </td>
-                        <td>
-                          <div className="progress-wrap">
-                            <div className="progress-top">
-                              <span
-                                className="pct"
-                                style={{ color: p.avance > 0 ? 'var(--pos)' : 'var(--ink-3)' }}
-                              >
-                                {p.avance.toFixed(1)}%
-                              </span>
-                              {p.plan > 0 && <span className="planpct">plan {p.plan.toFixed(0)}%</span>}
-                            </div>
-                            <div className="track">
-                              <div
-                                className="fill"
-                                style={{
-                                  width: Math.max(p.avance, 1.5) + '%',
-                                  background: p.avance > 0 ? 'var(--pos)' : 'var(--line-2)',
-                                }}
-                              />
-                              {p.plan > 0 && <div className="plan-mark" style={{ left: p.plan + '%' }} />}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="r">
-                          <span className="money big">{p.contratado ? money(p.contratado) : '—'}</span>
-                        </td>
-                        <td className="r">
-                          {p.porCobrar > 0 ? (
-                            <span className="money big" style={{ color: 'var(--brand-strong)' }}>
-                              {money(p.porCobrar)}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="progress-wrap">
+                          <div className="progress-top">
+                            <span className="pct" style={{ color: p.avance > 0 ? 'var(--pos)' : 'var(--ink-3)' }}>
+                              {p.avance.toFixed(1)}%
                             </span>
-                          ) : (
-                            <span className="money muted">—</span>
-                          )}
-                        </td>
-                        <td>
-                          <span className={'status ' + p.status}>
-                            <span className="sdot" />
-                            {p.statusLabel || STATUS_LABEL[p.status]}
-                          </span>
-                        </td>
-                        <td className="r">
-                          <span className="row-go">
-                            <Icon name="chevronRight" />
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* S-curve */}
-            <div className="card">
-              <div className="chart-head">
-                <div>
-                  <h3>Avance de cartera</h3>
-                  <span className="hint">Curva acumulada · programado (cliente) vs. real ejecutado</span>
-                </div>
-                <div className="chart-legend">
-                  <span className="cl">
-                    <span className="ln" style={{ background: '#2A241F' }} />
-                    Programado
-                  </span>
-                  <span className="cl">
-                    <span className="ln" style={{ background: '#2F7D56' }} />
-                    Real
-                  </span>
-                </div>
-              </div>
-              <div className="chart-stats">
-                <div className="cstat">
-                  <div className="cl2">Real acumulado</div>
-                  <div className="cv green">{totals.real.toFixed(1)}%</div>
-                </div>
-                <div className="cstat">
-                  <div className="cl2">Programado (calendario)</div>
-                  <div className="cv">{totals.plan.toFixed(1)}%</div>
-                </div>
-                <div className="cstat">
-                  <div className="cl2">Desviación</div>
-                  <div className="cv" style={{ color: totals.real - totals.plan < 0 ? 'var(--neg)' : 'var(--pos)' }}>
-                    {(totals.real - totals.plan) >= 0 ? '+' : '−'}{Math.abs(totals.real - totals.plan).toFixed(1)}%
-                  </div>
-                </div>
-                <div className="cstat">
-                  <div className="cl2">Total contrato</div>
-                  <div className="cv">{compactMoney(totals.contratado)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* side column / rail */}
-          <div className="col">
-            {/* cash position */}
-            <div className="card">
-              <div className="saldo-hero">
-                <div className="lbl">Posición de efectivo</div>
-                <div className="v">
-                  <MoneyParts value={saldoBancos ?? 0} />
-                </div>
-              </div>
-              {cuentas.length === 0 ? (
-                <div className="hoy-lista-empty">
-                  Sin cuentas bancarias conectadas. Impórtalas en Bancos.
-                </div>
-              ) : (
-                cuentas.map((b) => (
-                  <div className="bank" key={b.id}>
-                    <div className="bank-ic">
-                      <Icon name="bank" />
-                    </div>
-                    <div>
-                      <div className="bank-name">
-                        {b.banco}{' '}
-                        <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>{b.nombre}</span>
-                      </div>
-                      <div className="bank-meta">
-                        {b.tipo === 'CAJA' ? 'caja chica' : b.titular || '—'}
-                      </div>
-                    </div>
-                    <div className="bank-amt">
-                      <div className={'v' + ((b.balance ?? 0) < 0 ? ' neg' : '')}>
-                        {(b.balance ?? 0) < 0 ? '−' : ''}
-                        {money(Math.abs(b.balance ?? 0))}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Hoy en la obra — pendientes numerados (mockup 01/02/03) */}
-            <div className="card">
-              <div className="card-head">
-                <h3>Hoy en la obra</h3>
-              </div>
-              {pendientes.length === 0 ? (
-                <div className="hoy-lista-empty">
-                  {pend.loaded ? 'Todo al día — no hay pendientes que requieran tu atención.' : 'Cargando pendientes…'}
-                </div>
-              ) : (
-                <div className="hoy-lista">
-                  {pendientes.map((p, i) => (
-                    <a
-                      key={p.to}
-                      className="hoy-lista-item"
-                      href={p.to}
-                      onClick={(e) => { e.preventDefault(); navigate(p.to) }}
-                    >
-                      <span className="hoy-lista-n">{String(i + 1).padStart(2, '0')}</span>
-                      <span>{p.n}</span>
-                    </a>
+                            {p.plan > 0 && <span className="planpct">plan {p.plan.toFixed(0)}%</span>}
+                          </div>
+                          <div className="track">
+                            <div
+                              className="fill"
+                              style={{
+                                width: Math.max(p.avance, 1.5) + '%',
+                                background: p.avance > 0 ? 'var(--pos)' : 'var(--line-2)',
+                              }}
+                            />
+                            {p.plan > 0 && <div className="plan-mark" style={{ left: p.plan + '%' }} />}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="r"><span className="home-money num">{p.contratado ? money(p.contratado) : '—'}</span></td>
+                      <td className="r">
+                        <span className={'home-money num' + (p.porCobrar == null ? ' home-muted' : '')}>
+                          {p.porCobrar == null ? '—' : money(p.porCobrar)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={'status ' + p.status}>
+                          <span className="sdot" />
+                          {p.statusLabel}
+                        </span>
+                      </td>
+                      <td className="r"><span className="row-go"><Icon name="chevronRight" /></span></td>
+                    </tr>
                   ))}
-                </div>
-              )}
+                </tbody>
+              </table>
             </div>
-
-          </div>
-        </div>
-
+          )}
+        </section>
       </div>
     </div>
   )
