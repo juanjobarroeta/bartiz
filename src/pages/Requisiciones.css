@@ -336,3 +336,9 @@
   white-space: nowrap;
   cursor: pointer;
 }
+
+/* Móvil: la tabla se desplaza dentro de sí misma en lugar de recortar
+   columnas (el body oculta el desborde horizontal). */
+@media (max-width: 760px) {
+  .reqs-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}

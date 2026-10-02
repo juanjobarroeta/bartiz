@@ -665,9 +665,13 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
       <div className="modal-actions">
         <button type="button" onClick={onClose}>Cancelar</button>
-        <button type="button" className="secondary" onClick={saveDraft} disabled={busy}>
-          Guardar borrador
-        </button>
+        {/* Guardar borrador sobre una PENDIENTE la sacaba en silencio de la
+            cola de autorización; sólo aplica a requisiciones nuevas o borradores. */}
+        {initialDraft?.estado !== 'PENDIENTE' && (
+          <button type="button" className="secondary" onClick={saveDraft} disabled={busy}>
+            Guardar borrador
+          </button>
+        )}
         <button type="submit" className="primary" disabled={busy}>
           {busy ? 'Enviando…' : 'Enviar a autorización'}
         </button>
