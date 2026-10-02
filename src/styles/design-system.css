@@ -785,14 +785,12 @@ h1, h2, h3, h4, h5, h6 { color: var(--ink); font-family: var(--font-ui); }
    la firma tipográfica del rediseño. */
 .ds .ptable thead th {
   text-align: left;
-  padding: 11px var(--pad);
-  font-size: 10.5px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  padding: 10px var(--pad);
+  font-size: 12px;
+  font-family: var(--font-ui);
   color: var(--ink-3);
   font-weight: 500;
-  border-bottom: 1.5px solid var(--ink);
+  border-bottom: 1px solid var(--line);
   background: transparent;
 }
 .ds .ptable thead th.r {
