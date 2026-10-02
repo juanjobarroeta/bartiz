@@ -21,7 +21,11 @@ export const ROL_HOME = {
 // Prefijos de ruta permitidos por rol restringido. Todo lo demás redirige
 // a ROL_HOME (guard en App.jsx).
 const ROL_PREFIXES = {
-  TESORERIA: ['/pagos-tesoreria'],
+  // Destajo (mano de obra de las obras) va en TODOS los roles por ahora: cada
+  // rol hace su parte — el residente captura, contabilidad autoriza,
+  // tesorería paga (el backend lo hace cumplir). La matriz puede quitarlo
+  // por usuario.
+  TESORERIA: ['/pagos-tesoreria', '/destajo'],
   RESIDENTE: [
     '/requisiciones',
     '/proyectos',
@@ -32,6 +36,7 @@ const ROL_PREFIXES = {
     '/reembolsos',  // alias viejo de caja chica (botón "volver" del detalle)
     // Directorio de proveedores: ver y dar de alta (editar sigue siendo admin)
     '/proveedores-bartiz',
+    '/destajo',
   ],
   // Escritorio de compras/pagos: proveedores completos, compras por
   // autorizar, cuentas por pagar y presupuestos en lectura.
@@ -43,6 +48,7 @@ const ROL_PREFIXES = {
     '/requisiciones',      // ver y capturar precios de requisiciones existentes
     '/proyectos',
     '/presupuesto',        // detalle (sólo lectura vía rol)
+    '/destajo',
   ],
 }
 

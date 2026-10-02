@@ -1139,7 +1139,7 @@ function ConsumoInsumosTab({ proyecto }) {
 
 // ── Cuadrillas Tab ──────────────────────────────────────────────────────────
 //
-// Per-especialidad trade teams (Decolsa feature, gated on CONSTRUCCION_CUADRILLAS).
+// Per-especialidad trade teams (parte del módulo CONSTRUCCION).
 // Inline CRUD: list cuadrillas, add/rename/deactivate; click a cuadrilla to
 // expand and manage its miembros.
 

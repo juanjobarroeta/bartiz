@@ -7,9 +7,10 @@
  *   • Cuadrillas — all active cuadrillas + their miembros
  *   • Rayas      — all rayas (filterable by estado), newest first
  *
- * Module-flag-gated: returns an empty state when CONSTRUCCION_CUADRILLAS
- * isn't enabled on the active company. Bartiz won't see destajo data
- * until that module ships for them; Decolsa already has it on.
+ * Parte del módulo CONSTRUCCION: antes vivía detrás de su propio flag
+ * (CONSTRUCCION_CUADRILLAS), que los usuarios creados desde bartiz nunca
+ * traían en su lista de módulos y por eso veían «Módulo no habilitado».
+ * Quién la ve lo deciden el rol y la matriz de permisos.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -25,7 +26,7 @@ const fmtDate = (d) =>
 export default function Destajo() {
   const { activeCompany } = useAuth()
   const companyId = activeCompany?.id
-  const hasCuadrillas = activeCompany?.modulos?.includes('CONSTRUCCION_CUADRILLAS')
+  const hasCuadrillas = activeCompany?.modulos?.includes('CONSTRUCCION')
 
   const [tab, setTab] = useState('cuadrillas')
   const [proyectos, setProyectos] = useState([])
@@ -84,9 +85,9 @@ export default function Destajo() {
         <header>
           <h1>Destajo / Nómina</h1>
           <p className="muted small">
-            Cuadrillas, miembros y rayas semanales. Esta empresa aún no tiene
-            el módulo CONSTRUCCION_CUADRILLAS habilitado — pídele al admin
-            que lo encienda en contabilidad-os.
+            Cuadrillas, miembros y rayas semanales. Esta empresa no tiene el
+            módulo de construcción habilitado para tu usuario — pídele al
+            admin que te dé acceso.
           </p>
         </header>
         <div className="pd-empty">Módulo no habilitado.</div>
