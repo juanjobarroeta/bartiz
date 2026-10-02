@@ -323,3 +323,10 @@
   white-space: nowrap;
   cursor: pointer;
 }
+
+/* IVA por línea: ancho fijo (no crece como los inputs) y mismo look */
+.line-row > select.line-iva {
+  padding: 8px 6px; border: 1px solid var(--line-2); border-radius: var(--r-sm);
+  font-size: 0.82rem; font-family: var(--font-ui); background: var(--surface); color: var(--ink);
+}
+.line-row > select.line-iva:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-tint); }

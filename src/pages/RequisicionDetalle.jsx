@@ -23,6 +23,7 @@ import SupplierPicker from '../components/SupplierPicker'
 import { readTerms } from './ProveedoresBartiz'
 import { confirmDialog, alertDialog } from '../components/Dialog'
 import { useAuth } from '../auth/AuthContext'
+import { ivaEtiqueta, tasaNum } from '../lib/iva'
 import '../components/Modal.css'
 import '../components/FileUpload.css'
 import '../components/SupplierPicker.css'
@@ -264,6 +265,9 @@ export default function RequisicionDetalle() {
                 <tr key={partida.id}>
                   <td>
                     <div>{partida.descripcion}</div>
+                    {tasaNum(partida.ivaTasa) !== 0.16 && (
+                      <div className="muted small">IVA: {ivaEtiqueta(partida.ivaTasa)}</div>
+                    )}
                     {partida.insumo && (
                       <div className="muted small">
                         Insumo: <span className="mono">{partida.insumo.codigo}</span>
