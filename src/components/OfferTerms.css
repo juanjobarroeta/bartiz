@@ -1,0 +1,28 @@
+/* Condiciones de oferta: filas "Etiqueta · control" en línea. Los selectores
+   llevan `label`-free markup a propósito: `.req-form label` apila en columna. */
+.oterms { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.oterms:not(.compact) { flex-direction: row; flex-wrap: wrap; gap: 8px 18px; }
+.oterm { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--ink-2); white-space: nowrap; }
+.oterm-l { min-width: 52px; font-weight: 600; color: var(--ink-3); }
+.oterms:not(.compact) .oterm-l { min-width: 0; }
+
+.seg { display: inline-flex; padding: 2px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line-2); }
+.seg-btn {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  padding: 3px 9px; border-radius: 6px; font: 600 0.76rem var(--font-ui); color: var(--ink-3);
+  line-height: 1.4; min-height: 0; box-shadow: none;
+}
+.seg-btn:hover { color: var(--ink); }
+.seg-btn.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.seg-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.oterm-num { display: inline-flex; align-items: center; gap: 5px; }
+.oterm-num input {
+  width: 54px; margin: 0; padding: 4px 6px; text-align: right;
+  border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink);
+  font: 0.8rem var(--font-ui);
+}
+
+.otot { display: grid; grid-template-columns: auto auto; gap: 1px 10px; justify-content: start; font-size: 0.76rem; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.otot b { font-weight: 500; color: var(--ink-2); text-align: right; }
+.otot b.otot-t { font-weight: 700; color: var(--ink); }

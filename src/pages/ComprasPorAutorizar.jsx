@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
 import { money } from '../lib/format'
+import { confirmDialog } from '../components/Dialog'
 import { ivaEtiqueta, tasaNum } from '../lib/iva'
 import './ComprasPorAutorizar.css'
 
@@ -140,6 +141,17 @@ export default function ComprasPorAutorizar() {
       setError('Adjudica al menos un concepto antes de autorizar.')
       return
     }
+    // Autorizar compromete dinero: pasa a cuentas por pagar. Confirmar, y si
+    // es parcial, decir explícitamente qué NO se va a comprar.
+    const faltan = totalConcepts - assigned
+    const ok = await confirmDialog({
+      title: `Autorizar ${req.folio}`,
+      message: faltan > 0
+        ? `Se autorizarán ${assigned} de ${totalConcepts} conceptos. Los ${faltan} sin adjudicar NO se comprarán en esta requisición. La compra pasa a cuentas por pagar.`
+        : `Se autorizan los ${totalConcepts} conceptos y la compra pasa a cuentas por pagar.`,
+      okLabel: 'Autorizar',
+    })
+    if (!ok) return
     setBusyId(req.id)
     setError(null)
     try {

@@ -55,7 +55,7 @@ export function SCurve({ curve, height = 230, showInterno = false }) {
             textAnchor="end"
             fontSize="10"
             fill="#A8A093"
-            fontFamily="JetBrains Mono"
+            fontFamily="Geist Mono, ui-monospace, Menlo, monospace"
           >
             {g}%
           </text>
@@ -78,7 +78,7 @@ export function SCurve({ curve, height = 230, showInterno = false }) {
           textAnchor="middle"
           fontSize="9.5"
           fill="#A8A093"
-          fontFamily="JetBrains Mono"
+          fontFamily="Geist Mono, ui-monospace, Menlo, monospace"
         >
           {l}
         </text>

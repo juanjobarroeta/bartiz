@@ -144,7 +144,7 @@ export async function apiFetch(path, opts = {}) {
     }
     const friendlyMsg =
       data && typeof data === 'object' && data.error
-        ? data.error
+        ? errorText(data.error)
         : `${method} ${path} → ${res.status}${
             res.status === 404 ? ' (ruta no encontrada o no desplegada aún)' : ''
           }`
@@ -159,3 +159,22 @@ export async function apiFetch(path, opts = {}) {
 }
 
 export default API_URL
+
+/**
+ * El backend responde `{ error: string }` o, en validaciones zod,
+ * `{ error: { formErrors: string[], fieldErrors: { campo: string[] } } }`.
+ * `new Error(objeto)` mostraba "[object Object]"; esto lo vuelve legible.
+ */
+function errorText(error) {
+  if (typeof error === 'string') return error
+  if (!error || typeof error !== 'object') return String(error)
+  const parts = []
+  for (const m of error.formErrors ?? []) parts.push(m)
+  for (const [campo, msgs] of Object.entries(error.fieldErrors ?? {})) {
+    const list = Array.isArray(msgs) ? msgs : [msgs]
+    if (list.length) parts.push(`${campo}: ${list.join(', ')}`)
+  }
+  if (parts.length) return `Datos inválidos — ${parts.join(' · ')}`
+  if (typeof error.message === 'string') return error.message
+  try { return JSON.stringify(error) } catch { return 'Error desconocido' }
+}

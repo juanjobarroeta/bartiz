@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
   <head>
+    <script>
+      // Aplica el tema guardado antes del primer pintado (evita el destello claro).
+      try { if (localStorage.getItem('bz-theme2') === 'oscuro') document.documentElement.setAttribute('data-theme', 'oscuro') } catch (e) {}
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bartiz - Admin</title>
@@ -8,7 +12,7 @@
          recibir notificaciones push (Safari sólo las entrega a apps
          instaladas: Compartir → Agregar a pantalla de inicio). -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#1a7a4a" />
+    <meta name="theme-color" content="#e6defc" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
   </head>

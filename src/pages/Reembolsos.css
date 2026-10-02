@@ -207,3 +207,9 @@
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   border: 1px solid var(--line, #e5e2da); border-radius: 8px; padding: 8px 10px;
 }
+
+/* Móvil: la tabla se desplaza dentro de sí misma en lugar de recortar
+   columnas (el body oculta el desborde horizontal). */
+@media (max-width: 760px) {
+  .reembolsos-table, .reembolso-gastos { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}
