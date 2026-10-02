@@ -43,6 +43,10 @@ const MORE_NAV = [
   { path: '/caja-chica',          label: 'Caja chica' },
   { path: '/destajo',             label: 'Destajo' },
   { path: '/reportes',            label: 'Reportes' },
+  // En móvil este menú es la única navegación (el sidebar se oculta), así
+  // que Usuarios tiene que vivir aquí también; el filtro de visibilidad ya
+  // lo deja sólo para admins.
+  { path: '/usuarios',            label: 'Usuarios' },
 ]
 
 // Sidebar de desktop, agrupado por dominio (patrón del mockup): etiquetas
@@ -85,7 +89,13 @@ const SIDE_SECTIONS = [
 
 // Navegación encajonada por rol restringido (ver src/auth/roles.js).
 const SIDE_SECTIONS_TESORERIA = [
-  { title: null, items: [{ path: '/pagos-tesoreria', label: 'Pagos' }] },
+  {
+    title: null,
+    items: [
+      { path: '/pagos-tesoreria', label: 'Pagos' },
+      { path: '/destajo',         label: 'Destajo' },
+    ],
+  },
 ]
 const SIDE_SECTIONS_RESIDENTE = [
   {
@@ -94,6 +104,7 @@ const SIDE_SECTIONS_RESIDENTE = [
       { path: '/requisiciones',      label: 'Requisiciones' },
       { path: '/proyectos',          label: 'Obras' },
       { path: '/caja-chica',         label: 'Caja chica' },
+      { path: '/destajo',            label: 'Destajo' },
       { path: '/proveedores-bartiz', label: 'Proveedores' },
     ],
   },
@@ -109,6 +120,7 @@ const SIDE_SECTIONS_CONTABILIDAD = [
       { path: '/proveedores-bartiz',    label: 'Proveedores' },
       { path: '/cuentas-proveedores',   label: 'Estados de cuenta' },
       { path: '/proyectos',             label: 'Obras' },
+      { path: '/destajo',               label: 'Destajo' },
     ],
   },
 ]
