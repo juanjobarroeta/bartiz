@@ -25,40 +25,40 @@
 }
 
 :root {
-  /* Construction Palette */
-  --color-sage: #A2B9A7;
-  --color-orange: #F67E04;
-  --color-teal: #317371;
-  --color-cream: #E3D1BA;
-  --color-brown: #785F54;
-  
+  /* Paleta legacy (café/naranja/teal) — ahora alias de los tokens del design
+     system (design-system.css) para que las páginas viejas hereden el look
+     nuevo sin tocarlas. */
+  --color-sage: var(--pos-soft);
+  --color-orange: var(--warn);
+  --color-teal: var(--ink2);
+  --color-cream: var(--surface2);
+  --color-brown: var(--ink);
+
   /* Semantic colors */
-  --color-primary: #F67E04;
-  --color-primary-dark: #D96D00;
-  --color-secondary: #317371;
-  --color-secondary-light: #3D8C8A;
-  --color-accent: #A2B9A7;
-  
+  --color-primary: var(--deep);
+  --color-primary-dark: var(--deep-2);
+  --color-secondary: var(--ink2);
+  --color-secondary-light: var(--ink3);
+  --color-accent: var(--purple);
+
   /* Neutrals */
-  --color-white: #FFFFFF;
-  --color-black: #2D2520;
-  --color-text: #785F54;
-  --color-text-dark: #5C473E;
-  --color-text-light: #9A8578;
-  --color-border: #D4C8BC;
-  --color-bg: #F8F5F1;
-  --color-bg-alt: #E3D1BA;
-  
+  --color-white: var(--surface);
+  --color-black: var(--ink);
+  --color-text: var(--ink);
+  --color-text-dark: var(--ink);
+  --color-text-light: var(--ink3);
+  --color-border: var(--line);
+  --color-bg: var(--bg);
+  --color-bg-alt: var(--surface2);
+
   /* Legacy support */
-  --color-dark: #317371;
-  --color-gray: #9A8578;
-  --color-beige: #E3D1BA;
+  --color-dark: var(--ink);
+  --color-gray: var(--ink3);
+  --color-beige: var(--surface2);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-bg);
@@ -74,7 +74,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 h1 {
-  font-size: 1.75rem;
+  font-size: 24px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
   margin-bottom: 0.5rem;
   font-weight: 700;
 }
@@ -139,14 +141,14 @@ a {
 }
 
 .btn:hover {
-  background: var(--color-secondary);
-  color: var(--color-white);
-  border-color: var(--color-secondary);
+  background: var(--surface2);
+  color: var(--ink);
+  border-color: var(--line2);
 }
 
 .btn-primary {
   background: var(--color-primary);
-  color: var(--color-white);
+  color: var(--on-deep);
   border-color: var(--color-primary);
 }
 
@@ -160,8 +162,8 @@ a {
   border: 1px solid var(--color-border);
   padding: 1.25rem;
   margin-bottom: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
 }
 
 .input {
@@ -176,8 +178,8 @@ a {
 }
 
 .input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(246, 126, 4, 0.15);
+  border-color: var(--link);
+  box-shadow: 0 0 0 3px rgba(29, 100, 216, 0.15);
 }
 
 textarea.input {
@@ -188,7 +190,7 @@ textarea.input {
 }
 
 .label {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: inherit;
   font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -211,7 +213,7 @@ textarea.input {
 }
 
 .table th {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: inherit;
   font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -294,7 +296,7 @@ em, i {
   }
 
   h1 {
-    font-size: 1.5rem;
+    font-size: 22px;
   }
 
   h2 {

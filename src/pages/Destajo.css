@@ -272,3 +272,9 @@
   .mo-totales { min-width: 0; width: 100%; }
   .mo-actions .btn { flex: 1 1 auto; }
 }
+
+/* Móvil: la tabla se desplaza dentro de sí misma en lugar de recortar
+   columnas (el body oculta el desborde horizontal). */
+@media (max-width: 760px) {
+  .rayas-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}

@@ -18,6 +18,7 @@ import Modal from '../components/Modal'
 import '../components/Modal.css'
 import { Icon } from '../components/ds/Icon'
 import { money } from '../lib/format'
+import { alertDialog } from '../components/Dialog'
 import './Facturas.css'
 
 const fmtDate = (d) =>
@@ -34,21 +35,6 @@ const FILTERS = [
   ['todas', 'Todas', () => true],
 ]
 
-// ── Sample fallback (with backend-style suggestions) ─────────────────────────
-const SAMPLE = {
-  RECIBIDA: [
-    { id: 'c1', uuid: 'A1B2C3D4-1111', serie: 'A', folio: '1288', tipo: 'RECIBIDA', tipoComprobante: 'I', emisorRfc: 'RYS010101AB1', emisorNombre: 'Cementos RYSCO', fecha: '2026-06-03', subtotal: 86207, iva: 13793, total: 100000, estadoSat: 'VIGENTE', matchEstado: 'SUGERIDA', supplier: { razonSocial: 'Cementos RYSCO' }, suggestion: { tipo: 'SOLICITUD', targetId: 'sol_288', label: 'REQ-0288 · Platino 2br', monto: 100000, score: 0.94 } },
-    { id: 'c2', uuid: 'A1B2C3D4-2222', serie: 'A', folio: '9043', tipo: 'RECIBIDA', tipoComprobante: 'I', emisorRfc: 'ACE020202CD2', emisorNombre: 'Aceros del Centro S.A.', fecha: '2026-06-05', subtotal: 107328, iva: 17172, total: 124500, estadoSat: 'VIGENTE', matchEstado: 'SUGERIDA', supplier: { razonSocial: 'Aceros del Centro S.A.' }, suggestion: { tipo: 'SOLICITUD', targetId: 'sol_291', label: 'REQ-0291 · Platino 2br', monto: 124500, score: 0.88 } },
-    { id: 'c3', uuid: 'A1B2C3D4-3333', serie: '', folio: '551', tipo: 'RECIBIDA', tipoComprobante: 'I', emisorRfc: 'XAXX010101000', emisorNombre: 'Ferretería La Obra', fecha: '2026-06-06', subtotal: 17112, iva: 2738, total: 19850, estadoSat: 'VIGENTE', matchEstado: 'SIN_VINCULAR', supplier: { razonSocial: 'Ferretería La Obra' }, suggestion: null },
-    { id: 'c4', uuid: 'A1B2C3D4-4444', serie: 'B', folio: '77', tipo: 'RECIBIDA', tipoComprobante: 'I', emisorRfc: 'GAS960101AAA', emisorNombre: 'Gasolinera Periférico', fecha: '2026-06-02', subtotal: 1724, iva: 276, total: 2000, estadoSat: 'VIGENTE', matchEstado: 'IGNORADA', supplier: null, suggestion: null },
-    { id: 'c5', uuid: 'A1B2C3D4-5555', serie: 'A', folio: '1280', tipo: 'RECIBIDA', tipoComprobante: 'I', emisorRfc: 'ARR050505EE5', emisorNombre: 'Arrendadora de Equipo MX', fecha: '2026-05-28', subtotal: 55172, iva: 8828, total: 64000, estadoSat: 'VIGENTE', matchEstado: 'VINCULADA', supplier: { razonSocial: 'Arrendadora de Equipo MX' }, suggestion: null, link: { tipo: 'SOLICITUD', targetId: 'sol_280', label: 'REQ-0280 · Platino 2br' } },
-  ],
-  EMITIDA: [
-    { id: 'e1', uuid: 'Z9Y8X7W6-1111', serie: 'F', folio: '204', tipo: 'EMITIDA', tipoComprobante: 'I', receptorRfc: 'CLI120120XYZ', receptorNombre: 'Inmobiliaria Platino', fecha: '2026-06-01', subtotal: 94267, iva: 15083, total: 109350, estadoSat: 'VIGENTE', matchEstado: 'SUGERIDA', suggestion: { tipo: 'ESTIMACION', targetId: 'est_1', label: 'EST. 1 · Platino 2br', monto: 109350, score: 0.97 } },
-    { id: 'e2', uuid: 'Z9Y8X7W6-2222', serie: 'F', folio: '205', tipo: 'EMITIDA', tipoComprobante: 'P', receptorRfc: 'CLI120120XYZ', receptorNombre: 'Inmobiliaria Platino', fecha: '2026-06-08', subtotal: 0, iva: 0, total: 109350, estadoSat: 'VIGENTE', matchEstado: 'SIN_VINCULAR', suggestion: null },
-  ],
-}
-
 export default function Facturas() {
   const { activeCompany } = useAuth()
   const companyId = activeCompany?.id
@@ -57,22 +43,22 @@ export default function Facturas() {
   const [filter, setFilter] = useState('porvincular')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
-  const [usingSample, setUsingSample] = useState(false)
+  const [loadError, setLoadError] = useState(null)
   const [busyId, setBusyId] = useState(null)
   const [manual, setManual] = useState(null) // cfdi being manually linked
 
   const reload = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     if (!companyId) {
-      setRows(SAMPLE[tab]); setUsingSample(true); setLoading(false); return
+      setRows([]); setLoading(false); return
     }
     try {
       const data = await apiFetch(`/api/construccion/cfdis?companyId=${encodeURIComponent(companyId)}&tipo=${tab}`)
-      if (Array.isArray(data) && data.length) { setRows(data); setUsingSample(false) }
-      else if (Array.isArray(data)) { setRows([]); setUsingSample(false) }
-      else { setRows(SAMPLE[tab]); setUsingSample(true) }
-    } catch {
-      setRows(SAMPLE[tab]); setUsingSample(true)
+      setRows(Array.isArray(data) ? data : [])
+    } catch (err) {
+      // Nunca facturas de ejemplo: sus botones disparaban peticiones reales.
+      setRows([]); setLoadError(err.message || 'No se pudieron cargar las facturas.')
     } finally {
       setLoading(false)
     }
@@ -80,8 +66,8 @@ export default function Facturas() {
 
   useEffect(() => { reload() }, [reload])
 
-  // Optimistic link/ignore. Falls through to a local update if the endpoint
-  // isn't there yet (sample mode), so the UX is demoable today.
+  // El renglón sólo cambia de estado cuando el backend confirma; si falla se
+  // avisa y queda como estaba (antes se marcaba hecho aunque fallara).
   const applyLocal = (id, patch) =>
     setRows((arr) => arr.map((r) => (r.id === id ? { ...r, ...patch } : r)))
 
@@ -92,19 +78,25 @@ export default function Facturas() {
         method: 'POST',
         body: { tipo: candidate.tipo, targetId: candidate.targetId },
       })
-    } catch { /* sample mode: optimistic only */ }
-    applyLocal(cfdi.id, { matchEstado: 'VINCULADA', link: { tipo: candidate.tipo, targetId: candidate.targetId, label: candidate.label }, suggestion: null })
-    setBusyId(null)
-    setManual(null)
+      applyLocal(cfdi.id, { matchEstado: 'VINCULADA', link: { tipo: candidate.tipo, targetId: candidate.targetId, label: candidate.label }, suggestion: null })
+      setManual(null)
+    } catch (err) {
+      alertDialog({ title: 'No se pudo vincular', message: err.message || 'Error al vincular la factura.' })
+    } finally {
+      setBusyId(null)
+    }
   }
 
   const ignorar = async (cfdi) => {
     setBusyId(cfdi.id)
     try {
       await apiFetch(`/api/construccion/cfdis/${cfdi.id}/ignorar`, { method: 'POST' })
-    } catch { /* optimistic */ }
-    applyLocal(cfdi.id, { matchEstado: 'IGNORADA', suggestion: null })
-    setBusyId(null)
+      applyLocal(cfdi.id, { matchEstado: 'IGNORADA', suggestion: null })
+    } catch (err) {
+      alertDialog({ title: 'No se pudo ignorar', message: err.message || 'Error al ignorar la factura.' })
+    } finally {
+      setBusyId(null)
+    }
   }
 
   const filterFn = FILTERS.find((f) => f[0] === filter)?.[2] ?? (() => true)
@@ -210,11 +202,10 @@ export default function Facturas() {
           )}
         </div>
 
-        {usingSample && (
-          <p className="fac-note">
-            Mostrando CFDIs de muestra con sugerencias de ejemplo. Se llenará con las facturas
-            descargadas en contabilidad-os y las sugerencias del backend en cuanto el endpoint
-            <span className="mono"> /cfdis</span> esté disponible.
+        {loadError && (
+          <p className="fac-note" role="alert" style={{ color: 'var(--neg)' }}>
+            No se pudieron cargar las facturas: {loadError}{' '}
+            <button type="button" className="link" onClick={reload}>Reintentar</button>
           </p>
         )}
       </div>
@@ -278,7 +269,8 @@ function ManualLink({ cfdi, companyId, onPick, onClose }) {
       try {
         const data = await apiFetch(`/api/construccion/cfdis/${cfdi.id}/candidatos?companyId=${encodeURIComponent(companyId ?? '')}`)
         if (alive) setCands(Array.isArray(data) ? data : [])
-      } catch {
+      } catch (err) {
+        console.error('candidatos cfdi:', err)
         if (alive) setCands(cfdi.suggestion ? [cfdi.suggestion] : [])
       } finally {
         if (alive) setLoading(false)

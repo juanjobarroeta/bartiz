@@ -139,3 +139,9 @@
 .muted { color: var(--ink-3); }
 .pd-empty { padding: 2rem; text-align: center; color: var(--ink-3); background: var(--surface2); border-radius: 8px; }
 .link { background: none; border: none; color: var(--info); cursor: pointer; }
+
+/* Móvil: la tabla se desplaza dentro de sí misma en lugar de recortar
+   columnas (el body oculta el desborde horizontal). */
+@media (max-width: 760px) {
+  .months-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}

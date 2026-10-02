@@ -21,9 +21,10 @@ import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import SupplierPicker from '../components/SupplierPicker'
+import OfferTerms, { OfferTotals } from '../components/OfferTerms'
 import { readTerms } from './ProveedoresBartiz'
 import { alertDialog, confirmDialog } from '../components/Dialog'
-import { IVA_OPCIONES, ivaTasaDe, ivaValueDe } from '../lib/iva'
+import { IVA_OPCIONES, ivaTasaDe, ivaValueDe, tasaNum } from '../lib/iva'
 import '../components/Modal.css'
 import '../components/SupplierPicker.css'
 import './Requisiciones.css'
@@ -605,10 +606,10 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
       <div className="lines">
         <div className="lines-head">
           <span>Concepto</span>
-          <span style={{ width: 80 }}>Cantidad</span>
-          <span style={{ width: 80 }}>Unidad</span>
-          <span style={{ flex: '0 0 92px' }}>IVA</span>
-          <span style={{ width: 30 }}></span>
+          <span>Cantidad</span>
+          <span>Unidad</span>
+          <span>IVA</span>
+          <span></span>
         </div>
         {partidas.map((p, idx) => (
           <div key={p.key}>
@@ -625,21 +626,22 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
                 step="0.01"
                 value={p.cantidad}
                 onChange={(e) => updatePart(idx, 'cantidad', e.target.value)}
-                placeholder="0"
-                style={{ width: 80 }}
+                placeholder="Cantidad"
+                aria-label="Cantidad"
+                className="line-qty"
               />
               <input
                 value={p.unidad}
                 onChange={(e) => updatePart(idx, 'unidad', e.target.value)}
-                placeholder="ton, m3…"
-                style={{ width: 80 }}
+                placeholder="Unidad (ton, m3…)"
+                aria-label="Unidad"
+                className="line-unit"
               />
               <select
                 className="line-iva"
                 value={p.iva ?? '0.16'}
                 onChange={(e) => updatePart(idx, 'iva', e.target.value)}
                 title="Tasa de IVA de esta línea: lo exento o al 0 % no suma IVA en Compras ni en lo que se paga"
-                style={{ flex: '0 0 92px' }}
               >
                 {IVA_OPCIONES.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -698,9 +700,13 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
       <div className="modal-actions">
         <button type="button" onClick={onClose}>Cancelar</button>
-        <button type="button" className="secondary" onClick={saveDraft} disabled={busy}>
-          Guardar borrador
-        </button>
+        {/* Guardar borrador sobre una PENDIENTE la sacaba en silencio de la
+            cola de autorización; sólo aplica a requisiciones nuevas o borradores. */}
+        {initialDraft?.estado !== 'PENDIENTE' && (
+          <button type="button" className="secondary" onClick={saveDraft} disabled={busy}>
+            Guardar borrador
+          </button>
+        )}
         <button type="submit" className="primary" disabled={busy}>
           {busy ? 'Enviando…' : 'Enviar a autorización'}
         </button>
@@ -757,7 +763,7 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
             <thead>
               <tr>
                 <th className="oc-concept">Concepto</th>
-                <th className="oc-qty">Cant.</th>
+                <th className="oc-qty">Cantidad</th>
                 {offers.map((o, idx) => (
                   <th key={o.key} className="oc-supplier">
                     <OfferSupplierHead
@@ -785,7 +791,8 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
                           step="0.01"
                           value={o.prices[p.key] ?? ''}
                           onChange={(e) => setOfferPrice(idx, p.key, e.target.value)}
-                          placeholder="0.00"
+                          placeholder={o.conIva ? 'P.U. con IVA' : 'P.U. sin IVA'}
+                          aria-label={`Precio unitario de ${p.descripcion}`}
                         />
                         {pu > 0 && <div className="muted small">= {fmtMoneyDec(imp)}</div>}
                       </td>
@@ -796,7 +803,15 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
               <tr className="offers-total-row">
                 <td colSpan={2}><strong>Total oferta</strong></td>
                 {offers.map((o) => (
-                  <td key={o.key} className="oc-price"><strong>{fmtMoneyDec(offerTotal(o))}</strong></td>
+                  <td key={o.key} className="oc-price">
+                    <OfferTotals
+                      conIva={!!o.conIva}
+                      lineas={conceptRows.map((p) => ({
+                        importe: (parseFloat(o.prices[p.key]) || 0) * (Number(p.cantidad) || 0),
+                        tasa: tasaNum(ivaTasaDe(p.iva)),
+                      }))}
+                    />
+                  </td>
                 ))}
               </tr>
             </tbody>
@@ -855,49 +870,14 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
         </div>
       )}
       {named && (
-        <div className="ofs-terms">
-          <label className="ofs-credito" title="Precargado de las condiciones del proveedor; ajustable">
-            <input
-              type="checkbox"
-              checked={!!offer.credito}
-              onChange={(e) => onChange({ credito: e.target.checked })}
-            />
-            <span>{offer.credito ? 'A crédito' : 'Contado'}</span>
-          </label>
-          {offer.credito && (
-            <label className="ofs-credito-dias" title="Días de crédito ofrecidos — define el vencimiento en cuentas por pagar">
-              <input
-                type="number"
-                min="0"
-                max="365"
-                step="1"
-                value={offer.diasCredito ?? ''}
-                onChange={(e) => onChange({ diasCredito: e.target.value })}
-                placeholder="—"
-              />
-              <span>días crédito</span>
-            </label>
-          )}
-          <label className="ofs-iva" title="Marca si los precios que capturas ya incluyen IVA; se guardan sin IVA (÷1.16) para comparar parejo">
-            <input
-              type="checkbox"
-              checked={!!offer.conIva}
-              onChange={(e) => onChange({ conIva: e.target.checked })}
-            />
-            <span>precios con IVA</span>
-          </label>
-          <label className="ofs-entrega" title="Días de entrega prometidos por este proveedor">
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={offer.diasEntrega ?? ''}
-              onChange={(e) => onChange({ diasEntrega: e.target.value })}
-              placeholder="—"
-            />
-            <span>días entrega</span>
-          </label>
-        </div>
+        <OfferTerms
+          compact
+          credito={!!offer.credito}
+          diasCredito={offer.diasCredito}
+          conIva={!!offer.conIva}
+          diasEntrega={offer.diasEntrega}
+          onChange={onChange}
+        />
       )}
       <button type="button" className="link small danger ofs-remove" onClick={onRemove} title="Quitar proveedor">× quitar</button>
     </div>
