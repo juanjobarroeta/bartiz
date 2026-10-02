@@ -55,7 +55,7 @@ export const AREAS = [
       { path: '/facturas',   label: 'Facturas', badge: 'facturas' },
       { path: '/gastos',     label: 'Gastos' },
       { path: '/caja-chica', label: 'Caja chica', match: ['/reembolsos'] },
-      { path: '/destajo',    label: 'Destajo' },
+      { path: '/destajo',    label: 'Mano de obra' },
     ],
   },
   {
@@ -73,13 +73,13 @@ export const AREAS = [
 export const ROLE_NAV = {
   TESORERIA: [
     { path: '/pagos-tesoreria', label: 'Pagos' },
-    { path: '/destajo',         label: 'Destajo' },
+    { path: '/destajo',         label: 'Mano de obra' },
   ],
   RESIDENTE: [
     { path: '/requisiciones',      label: 'Requisiciones' },
     { path: '/proyectos',          label: 'Obras', match: ['/presupuesto'] },
     { path: '/caja-chica',         label: 'Caja chica', match: ['/reembolsos'] },
-    { path: '/destajo',            label: 'Destajo' },
+    { path: '/destajo',            label: 'Mano de obra' },
     { path: '/proveedores-bartiz', label: 'Proveedores' },
   ],
   CONTABILIDAD: [
@@ -89,7 +89,7 @@ export const ROLE_NAV = {
     { path: '/proveedores-bartiz',    label: 'Proveedores' },
     { path: '/cuentas-proveedores',   label: 'Estados de cuenta' },
     { path: '/proyectos',             label: 'Obras', match: ['/presupuesto'] },
-    { path: '/destajo',               label: 'Destajo' },
+    { path: '/destajo',               label: 'Mano de obra' },
   ],
 }
 
