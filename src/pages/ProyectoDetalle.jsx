@@ -317,6 +317,12 @@ function CostosProyecto({ proyectoId }) {
           </div>
         ))}
       </div>
+      {data.manoDeObra?.comprometida > 0 && (
+        <div className="muted small" style={{ marginTop: '0.5rem' }}>
+          Mano de obra (rayas autorizadas): <b>{fmtMoney(data.manoDeObra.comprometida)}</b>
+          {' · '}pagada <b>{fmtMoney(data.manoDeObra.pagada)}</b> — ya incluida en Comprometido y Pagado real.
+        </div>
+      )}
     </div>
   )
 }

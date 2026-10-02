@@ -41,7 +41,7 @@ const MORE_NAV = [
   { path: '/cuentas-proveedores', label: 'Estados de cuenta' },
   { path: '/catalogo',            label: 'Catálogo' },
   { path: '/caja-chica',          label: 'Caja chica' },
-  { path: '/destajo',             label: 'Destajo' },
+  { path: '/destajo',             label: 'Mano de obra' },
   { path: '/reportes',            label: 'Reportes' },
   // En móvil este menú es la única navegación (el sidebar se oculta), así
   // que Usuarios tiene que vivir aquí también; el filtro de visibilidad ya
@@ -62,7 +62,7 @@ const SIDE_SECTIONS = [
       { path: '/proyectos',             label: 'Obras' },
       { path: '/requisiciones',         label: 'Requisiciones' },
       { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
-      { path: '/destajo',               label: 'Destajo' },
+      { path: '/destajo',               label: 'Mano de obra' },
     ],
   },
   {
@@ -93,7 +93,7 @@ const SIDE_SECTIONS_TESORERIA = [
     title: null,
     items: [
       { path: '/pagos-tesoreria', label: 'Pagos' },
-      { path: '/destajo',         label: 'Destajo' },
+      { path: '/destajo',         label: 'Mano de obra' },
     ],
   },
 ]
@@ -104,7 +104,7 @@ const SIDE_SECTIONS_RESIDENTE = [
       { path: '/requisiciones',      label: 'Requisiciones' },
       { path: '/proyectos',          label: 'Obras' },
       { path: '/caja-chica',         label: 'Caja chica' },
-      { path: '/destajo',            label: 'Destajo' },
+      { path: '/destajo',            label: 'Mano de obra' },
       { path: '/proveedores-bartiz', label: 'Proveedores' },
     ],
   },
@@ -120,7 +120,7 @@ const SIDE_SECTIONS_CONTABILIDAD = [
       { path: '/proveedores-bartiz',    label: 'Proveedores' },
       { path: '/cuentas-proveedores',   label: 'Estados de cuenta' },
       { path: '/proyectos',             label: 'Obras' },
-      { path: '/destajo',               label: 'Destajo' },
+      { path: '/destajo',               label: 'Mano de obra' },
     ],
   },
 ]
