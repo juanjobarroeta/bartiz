@@ -424,8 +424,10 @@ function AvanceEditor({ estimacion, presupuesto, estimaciones, aplicaIva, onSave
         body: { partidas: entries },
       })
       onSave()
+      return true
     } catch (err) {
       window.alert(err.message)
+      return false
     } finally {
       setSaving(false)
     }
@@ -493,7 +495,11 @@ function AvanceEditor({ estimacion, presupuesto, estimaciones, aplicaIva, onSave
         <button className="secondary" onClick={save} disabled={saving}>
           {saving ? 'Guardando…' : 'Guardar avance'}
         </button>
-        <button className="primary-green" onClick={() => { save().then(() => onTimbrar()) }} disabled={saving || subtotal <= 0}>
+        <button className="primary-green" onClick={async () => {
+            // Sólo timbra si el avance se guardó: si no, timbraría (y
+            // contabilizaría) cantidades viejas.
+            if (await save()) onTimbrar()
+          }} disabled={saving || subtotal <= 0}>
           Timbrar estimación
         </button>
       </div>

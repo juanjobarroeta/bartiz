@@ -27,7 +27,6 @@ import FileUpload from '../components/FileUpload'
 import '../components/FileUpload.css'
 import { money, compactMoney, MoneyParts } from '../lib/format'
 import { readTerms } from './ProveedoresBartiz'
-import { SAMPLE_SALDO_TOTAL } from '../data/dashboardSample'
 import './CuentasPorPagar.css'
 
 const DAY = 86400000
@@ -52,13 +51,6 @@ const BUCKETS = [
   { id: 'sinfecha', label: 'Sin fecha', tone: 'muted', test: (d) => d == null },
 ]
 
-const SAMPLE_PAYABLES = [
-  { id: 's1', supplierName: 'Aceros del Centro S.A.', proyecto: 'obr-2026-002', folio: 'REQ-0291', monto: 124500, formaPago: 'CREDITO', diasCredito: 30, vencimiento: addDays(new Date(), -4), estado: 'APROBADA' },
-  { id: 's2', supplierName: 'Cementos RYSCO', proyecto: 'obr-2026-002', folio: 'REQ-0288', monto: 86200, formaPago: 'CREDITO', diasCredito: 15, vencimiento: addDays(new Date(), 3), estado: 'APROBADA' },
-  { id: 's3', supplierName: 'Ferretería La Obra', proyecto: 'TP01', folio: 'REQ-0285', monto: 19850, formaPago: 'CONTADO', diasCredito: 0, vencimiento: addDays(new Date(), 0), estado: 'APROBADA' },
-  { id: 's4', supplierName: 'Arrendadora de Equipo MX', proyecto: 'obr-2026-002', folio: 'REQ-0280', monto: 64000, formaPago: 'CREDITO', diasCredito: 30, vencimiento: addDays(new Date(), 12), estado: 'APROBADA' },
-  { id: 's5', supplierName: 'Transportes del Valle', proyecto: 'TR-CSH', folio: 'REQ-0276', monto: 41200, formaPago: 'CREDITO', diasCredito: 45, vencimiento: addDays(new Date(), 26), estado: 'APROBADA' },
-]
 
 // Per-supplier payable (adjudicación) → row. The due date is the approval date
 // plus the supplier's credit days (delivery días are informational, separate).
@@ -128,6 +120,9 @@ function deriveFromRequisiciones(solicitudes, suppliersById) {
       const base = s.fechaEntrega || s.createdAt
       return {
         id: s.id,
+        // Renglón derivado de datos previos a adjudicaciones: sólo informativo.
+        // Pagarlo crearía un pago sin aplicaciones (anticipo huérfano).
+        kind: 'legacy',
         supplierName: s.supplier?.razonSocial ?? '—',
         proyecto: s.proyecto?.codigo ?? '—',
         folio: s.folio,
@@ -148,31 +143,35 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
   const companyId = activeCompany?.id
 
   const [payables, setPayables] = useState([])
-  const [saldo, setSaldo] = useState(SAMPLE_SALDO_TOTAL)
+  // null = sin cuentas bancarias o no se pudo leer: nunca un saldo inventado.
+  const [saldo, setSaldo] = useState(null)
   const [bankAccounts, setBankAccounts] = useState([])
-  const [usingSample, setUsingSample] = useState(false)
+  const [loadError, setLoadError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(null) // row being paid
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!companyId) {
-      setPayables(SAMPLE_PAYABLES)
-      setUsingSample(true)
+      setPayables([])
       setLoading(false)
       return
     }
     let alive = true
     setLoading(true)
+    setLoadError(null)
     ;(async () => {
       // Bank balance + accounts (for the pay dialog).
       try {
         const accts = await apiFetch(`/api/construccion/bank-accounts?companyId=${encodeURIComponent(companyId)}&withBalances=true`)
         if (alive && Array.isArray(accts)) {
           setBankAccounts(accts)
-          if (accts.length) setSaldo(accts.reduce((a, x) => a + (x.balance ?? 0), 0))
+          setSaldo(accts.length ? accts.reduce((a, x) => a + (x.balance ?? 0), 0) : null)
         }
-      } catch { /* keep sample saldo */ }
+      } catch (err) {
+        console.error('cuentas por pagar · bancos:', err)
+        if (alive) setSaldo(null)
+      }
 
       // 1) per-supplier payables (adjudicaciones) + gastos aprobados — the
       // unified admin queue: todo lo aprobado vive aquí.
@@ -180,8 +179,8 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
         const [adjs, gastos, sups] = await Promise.all([
           // abiertas=1 (backend nuevo) = POR_PAGAR + PARCIAL; estado=POR_PAGAR
           // queda como fallback para el backend anterior.
-          apiFetch(`/api/construccion/adjudicaciones?companyId=${encodeURIComponent(companyId)}&estado=POR_PAGAR&abiertas=1`).catch(() => []),
-          apiFetch(`/api/construccion/gastos?companyId=${encodeURIComponent(companyId)}&estado=APROBADO`).catch(() => []),
+          apiFetch(`/api/construccion/adjudicaciones?companyId=${encodeURIComponent(companyId)}&estado=POR_PAGAR&abiertas=1`),
+          apiFetch(`/api/construccion/gastos?companyId=${encodeURIComponent(companyId)}&estado=APROBADO`),
           apiFetch(`/api/construccion/suppliers?companyId=${encodeURIComponent(companyId)}`).catch(() => []),
         ])
         const byId = {}
@@ -192,11 +191,19 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
         ]
         if (alive && rows.length) {
           setPayables(rows)
-          setUsingSample(false)
           setLoading(false)
           return
         }
-      } catch { /* fall through */ }
+      } catch (err) {
+        // Un error NO es "nada por pagar": se muestra y se detiene.
+        console.error('cuentas por pagar:', err)
+        if (alive) {
+          setPayables([])
+          setLoadError(err.message || 'No se pudo cargar la cola de pagos.')
+          setLoading(false)
+        }
+        return
+      }
 
       // 2) derive from authorized requisiciones (pre-Phase-2 data) + suppliers.
       try {
@@ -207,13 +214,10 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
         const byId = {}
         for (const s of Array.isArray(sups) ? sups : []) byId[s.id] = s
         const derived = deriveFromRequisiciones(Array.isArray(sols) ? sols : [], byId)
-        if (alive) {
-          if (derived.length) { setPayables(derived); setUsingSample(false) }
-          else { setPayables([]); setUsingSample(false) }
-        }
+        if (alive) setPayables(derived)
       } catch (err) {
         console.error('cuentas por pagar:', err)
-        if (alive) { setPayables(SAMPLE_PAYABLES); setUsingSample(true) }
+        if (alive) { setPayables([]); setLoadError(err.message || 'No se pudo cargar la cola de pagos.') }
       } finally {
         if (alive) setLoading(false)
       }
@@ -318,7 +322,7 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
     return { total, vencido, next7, buckets }
   }, [rows])
 
-  const cobertura = totals.total > 0 ? Math.round((saldo / totals.total) * 100) : null
+  const cobertura = saldo != null && totals.total > 0 ? Math.round((saldo / totals.total) * 100) : null
 
   return (
     <div className="ds">
@@ -342,7 +346,7 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
           </div>
           <div className="kpi">
             <div className="kpi-top"><div className="kpi-ic" style={{ background: 'var(--pos-soft)', color: 'var(--pos)' }}><Icon name="bank" /></div><div className="kpi-label">Saldo en bancos</div></div>
-            <div className="kpi-value"><MoneyParts value={saldo} /></div>
+            <div className="kpi-value">{saldo != null ? <MoneyParts value={saldo} /> : '—'}</div>
             <div className="kpi-sub">
               {cobertura != null && (
                 <span className={'pill ' + (cobertura >= 100 ? 'brand' : 'warn')}>
@@ -460,12 +464,20 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
                             : <span className="status plan"><span className="sdot" />Por enviar</span>}
                         </td>
                         <td className="r" onClick={(e) => e.stopPropagation()}>
-                          {!p.enviadaTesoreriaAt && (
-                            <button className="cxp-send-btn" onClick={() => enviarTesoreria(p)} title="Mandar a tesorería para pago">
-                              → Tesorería
-                            </button>
+                          {p.kind === 'legacy' ? (
+                            <span className="muted small" title="Requisición autorizada antes de las adjudicaciones; adjudícala en Compras por autorizar para poder pagarla.">
+                              sin adjudicar
+                            </span>
+                          ) : (
+                            <>
+                              {!p.enviadaTesoreriaAt && (
+                                <button className="cxp-send-btn" onClick={() => enviarTesoreria(p)} title="Mandar a tesorería para pago">
+                                  → Tesorería
+                                </button>
+                              )}
+                              <button className="cxp-pay-btn" onClick={() => setPaying(p)}>Pagar</button>
+                            </>
                           )}
-                          <button className="cxp-pay-btn" onClick={() => setPaying(p)}>Pagar</button>
                         </td>
                       </tr>
                     )
@@ -476,10 +488,10 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
           )}
         </div>
 
-        {usingSample && (
-          <p className="cxp-note">
-            Mostrando datos de muestra. Se llenará con las adjudicaciones por pagar (un
-            renglón por proveedor) cuando autorices requisiciones.
+        {loadError && (
+          <p className="cxp-note" role="alert" style={{ color: 'var(--neg)' }}>
+            No se pudo cargar la cola de pagos: {loadError}{' '}
+            <button type="button" className="link" onClick={() => setReloadKey((k) => k + 1)}>Reintentar</button>
           </p>
         )}
       </div>

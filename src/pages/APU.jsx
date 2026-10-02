@@ -78,12 +78,16 @@ export default function APU() {
       setConcepto(data)
       const apu = data.apuActual
       setLines(
+        // Conserva la referencia a sub-APU: sin ella la línea viajaba sin
+        // insumoId ni conceptoRefId y el guardado completo fallaba con 400.
         (apu?.insumos ?? []).map((l) => ({
-          insumoId: l.insumoId,
+          insumoId: l.insumoId ?? undefined,
+          conceptoRefId: l.conceptoRefId ?? l.conceptoRef?.id ?? undefined,
           cantidad: l.cantidad,
           costoUnitario: l.costoUnitario,
           orden: l.orden,
           insumo: l.insumo,
+          conceptoRef: l.conceptoRef,
         }))
       )
       setIndirectosPorc(apu?.indirectosPorc ?? 0)
@@ -205,6 +209,12 @@ export default function APU() {
 
   const save = async () => {
     if (!concepto?.apuActual?.id) return
+    const sinCantidad = lines.filter((l) => !(Number(l.cantidad) > 0))
+    if (sinCantidad.length) {
+      setSaveError(`${sinCantidad.length} línea(s) con cantidad 0 o vacía. Captura una cantidad mayor a 0 o quítalas.`)
+      setSaveOk(false)
+      return
+    }
     setSaving(true)
     setSaveError(null)
     setSaveOk(false)
