@@ -1,126 +1,28 @@
 /**
- * Layout / app shell — rediseño Bartiz ("Nocturno" / "Ledger").
+ * Layout / app shell — rediseño estilo Deel.
  *
- * Barra de navegación HORIZONTAL sticky (sustituye al sidebar): wordmark
- * serif itálica, nav de 8 items primarios + menú "más" con los módulos
- * secundarios, fecha, toggle de tema (oscuro⇄claro, persistido en
- * localStorage como bz-theme) y avatar con menú de cuenta.
+ * Barra superior sticky: wordmark "b." + selector de empresa, pestañas de
+ * ÁREA en pastilla (Inicio · Obras · Compras · Pagos · Comprobantes · Más),
+ * buscador ⌘K y avatar con el menú de cuenta. Debajo, la sub-nav con las
+ * páginas del área activa. Roles con ≤5 páginas ven pestañas planas.
+ * <900px: wordmark + área actual + botón de menú que abre una hoja con los
+ * links agrupados y la cuenta.
  *
- * Los tokens del tema viven en design-system.css sobre :root /
- * :root[data-theme="claro"]; aquí sólo se conmuta el atributo.
+ * La configuración de áreas/roles vive en ./shell/nav.js; los tokens del
+ * tema en design-system.css (:root / :root[data-theme="claro"]).
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { rutaPermitida } from '../auth/roles'
+import { rutaPermitida, homePermitida } from '../auth/roles'
 import { apiFetch } from '../config/api'
 import { activarPush, desactivarPush, estadoPush } from '../lib/push'
+import { navParaRol, areaActiva, itemActivo } from './shell/nav'
+import CommandPalette from './shell/CommandPalette'
 import './Layout.css'
 
-// Nav primario (orden y nombres cortos del diseño). El resto de módulos
-// viven en el menú "más".
-const PRIMARY_NAV = [
-  { path: '/',                      label: 'Hoy' },
-  { path: '/proyectos',             label: 'Obras' },
-  { path: '/requisiciones',         label: 'Reqs' },
-  { path: '/compras-por-autorizar', label: 'Compras' },
-  { path: '/facturas',              label: 'Facturas' },
-  { path: '/cuentas-por-pagar',     label: 'Pagos' },
-  { path: '/tesoreria-bartiz',      label: 'Bancos' },
-  { path: '/gastos',                label: 'Gastos' },
-]
-
-// Nav secundaria móvil (dropdown "más"). Nota: /pagos-tesoreria ya no tiene
-// entrada propia — es la misma cola de Pagos pre-filtrada (la URL sigue viva
-// como bookmark de la tesorera). "Estados de cuenta" = saldos/anticipos de
-// proveedores (antes "Cuentas de proveedores", fácil de confundir con el
-// directorio de Proveedores).
-const MORE_NAV = [
-  { path: '/proveedores-bartiz',  label: 'Proveedores' },
-  { path: '/cuentas-proveedores', label: 'Estados de cuenta' },
-  { path: '/catalogo',            label: 'Catálogo' },
-  { path: '/caja-chica',          label: 'Caja chica' },
-  { path: '/destajo',             label: 'Destajo' },
-  { path: '/reportes',            label: 'Reportes' },
-]
-
-// Sidebar de desktop, agrupado por dominio (patrón del mockup): etiquetas
-// completas + contadores. `badge` es una llave del objeto de counts.
-const SIDE_SECTIONS = [
-  {
-    title: null,
-    items: [{ path: '/', label: 'Panel' }],
-  },
-  {
-    title: 'Obra',
-    items: [
-      { path: '/proyectos',             label: 'Obras' },
-      { path: '/requisiciones',         label: 'Requisiciones' },
-      { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
-      { path: '/destajo',               label: 'Destajo' },
-    ],
-  },
-  {
-    title: 'Dinero',
-    items: [
-      { path: '/cuentas-por-pagar', label: 'Pagos' },
-      { path: '/tesoreria-bartiz',  label: 'Bancos' },
-      { path: '/facturas',          label: 'Facturas', badge: 'facturas' },
-      { path: '/gastos',            label: 'Gastos' },
-      { path: '/caja-chica',        label: 'Caja chica' },
-    ],
-  },
-  {
-    title: 'Administración',
-    items: [
-      { path: '/proveedores-bartiz',  label: 'Proveedores' },
-      { path: '/cuentas-proveedores', label: 'Estados de cuenta' },
-      { path: '/catalogo',            label: 'Catálogo' },
-      { path: '/reportes',            label: 'Reportes' },
-      { path: '/usuarios',            label: 'Usuarios' },
-    ],
-  },
-]
-
-// Navegación encajonada por rol restringido (ver src/auth/roles.js).
-const SIDE_SECTIONS_TESORERIA = [
-  { title: null, items: [{ path: '/pagos-tesoreria', label: 'Pagos' }] },
-]
-const SIDE_SECTIONS_RESIDENTE = [
-  {
-    title: null,
-    items: [
-      { path: '/requisiciones',      label: 'Requisiciones' },
-      { path: '/proyectos',          label: 'Obras' },
-      { path: '/caja-chica',         label: 'Caja chica' },
-      { path: '/proveedores-bartiz', label: 'Proveedores' },
-    ],
-  },
-]
-
-const SIDE_SECTIONS_CONTABILIDAD = [
-  {
-    title: null,
-    items: [
-      { path: '/compras-por-autorizar', label: 'Compras', badge: 'compras' },
-      { path: '/cuentas-por-pagar',     label: 'Pagos' },
-      { path: '/requisiciones',         label: 'Requisiciones' },
-      { path: '/proveedores-bartiz',    label: 'Proveedores' },
-      { path: '/cuentas-proveedores',   label: 'Estados de cuenta' },
-      { path: '/proyectos',             label: 'Obras' },
-    ],
-  },
-]
-
-function seccionesPorRol(rol) {
-  if (rol === 'TESORERIA') return SIDE_SECTIONS_TESORERIA
-  if (rol === 'RESIDENTE') return SIDE_SECTIONS_RESIDENTE
-  if (rol === 'CONTABILIDAD') return SIDE_SECTIONS_CONTABILIDAD
-  return SIDE_SECTIONS
-}
-
-// Contadores del sidebar: compras por autorizar (badge accent) y CFDIs por
+// Contadores de la nav: compras por autorizar (badge accent) y CFDIs por
 // vincular (muted). Best-effort — si el endpoint falla, el badge no aparece.
 // `refreshKey` (la ruta actual) refresca los contadores en cada navegación:
 // sin esto el badge se quedaba congelado con el conteo del primer load
@@ -165,7 +67,7 @@ const WIDE_ROUTES = [
   '/destajo',
 ]
 
-// Rutas rediseñadas que reciben el encabezado de página (h1 serif) del shell;
+// Rutas rediseñadas que reciben el encabezado de página (h1) del shell;
 // las páginas legacy siguen pintando su propio header.
 // El Dashboard ('/') trae su propio encabezado (fecha + acción primaria,
 // patrón del mockup), así que no aparece aquí.
@@ -191,9 +93,6 @@ function useTheme() {
   }, [theme])
   return [theme, () => setTheme((t) => (t === 'oscuro' ? 'claro' : 'oscuro'))]
 }
-
-const fmtHoy = () =>
-  new Date().toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
 
 // ── Cambiar contraseña (self-serve, disponible para todos los roles) ─────────
 /**
@@ -320,242 +219,344 @@ function PasswordModal({ onClose }) {
   )
 }
 
+const CONTA_OS_URL = 'https://contabilidad-os-production.up.railway.app'
+
+const Count = ({ n, hot }) =>
+  n ? <span className={`bz-count${hot ? ' hot' : ''}`}>{n > 999 ? '999+' : n}</span> : null
+
+/** Contenido del menú de cuenta (popover de avatar y hoja móvil). */
+function AccountItems({ user, activeCompany, esAdmin, theme, toggleTheme, onPassword, logout }) {
+  return (
+    <>
+      <div className="bz-menu-meta">{user?.email || user?.name}</div>
+      <PushToggleItem companyId={activeCompany?.id} />
+      <button type="button" className="bz-menu-item" onClick={onPassword}>
+        Cambiar contraseña
+      </button>
+      <button type="button" className="bz-menu-item" onClick={toggleTheme}>
+        {theme === 'oscuro' ? 'Tema claro' : 'Tema oscuro'}
+      </button>
+      {esAdmin && (
+        <a className="bz-menu-item" href={CONTA_OS_URL} target="_blank" rel="noreferrer">
+          contabilidad-os ↗
+        </a>
+      )}
+      <div className="bz-menu-sep" />
+      <button type="button" className="bz-menu-item danger" onClick={logout}>
+        Cerrar sesión
+      </button>
+    </>
+  )
+}
+
 const Layout = ({ children }) => {
   const location = useLocation()
-  const { user, activeCompany, logout, rol, paginas } = useAuth()
+  const navigate = useNavigate()
+  const { user, companies, activeCompany, activeCompanyId, selectCompany, logout, rol, paginas } = useAuth()
   const [theme, toggleTheme] = useTheme()
-  const [moreOpen, setMoreOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
-  const [sideUserOpen, setSideUserOpen] = useState(false)
-  const moreRef = useRef(null)
-  const userRef = useRef(null)
-  const sideUserRef = useRef(null)
-  // Contadores sólo para admin: los roles restringidos no tienen esos
-  // endpoints en su allowlist (y su nav tampoco muestra los badges).
-  const esAdmin = !rol || rol === 'ADMIN'
-  const sideCounts = useSideCounts(esAdmin || rol === 'CONTABILIDAD' ? activeCompany?.id : null, location.pathname)
-  // La matriz de páginas del miembro recorta la navegación de su rol: se
-  // filtra cada item por rutaPermitida y se tiran las secciones vacías.
-  const visible = (item) => rutaPermitida(rol, item.path, paginas)
-  const secciones = seccionesPorRol(rol)
-    .map((sec) => ({ ...sec, items: sec.items.filter(visible) }))
-    .filter((sec) => sec.items.length > 0)
+  const [companyOpen, setCompanyOpen] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [cmdOpen, setCmdOpen] = useState(false)
   const [pwdOpen, setPwdOpen] = useState(false)
+  const userRef = useRef(null)
+  const companyRef = useRef(null)
+  const pathname = location.pathname
+
+  // Contadores sólo para admin/contabilidad: los demás roles no tienen esos
+  // endpoints en su allowlist.
+  const esAdmin = !rol || rol === 'ADMIN'
+  const counts = useSideCounts(esAdmin || rol === 'CONTABILIDAD' ? activeCompany?.id : null, pathname)
+
+  // La matriz de páginas del miembro recorta la navegación de su rol.
+  const visible = (item) => rutaPermitida(rol, item.path, paginas)
+  const nav = navParaRol(rol, visible)
+  const area = areaActiva(nav.areas, pathname)
+  const areaCount = (a) =>
+    a.items.reduce((sum, i) => sum + (i.badge ? counts[i.badge] || 0 : 0), 0)
+  const areaHot = (a) => a.items.some((i) => i.badge === 'compras' && counts.compras)
 
   // Cerrar menús al navegar o al hacer clic fuera.
-  useEffect(() => { setMoreOpen(false); setUserOpen(false); setSideUserOpen(false) }, [location.pathname])
+  useEffect(() => {
+    setUserOpen(false); setCompanyOpen(false); setSheetOpen(false); setCmdOpen(false)
+  }, [pathname])
   useEffect(() => {
     const fn = (e) => {
-      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false)
       if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false)
-      if (sideUserRef.current && !sideUserRef.current.contains(e.target)) setSideUserOpen(false)
+      if (companyRef.current && !companyRef.current.contains(e.target)) setCompanyOpen(false)
     }
     document.addEventListener('mousedown', fn)
     return () => document.removeEventListener('mousedown', fn)
   }, [])
+  // ⌘K / Ctrl+K abre el buscador.
+  useEffect(() => {
+    const fn = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setCmdOpen((o) => !o)
+      }
+    }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [])
+  // Hoja móvil abierta → sin scroll del fondo.
+  useEffect(() => {
+    document.body.style.overflow = sheetOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [sheetOpen])
 
-  // Nota: el antiguo shell PWA móvil (src/mobile) quedó retirado — montaba una
-  // UI distinta en /, /proyectos y /tesoreria-bartiz en teléfonos y se veían
-  // dos apps mezcladas. El Layout responsivo es ahora la única UI.
-
-  const isActive = (path) => {
-    if (path === '/') return location.pathname === '/'
-    if (path === '/proyectos') return location.pathname.startsWith('/proyectos')
-    if (path === '/requisiciones') return location.pathname.startsWith('/requisiciones')
-    // Aliases: /pagos-tesoreria es la cola de Pagos pre-filtrada; /reembolsos
-    // es la ruta vieja de Caja chica (el botón "volver" del detalle aún la usa).
-    if (path === '/cuentas-por-pagar' && location.pathname.startsWith('/pagos-tesoreria')) return true
-    if (path === '/caja-chica' && location.pathname.startsWith('/reembolsos')) return true
-    return location.pathname === path || location.pathname.startsWith(path + '/')
+  // Cambiar de empresa: si la página actual no existe para el rol de la
+  // nueva empresa, aterriza en su home.
+  const cambiarEmpresa = (c) => {
+    setCompanyOpen(false)
+    setSheetOpen(false)
+    if (c.id === activeCompanyId) return
+    selectCompany(c.id)
+    const nRol = c.construccionRol ?? 'ADMIN'
+    const nPag = c.construccionPaginas ?? []
+    if (!rutaPermitida(nRol, pathname, nPag)) navigate(homePermitida(nRol, nPag))
   }
-  const moreActive = MORE_NAV.some((i) => isActive(i.path))
 
-  const pageHead = REDESIGNED_ROUTES[location.pathname]
-  const isWide = WIDE_ROUTES.some(
-    (p) => location.pathname === p || location.pathname.startsWith(p)
-  )
-  const wordmark = activeCompany?.razonSocial?.split(/[,\s]+/).slice(0, 1).join(' ') || 'Bartiz'
+  const pageHead = REDESIGNED_ROUTES[pathname]
+  const isWide = WIDE_ROUTES.some((p) => pathname === p || pathname.startsWith(p))
+  const companyName = activeCompany?.razonSocial || 'Bartiz'
   const initial = (user?.name || user?.email || 'B')[0]?.toUpperCase()
+  const multiEmpresa = (companies?.length ?? 0) > 1
 
-  const sideBadge = (item) => {
-    const n = item.badge ? sideCounts[item.badge] : null
-    if (!n) return null
-    return (
-      <span className={`bz-side-count${item.badge === 'compras' ? ' hot' : ''}`}>
-        {n > 999 ? '999+' : n}
-      </span>
-    )
+  const cmdEntries = nav.flat
+    ? nav.items.map((i) => ({ path: i.path, label: i.label }))
+    : nav.areas.flatMap((a) =>
+        a.items.map((i) => ({
+          path: i.path,
+          label: i.areaLabel || i.label,
+          group: a.items.length > 1 ? a.label : null,
+        }))
+      )
+
+  // Pestañas de primer nivel: áreas (o páginas en la vista plana).
+  const topTabs = nav.flat
+    ? nav.items.map((i) => ({
+        key: i.path,
+        to: i.path,
+        label: i.label,
+        active: itemActivo(i, pathname),
+        count: i.badge ? counts[i.badge] : 0,
+        hot: i.badge === 'compras',
+      }))
+    : nav.areas.map((a) => ({
+        key: a.key,
+        to: a.items[0].path,
+        label: a.label,
+        active: area?.key === a.key,
+        count: areaCount(a),
+        hot: areaHot(a),
+      }))
+  const subItems = !nav.flat && area && area.items.length > 1 ? area.items : null
+  const currentLabel = nav.flat
+    ? nav.items.find((i) => itemActivo(i, pathname))?.label
+    : area?.label
+
+  // Hoja móvil: las áreas de una sola página (Inicio, Obras) van juntas
+  // arriba sin título; las demás, agrupadas con su nombre.
+  const sheetGroups = nav.flat
+    ? [{ key: 'flat', label: null, items: nav.items }]
+    : [
+        {
+          key: 'top',
+          label: null,
+          items: nav.areas
+            .filter((a) => a.items.length === 1)
+            .map((a) => a.items[0]),
+        },
+        ...nav.areas.filter((a) => a.items.length > 1),
+      ].filter((g) => g.items.length > 0)
+
+  const companyPicker = (
+    <div className="bz-company" ref={companyRef}>
+      {multiEmpresa ? (
+        <button
+          type="button"
+          className="bz-company-btn"
+          onClick={() => setCompanyOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={companyOpen}
+          title={companyName}
+        >
+          <span className="bz-company-name">{companyName}</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      ) : (
+        <span className="bz-company-btn static" title={companyName}>
+          <span className="bz-company-name">{companyName}</span>
+        </span>
+      )}
+      {companyOpen && (
+        <div className="bz-menu" role="menu">
+          <div className="bz-menu-label">Empresa</div>
+          {companies.map((c) => (
+            <button
+              type="button"
+              key={c.id}
+              className={`bz-menu-item${c.id === activeCompanyId ? ' active' : ''}`}
+              onClick={() => cambiarEmpresa(c)}
+            >
+              <span className="bz-menu-check">{c.id === activeCompanyId ? '✓' : ''}</span>
+              {c.razonSocial}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  const accountProps = {
+    user, activeCompany, esAdmin, theme, toggleTheme, logout,
+    onPassword: () => { setUserOpen(false); setSheetOpen(false); setPwdOpen(true) },
   }
 
   return (
     <div className="bz-shell">
-      {/* Sidebar de desktop (≥1025px) — patrón del mockup. En móvil se oculta
-          y la top nav de abajo sigue siendo la navegación. */}
-      <aside className="bz-sidebar">
-        <Link to="/" className="bz-side-brand" title={activeCompany?.razonSocial}>
-          <span className="bz-side-mark">{wordmark[0]?.toUpperCase()}</span>
-          <span className="bz-side-name">{wordmark}</span>
-        </Link>
-        <nav className="bz-side-nav">
-          {secciones.map((sec, si) => (
-            <div className="bz-side-group" key={sec.title ?? si}>
-              {sec.title && <div className="bz-side-title">{sec.title}</div>}
-              {sec.items.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`bz-side-item${isActive(item.path) ? ' active' : ''}`}
-                >
-                  <span>{item.label}</span>
-                  {sideBadge(item)}
-                </Link>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="bz-side-foot">
-          <button
-            type="button"
-            className="bz-theme-toggle"
-            onClick={toggleTheme}
-            title="Cambiar tema"
-          >
-            <span className="bz-theme-dot" />
-            {theme === 'oscuro' ? 'NOCTURNO' : 'CLARO'}
-          </button>
-          <div className="bz-side-user" ref={sideUserRef}>
+      <header className="bz-top">
+        <div className="bz-bar">
+          <div className="bz-bar-left">
+            <Link to="/" className="bz-mark" title="Inicio">b.</Link>
+            <span className="bz-bar-sep" aria-hidden="true" />
+            <div className="bz-desk">{companyPicker}</div>
+            {currentLabel && <span className="bz-mob bz-mob-area">{currentLabel}</span>}
+          </div>
+
+          <nav className="bz-tabs bz-desk" aria-label="Áreas">
+            {topTabs.map((t) => (
+              <Link
+                key={t.key}
+                to={t.to}
+                className={`bz-tab${t.active ? ' active' : ''}`}
+                aria-current={t.active ? 'page' : undefined}
+              >
+                {t.label}
+                <Count n={t.count} hot={t.hot} />
+              </Link>
+            ))}
+          </nav>
+
+          <div className="bz-bar-right">
             <button
               type="button"
-              className="bz-side-userbtn"
-              onClick={() => setSideUserOpen((o) => !o)}
-              title={user?.email}
+              className="bz-search bz-desk"
+              onClick={() => setCmdOpen(true)}
+              title="Buscar página (⌘K)"
             >
-              <span className="bz-avatar sm">{initial}</span>
-              <span className="bz-side-username">{(user?.name || user?.email || '').split('@')[0]}</span>
+              <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+                <circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                <path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <span className="bz-search-txt">Buscar</span>
+              <kbd>⌘K</kbd>
             </button>
-            {sideUserOpen && (
-              <div className="bz-menu bz-menu-up">
-                <div className="bz-menu-meta">{user?.email}</div>
-                <div className="bz-menu-meta">{activeCompany?.razonSocial}</div>
-                <PushToggleItem companyId={activeCompany?.id} />
-                <button
-                  type="button"
-                  className="bz-menu-item"
-                  onClick={() => setPwdOpen(true)}
-                >
-                  Cambiar contraseña
-                </button>
-                {esAdmin && (
-                  <a
-                    className="bz-menu-item"
-                    href="https://contabilidad-os-production.up.railway.app"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    contabilidad-os ↗
-                  </a>
-                )}
-                <button type="button" className="bz-menu-item danger" onClick={logout}>
-                  Cerrar sesión
-                </button>
-              </div>
-            )}
+            <div className="bz-user bz-desk" ref={userRef}>
+              <button
+                type="button"
+                className="bz-avatar"
+                onClick={() => setUserOpen((o) => !o)}
+                title={user?.email || user?.name}
+                aria-haspopup="menu"
+                aria-expanded={userOpen}
+              >
+                {initial}
+              </button>
+              {userOpen && (
+                <div className="bz-menu bz-menu-right" role="menu">
+                  <AccountItems {...accountProps} />
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="bz-menubtn bz-mob"
+              onClick={() => setSheetOpen(true)}
+              aria-label="Abrir menú"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                <path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
         </div>
-      </aside>
 
-      <div className="bz-main">
-      <header className="bz-topnav">
-        <Link to="/" className="bz-wordmark" title={activeCompany?.razonSocial}>
-          {wordmark}
-        </Link>
+        {subItems && (
+          <nav className="bz-subnav bz-desk" aria-label={area.label}>
+            {subItems.map((i) => {
+              const on = itemActivo(i, pathname)
+              return (
+                <Link
+                  key={i.path}
+                  to={i.path}
+                  className={`bz-subtab${on ? ' active' : ''}`}
+                  aria-current={on ? 'page' : undefined}
+                >
+                  {i.areaLabel || i.label}
+                  <Count n={i.badge ? counts[i.badge] : 0} hot={i.badge === 'compras'} />
+                </Link>
+              )
+            })}
+          </nav>
+        )}
+      </header>
 
-        <nav className="bz-nav">
-          {(esAdmin ? PRIMARY_NAV.filter(visible) : secciones.flatMap((sec) => sec.items)).map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`bz-nav-item${isActive(item.path) ? ' active' : ''}`}
-            >
-              <span>{item.label}</span>
-            </Link>
-          ))}
-          {esAdmin && (
-          <div className="bz-more" ref={moreRef}>
-            <button
-              type="button"
-              className={`bz-nav-item${moreActive ? ' active' : ''}`}
-              onClick={() => setMoreOpen((o) => !o)}
-            >
-              <span>más ▾</span>
+      {sheetOpen && (
+        <div className="bz-sheet" role="dialog" aria-label="Menú">
+          <div className="bz-sheet-head">
+            <span className="bz-mark">b.</span>
+            <button type="button" className="bz-menubtn" onClick={() => setSheetOpen(false)} aria-label="Cerrar menú">
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                <path d="M4.5 4.5l9 9M13.5 4.5l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
             </button>
-            {moreOpen && (
-              <div className="bz-menu">
-                {MORE_NAV.filter(visible).map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`bz-menu-item${isActive(item.path) ? ' active' : ''}`}
+          </div>
+          <div className="bz-sheet-body">
+            {multiEmpresa ? (
+              <div className="bz-sheet-group">
+                <div className="bz-menu-label">Empresa</div>
+                {companies.map((c) => (
+                  <button
+                    type="button"
+                    key={c.id}
+                    className={`bz-sheet-link${c.id === activeCompanyId ? ' active' : ''}`}
+                    onClick={() => cambiarEmpresa(c)}
                   >
-                    {item.label}
+                    {c.razonSocial}
+                    {c.id === activeCompanyId && <span>✓</span>}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="bz-sheet-company">{companyName}</div>
+            )}
+            {sheetGroups.map((g) => (
+              <div className="bz-sheet-group" key={g.key}>
+                {g.label && <div className="bz-menu-label">{g.label}</div>}
+                {g.items.map((i) => (
+                  <Link
+                    key={i.path}
+                    to={i.path}
+                    className={`bz-sheet-link${itemActivo(i, pathname) ? ' active' : ''}`}
+                    onClick={() => setSheetOpen(false)}
+                  >
+                    {i.areaLabel || i.label}
+                    <Count n={i.badge ? counts[i.badge] : 0} hot={i.badge === 'compras'} />
                   </Link>
                 ))}
               </div>
-            )}
-          </div>
-          )}
-        </nav>
-
-        <div className="bz-topnav-right">
-          <span className="bz-date">{fmtHoy()}</span>
-          <button
-            type="button"
-            className="bz-theme-toggle"
-            onClick={toggleTheme}
-            title="Cambiar tema"
-          >
-            <span className="bz-theme-dot" />
-            {theme === 'oscuro' ? 'NOCTURNO' : 'LEDGER'}
-          </button>
-          <div className="bz-user" ref={userRef}>
-            <button
-              type="button"
-              className="bz-avatar"
-              onClick={() => setUserOpen((o) => !o)}
-              title={user?.email}
-            >
-              {initial}
-            </button>
-            {userOpen && (
-              <div className="bz-menu bz-menu-right">
-                <div className="bz-menu-meta">{user?.email}</div>
-                <div className="bz-menu-meta">{activeCompany?.razonSocial}</div>
-                <PushToggleItem companyId={activeCompany?.id} />
-                <button
-                  type="button"
-                  className="bz-menu-item"
-                  onClick={() => setPwdOpen(true)}
-                >
-                  Cambiar contraseña
-                </button>
-                {esAdmin && (
-                  <a
-                    className="bz-menu-item"
-                    href="https://contabilidad-os-production.up.railway.app"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    contabilidad-os ↗
-                  </a>
-                )}
-                <button type="button" className="bz-menu-item danger" onClick={logout}>
-                  Cerrar sesión
-                </button>
-              </div>
-            )}
+            ))}
+            <div className="bz-sheet-group bz-sheet-account">
+              <div className="bz-menu-label">Cuenta</div>
+              <AccountItems {...accountProps} />
+            </div>
           </div>
         </div>
-      </header>
+      )}
 
       <div className={`ds bz-content${isWide ? ' bz-content--wide' : ''}`}>
         {pageHead && (
@@ -566,7 +567,8 @@ const Layout = ({ children }) => {
         )}
         {children}
       </div>
-      </div>
+
+      {cmdOpen && <CommandPalette entries={cmdEntries} onClose={() => setCmdOpen(false)} />}
       {pwdOpen && <PasswordModal onClose={() => setPwdOpen(false)} />}
     </div>
   )

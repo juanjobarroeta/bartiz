@@ -1,53 +1,60 @@
 /* ============================================================
-   DECOLSA — Plataforma de Obra · Design System
-   Warm-neutral canvas, refined construction orange, engineered
-   grotesque type. Built for owner/director portfolio + money
-   clarity.
-
-   Everything here is scoped under `.ds` so it never collides with
-   the legacy global styles. Wrap any redesigned surface in a
-   `.ds` element and these component classes apply; legacy pages
-   that live outside `.ds` keep their old look untouched.
+   Bartiz · Design System
+   Everything component-level here is scoped under `.ds` so it never
+   collides with the legacy global styles. Wrap any redesigned surface
+   in a `.ds` element and these component classes apply.
    ============================================================ */
 
 /* ============================================================
-   BARTIZ redesign tokens — dual theme.
-   Default = "Claro" (light neutro, tarjetas blancas + acento verde);
-   :root sin data-theme = "Nocturno" (dark, serif display), disponible
-   en el toggle. Set data-theme on <html>; persisted as bz-theme.
+   TOKENS — dual theme, look estilo Deel.
+   Default (:root) = claro: lienzo gris lavanda #f3f3f6 con un lavado
+   lavanda arriba, superficies blancas, bordes hairline, tinta casi
+   negra, botón primario NEGRO, links azules y morado de acento usado
+   con moderación. :root[data-theme="oscuro"] = versión oscura.
+   El atributo lo pone Layout (useTheme, persistido como bz-theme2).
 
-   The NEW canonical tokens (--bg/--surface2/--accent/--faint…)
-   come verbatim from the design spec. The LEGACY names the 28
-   page stylesheets consume (--canvas/--brand/--ink-2/…) are kept
-   as aliases so the whole app re-skins from this block alone.
+   Los tokens CANÓNICOS (--bg/--surface2/--accent/--faint…) mandan.
+   Los nombres LEGACY que consumen las hojas de cada página
+   (--canvas/--brand/--ink-2/--deep…) se conservan como alias, así
+   que toda la app se re-viste desde este bloque.
    ============================================================ */
 :root {
-  color-scheme: dark;
-  /* canonical — Nocturno */
-  --bg: #111417;
-  --surface: #171b1f;
-  --surface2: #1d2227;
-  --line: #242a30;
-  --line2: #2e353c;
-  --ink: #edeae3;
-  --ink2: #b9b4aa;
-  --ink3: #7e7a70;
-  --faint: #5c5952;
-  --accent: #e8a33c;
-  --accent-ink: #14171b;
-  --accent-soft: #2a2418;
-  --pos: #7bc796;
-  --pos-soft: #1b2a20;
-  --warn: #e8a33c;
-  --neg: #e07856;
-  --info: #8fb3e8;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-pop-raw: 0 8px 32px rgba(0, 0, 0, 0.25);
+  color-scheme: light;
+  /* canonical — claro */
+  --bg: #f3f3f6;
+  --bg-wash: linear-gradient(180deg, #e6defc 0, #f3f3f6 320px);
+  --surface: #ffffff;
+  --surface2: #f6f6f9;
+  --line: #e6e6ec;
+  --line2: #d9d9e1;
+  --ink: #16161d;
+  --ink2: #55555f;
+  --ink3: #84848f;
+  --faint: #b2b2bc;
+  /* acento = acción primaria (negro, estilo Deel); el morado vive aparte */
+  --accent: #16161d;
+  --accent-ink: #ffffff;
+  --accent-soft: #ececf1;
+  --purple: #7356f0;
+  --purple-soft: #efebfe;
+  --link: #1d64d8;
+  --pos: #1d8a4e;
+  --pos-soft: #e5f4eb;
+  --warn: #b06400;
+  --warn-soft: #fbf0e0;
+  --neg: #cf3a25;
+  --neg-soft: #fce9e6;
+  --info: var(--link);
+  --info-soft: #e7effc;
+  --shadow: 0 1px 2px rgba(22, 22, 29, 0.05);
+  --shadow-pop-raw: 0 12px 32px rgba(22, 22, 29, 0.12), 0 2px 6px rgba(22, 22, 29, 0.06);
 
-  /* semantic softs (derived, theme-specific) */
-  --neg-soft: #2a1b16;
-  --warn-soft: #2a2418;
-  --info-soft: #1b2330;
+  /* shell (top nav) */
+  --topbar-bg: rgba(231, 224, 252, 0.82);
+  --topbar-line: rgba(22, 22, 29, 0.07);
+  --tabs-track: rgba(255, 255, 255, 0.55);
+  --tab-hover: rgba(22, 22, 29, 0.05);
+  --subtab-active: rgba(22, 22, 29, 0.07);
 
   /* legacy aliases — keep every old name working */
   --canvas: var(--bg);
@@ -57,97 +64,108 @@
   --ink-3: var(--ink3);
   --muted: var(--faint);
   --line-2: var(--line2);
-  --line-strong: #3a424b;
+  --line-strong: #c6c6d0;
   --brand: var(--accent);
-  --brand-strong: #f2b45a;
+  --brand-strong: #5a3fd6;
   --brand-soft: var(--accent-soft);
-  --brand-tint: #201c14;
-  /* "deep" era el botón oscuro; en el tema oscuro se invierte (tinta clara
-     sobre fondo). El texto de esos botones usa --on-deep, no #fff. */
+  --brand-tint: #f4f4f8;
+  /* "deep" = botón oscuro primario; su texto usa --on-deep, no #fff. */
   --deep: var(--ink);
-  --deep-2: #d8d3c8;
-  --on-deep: var(--bg);
+  --deep-2: #2e2e38;
+  --on-deep: #ffffff;
+  --border: var(--line);
+  --danger: var(--neg);
 
-  /* data-viz (per spec: programado --ink2, plan interno --ink3, real --pos) */
+  /* data-viz (programado --ink2, plan interno --ink3, real --pos) */
   --viz-plan: var(--ink3);
   --viz-real: var(--pos);
   --viz-sched: var(--ink2);
 
   /* geometry */
-  --r-sm: 8px;
-  --r-md: 10px;
-  --r-lg: 16px;
-  --r-xl: 18px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
   --shadow-sm: var(--shadow);
   --shadow-md: var(--shadow);
   --shadow-pop: var(--shadow-pop-raw);
 
-  /* fonts — the identity: serif money, sans body, mono labels */
-  --font-ui: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  /* fonts — Geist en todo; display = sans (sin serif) */
+  --font-ui: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --fw-display: 600;
 
-  /* density (regular — the chosen production default) */
+  /* density */
   --pad: 20px;
   --row-h: 60px;
-  --gap: 18px;
+  --gap: 16px;
 
   --sidebar-w: 244px;
 }
 
-/* "Claro" — light theme neutro: fondo gris muy claro, tarjetas blancas,
-   tinta casi negra y acento verde (look del dashboard de referencia).
-   Los números en claro van en sans (--font-display → --font-ui); la
-   identidad serif se conserva en Nocturno. */
-:root[data-theme="claro"] {
-  color-scheme: light;
-  --bg: #f5f5f3;
-  --surface: #ffffff;
-  --surface2: #f1f1ef;
-  --line: #e7e7e4;
-  --line2: #d8d8d4;
-  --ink: #17181a;
-  --ink2: #5f6368;
-  --ink3: #8b8f94;
-  --faint: #b3b7bb;
-  --accent: #1f7a4c;
-  --accent-ink: #ffffff;
-  --accent-soft: #e3efe7;
-  --pos: #1f7a4c;
-  --pos-soft: #e3efe7;
-  --warn: #b5820f;
-  --neg: #c0392b;
-  --info: #2c5da8;
-  --shadow: 0 1px 3px rgba(20, 22, 24, 0.06);
-  --shadow-pop-raw: 0 8px 32px rgba(20, 22, 24, 0.14);
+/* Oscuro — misma estructura, superficies grafito y lavado violeta. */
+:root[data-theme="oscuro"] {
+  color-scheme: dark;
+  --bg: #111116;
+  --bg-wash: linear-gradient(180deg, #221c3a 0, #111116 320px);
+  --surface: #1a1a21;
+  --surface2: #22222b;
+  --line: #2a2a34;
+  --line2: #383843;
+  --ink: #f1f1f4;
+  --ink2: #b6b6c2;
+  --ink3: #84848f;
+  --faint: #5c5c68;
+  --accent: #f1f1f4;
+  --accent-ink: #16161d;
+  --accent-soft: #2a2a34;
+  --purple: #9a85ff;
+  --purple-soft: #29223f;
+  --link: #6ea2ff;
+  --pos: #4cc38a;
+  --pos-soft: #16291f;
+  --warn: #e3a040;
+  --warn-soft: #2e2416;
+  --neg: #f06a55;
+  --neg-soft: #331d19;
+  --info-soft: #18233a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-pop-raw: 0 12px 32px rgba(0, 0, 0, 0.45);
 
-  --neg-soft: #f7e4e0;
-  --warn-soft: #f3ead2;
-  --info-soft: #e3eaf6;
+  --topbar-bg: rgba(33, 27, 56, 0.82);
+  --topbar-line: rgba(255, 255, 255, 0.07);
+  --tabs-track: rgba(255, 255, 255, 0.05);
+  --tab-hover: rgba(255, 255, 255, 0.06);
+  --subtab-active: rgba(255, 255, 255, 0.1);
 
-  --line-strong: #c4c6c2;
-  --brand-strong: #16603a;
-  --brand-tint: #eef5f0;
-  --deep-2: #33363a;
-
-  /* Números y display en sans para el look neutro del mockup. El serif
-     usaba peso 400 (jerarquía por tamaño); en sans eso se ve débil, así
-     que el peso display sube a 600 vía token. */
-  --font-display: var(--font-ui);
-  --fw-display: 600;
+  --line-strong: #4a4a56;
+  --brand-strong: #b3a3ff;
+  --brand-tint: #1f1f27;
+  --deep-2: #d6d6de;
+  --on-deep: #16161d;
 }
 
 /* El lienzo aplica a toda la app (páginas dentro y fuera de .ds). */
 html,
 body {
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--ink);
-  transition: background 0.25s;
+  font-family: var(--font-ui);
+  transition: background-color 0.25s;
   /* El scroll horizontal vive DENTRO de .scroll-x / .matrix-scroll, nunca a
      nivel de página: cualquier elemento ancho que se escape no debe desplazar
      el layout completo (overflow visto en móvil). */
   overflow-x: clip;
 }
+body {
+  background-image: var(--bg-wash);
+  background-repeat: no-repeat;
+}
+a { color: inherit; }
+
+/* Sin look serif/café: todos los títulos en sans tinta. */
+h1, h2, h3, h4, h5, h6 { color: var(--ink); font-family: var(--font-ui); }
 
 /* Modales legacy (patrón .modal-overlay > .modal-content SIN el wrapper
    .modal): el fondo del panel vivía en .modal, que estas páginas nunca
@@ -180,7 +198,7 @@ body {
 .bz-shell input:focus-visible,
 .bz-shell select:focus-visible,
 .bz-shell textarea:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--link);
   outline-offset: -1px;
 }
 .bz-shell ::placeholder {
@@ -206,8 +224,7 @@ body {
 }
 
 /* ---------- Type helpers ---------- */
-/* Dinero y números protagonistas en serif (Instrument Serif, peso 400 —
-   nunca en bold: la jerarquía la da el tamaño, no el peso). */
+/* Dinero y números protagonistas: sans (Geist) semibold, tabulares. */
 .ds .num {
   font-family: var(--font-display);
   font-weight: var(--fw-display, 400);
@@ -217,23 +234,25 @@ body {
 .ds .mono {
   font-family: var(--font-mono);
 }
-/* Eyebrows/overlines en mono uppercase — el sistema de etiquetas del diseño. */
+/* Eyebrows/overlines: sans pequeña uppercase (etiquetas del diseño). */
 .ds .eyebrow {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 500;
-  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  font-size: 11px;
   color: var(--ink-3);
 }
-/* Headings serif 400 en todo el sistema. */
+/* Headings sans semibold, tinta (nada de serif ni café). */
 .ds h1,
 .ds h2,
 .ds h3 {
   font-family: var(--font-display);
-  font-weight: var(--fw-display, 400);
-  letter-spacing: 0;
+  font-weight: var(--fw-display, 600);
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
+.ds h1 { font-weight: 700; letter-spacing: -0.02em; }
 .ds .spacer {
   flex: 1;
 }
@@ -532,8 +551,7 @@ body {
   border-color: var(--ink-3);
   color: var(--ink);
 }
-/* Primario = ámbar/terracota con tinta de acento — el acento se reserva para
-   acción, así que este botón es EL llamado a la acción de la pantalla. */
+/* Primario = negro (tinta) estilo Deel — EL llamado a la acción. */
 .ds .btn-primary {
   background: var(--accent);
   color: var(--accent-ink);
@@ -541,8 +559,7 @@ body {
   box-shadow: none;
 }
 .ds .btn-primary:hover {
-  filter: brightness(1.06);
-  background: var(--accent);
+  background: var(--deep-2);
 }
 /* "Dark" se invierte con el tema: tinta sobre lienzo (como el filtro activo). */
 .ds .btn-dark {
@@ -578,8 +595,8 @@ body {
 .ds .card-head h3 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 400;
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: 0;
   color: var(--ink);
 }
@@ -645,17 +662,17 @@ body {
   stroke-width: 1.9;
 }
 .ds .kpi-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 10.5px;
-  font-weight: 500;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--ink-3);
 }
 .ds .kpi.feature .kpi-label {
   color: var(--ink-2);
 }
-/* Números protagonistas en serif 400 — la jerarquía la da el tamaño. */
+/* Números protagonistas en sans semibold. */
 .ds .kpi-value {
   font-family: var(--font-display);
   font-weight: var(--fw-display, 400);
@@ -687,7 +704,7 @@ body {
   flex-wrap: wrap;
 }
 .ds .kpi.feature .kpi-sub {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--ink-2);
 }
 .ds .delta {
   display: inline-flex;
@@ -709,7 +726,7 @@ body {
   color: var(--neg);
 }
 .ds .kpi.feature .delta.up {
-  color: #6fd79e;
+  color: var(--pos);
 }
 .ds .pill {
   display: inline-flex;
