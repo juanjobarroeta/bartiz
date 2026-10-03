@@ -1,93 +1,79 @@
 /**
- * Destajo — top-level page that lists cuadrillas + rayas across all
- * proyectos of the active company. Replaces the per-proyecto tabs that
- * Sprint 1 removed from ProyectoDetalle.
+ * Mano de obra — la nómina de obra (casi toda fuera de la nómina fiscal),
+ * cargada a cada proyecto.
  *
- * Two views, switchable via tabs:
- *   • Cuadrillas — all active cuadrillas + their miembros
- *   • Rayas      — all rayas (filterable by estado), newest first
+ *   • Asistencia   — el residente pasa lista por cuadrilla y día (horas y
+ *                    extra) y genera la raya de la semana.
+ *   • Rayas        — borrador (destajo + anticipos) → Contabilidad autoriza
+ *                    → Tesorería registra el pago. Lo autorizado y pagado
+ *                    entra al costo de la obra.
+ *   • Cuadrillas   — quién trabaja en cada obra.
+ *   • Trabajadores — registro con su jornal (por día) o tarifa por hora.
  *
- * Parte del módulo CONSTRUCCION: antes vivía detrás de su propio flag
- * (CONSTRUCCION_CUADRILLAS), que los usuarios creados desde bartiz nunca
- * traían en su lista de módulos y por eso veían «Módulo no habilitado».
- * Quién la ve lo deciden el rol y la matriz de permisos.
+ * Parte del módulo CONSTRUCCION. Quién la ve lo deciden el rol y la matriz
+ * de permisos; qué botones ve cada rol, lib/destajo (el backend lo valida).
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
+import { puedeCapturar } from '../lib/destajo'
+import AsistenciaTab from '../components/destajo/AsistenciaTab'
+import RayasTab from '../components/destajo/RayasTab'
+import CuadrillasTab from '../components/destajo/CuadrillasTab'
+import TrabajadoresTab from '../components/destajo/TrabajadoresTab'
 import './Destajo.css'
 
-const fmtMoney = (n) =>
-  n == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0)
-const fmtDate = (d) =>
-  d ? new Date(d).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' }) : '—'
+const TABS = [
+  ['asistencia', 'Asistencia'],
+  ['rayas', 'Rayas'],
+  ['cuadrillas', 'Cuadrillas'],
+  ['trabajadores', 'Trabajadores'],
+]
 
 export default function Destajo() {
-  const { activeCompany } = useAuth()
+  const { activeCompany, rol } = useAuth()
   const companyId = activeCompany?.id
-  const hasCuadrillas = activeCompany?.modulos?.includes('CONSTRUCCION')
+  const habilitado = activeCompany?.modulos?.includes('CONSTRUCCION')
+  const captura = puedeCapturar(rol)
 
-  const [tab, setTab] = useState('cuadrillas')
+  const [tab, setTab] = useState(captura ? 'asistencia' : 'rayas')
   const [proyectos, setProyectos] = useState([])
-  const [proyectoFilter, setProyectoFilter] = useState('') // '' = all
+  const [proyectoId, setProyectoId] = useState('')
   const [loading, setLoading] = useState(true)
-  const [cuadrillas, setCuadrillas] = useState([])
-  const [rayas, setRayas] = useState([])
-  const [estadoFilter, setEstadoFilter] = useState('ALL')
+  const [abrirRaya, setAbrirRaya] = useState(null)
 
-  const reload = useCallback(async () => {
-    if (!companyId || !hasCuadrillas) { setLoading(false); return }
+  useEffect(() => {
+    let alive = true
+    if (!companyId || !habilitado) { setLoading(false); return }
     setLoading(true)
-    try {
-      const proys = await apiFetch(
-        `/api/construccion/proyectos?companyId=${encodeURIComponent(companyId)}`
-      )
-      const proyList = Array.isArray(proys) ? proys : []
-      setProyectos(proyList)
+    apiFetch(`/api/construccion/proyectos?companyId=${encodeURIComponent(companyId)}`)
+      .then((d) => {
+        if (!alive) return
+        const list = Array.isArray(d) ? d : []
+        setProyectos(list)
+        setProyectoId((prev) => (list.some((p) => p.id === prev) ? prev : list[0]?.id ?? ''))
+      })
+      .catch(() => { if (alive) setProyectos([]) })
+      .finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [companyId, habilitado])
 
-      // Cuadrillas + Rayas APIs are scoped to a single proyecto, so we
-      // fan-out across all of them. For ~5-10 proyectos this is fine;
-      // if the list grows, add a top-level endpoint that sums.
-      const targets = proyectoFilter ? proyList.filter(p => p.id === proyectoFilter) : proyList
-      const cuadResults = await Promise.all(
-        targets.map((p) =>
-          apiFetch(`/api/construccion/cuadrillas?proyectoId=${encodeURIComponent(p.id)}`)
-            .then((d) => (Array.isArray(d) ? d.map((c) => ({ ...c, proyecto: p })) : []))
-            .catch(() => [])
-        )
-      )
-      const rayaResults = await Promise.all(
-        targets.map((p) =>
-          apiFetch(`/api/construccion/rayas?proyectoId=${encodeURIComponent(p.id)}`)
-            .then((d) => (Array.isArray(d) ? d.map((r) => ({ ...r, proyecto: p })) : []))
-            .catch(() => [])
-        )
-      )
-      setCuadrillas(cuadResults.flat())
-      setRayas(rayaResults.flat())
-    } finally {
-      setLoading(false)
-    }
-  }, [companyId, hasCuadrillas, proyectoFilter])
-
-  useEffect(() => { reload() }, [reload])
-
-  const filteredRayas = useMemo(() => {
-    if (estadoFilter === 'ALL') return rayas
-    return rayas.filter((r) => r.estado === estadoFilter)
-  }, [rayas, estadoFilter])
+  const verRaya = useCallback((id) => {
+    setAbrirRaya(id)
+    setTab('rayas')
+  }, [])
+  const rayaAbierta = useCallback(() => setAbrirRaya(null), [])
 
   if (!companyId) return <div className="pd-empty">Selecciona una empresa.</div>
-  if (!hasCuadrillas) {
+  if (!habilitado) {
     return (
       <div className="destajo-page">
         <header>
-          <h1>Destajo / Nómina</h1>
+          <h1>Mano de obra</h1>
           <p className="muted small">
-            Cuadrillas, miembros y rayas semanales. Esta empresa no tiene el
-            módulo de construcción habilitado para tu usuario — pídele al
-            admin que te dé acceso.
+            Esta empresa no tiene el módulo de construcción habilitado para tu
+            usuario — pídele al admin que te dé acceso.
           </p>
         </header>
         <div className="pd-empty">Módulo no habilitado.</div>
@@ -98,124 +84,43 @@ export default function Destajo() {
   return (
     <div className="destajo-page">
       <header>
-        <h1>Destajo / Nómina</h1>
+        <h1>Mano de obra</h1>
         <p className="muted small">
-          Cuadrillas activas + rayas semanales del destajo. Cada raya = una
-          semana de trabajo de una cuadrilla; al pagar se crea una
-          BankTransaction debitada de la cuenta elegida.
+          Lista diaria por cuadrilla → raya semanal (jornales + destajo − anticipos) →
+          Contabilidad autoriza → Tesorería paga. Todo queda cargado al costo de la obra.
         </p>
       </header>
 
       <div className="toolbar">
-        <div className="filters">
-          <button className={tab === 'cuadrillas' ? 'active' : ''} onClick={() => setTab('cuadrillas')}>
-            Cuadrillas <span className="count">{cuadrillas.length}</span>
-          </button>
-          <button className={tab === 'rayas' ? 'active' : ''} onClick={() => setTab('rayas')}>
-            Rayas <span className="count">{rayas.length}</span>
-          </button>
+        <div className="filters mo-tabs">
+          {TABS.map(([k, l]) => (
+            <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>
+          ))}
         </div>
-        {proyectos.length > 1 && (
-          <select value={proyectoFilter} onChange={(e) => setProyectoFilter(e.target.value)}>
-            <option value="">Todos los proyectos</option>
-            {proyectos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.codigo} — {p.nombre}
-              </option>
-            ))}
-          </select>
-        )}
       </div>
 
       {loading ? (
         <div className="pd-empty">Cargando…</div>
+      ) : tab === 'asistencia' ? (
+        <AsistenciaTab
+          proyectos={proyectos}
+          proyectoId={proyectoId}
+          setProyectoId={setProyectoId}
+          editable={captura}
+          onRayaGenerada={verRaya}
+        />
+      ) : tab === 'rayas' ? (
+        <RayasTab proyectos={proyectos} rol={rol} abrirRayaId={abrirRaya} onAbierta={rayaAbierta} />
       ) : tab === 'cuadrillas' ? (
-        cuadrillas.length === 0 ? (
-          <div className="pd-empty">
-            No hay cuadrillas. Créalas desde el detalle del proyecto (próximamente desde aquí).
-          </div>
-        ) : (
-          <div className="cuadrilla-grid">
-            {cuadrillas.map((c) => (
-              <div key={c.id} className="cuadrilla-card">
-                <div className="cuadrilla-head">
-                  <strong>{c.nombre}</strong>
-                  <span className="mono small muted">{c.especialidad}</span>
-                </div>
-                <div className="muted small">{c.proyecto?.codigo} · {c.proyecto?.nombre}</div>
-                {c.jefeNombre && <div className="small">Jefe: {c.jefeNombre}</div>}
-                <div className="cuadrilla-stats small muted">
-                  {c.miembros?.length ?? 0} miembros · {c._count?.rayas ?? 0} rayas
-                </div>
-                {(c.miembros ?? []).length > 0 && (
-                  <ul className="miembros">
-                    {c.miembros.slice(0, 6).map((m) => (
-                      <li key={m.id}>
-                        {m.nombre}
-                        {m.rolEnCuadrilla && <span className="muted small"> ({m.rolEnCuadrilla})</span>}
-                        {m.employeeId && <span className="muted small" title="IMSS-registered"> · IMSS</span>}
-                      </li>
-                    ))}
-                    {c.miembros.length > 6 && <li className="muted small">+{c.miembros.length - 6} más</li>}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        )
+        <CuadrillasTab
+          companyId={companyId}
+          proyectos={proyectos}
+          proyectoId={proyectoId}
+          setProyectoId={setProyectoId}
+          editable={captura}
+        />
       ) : (
-        <>
-          <div className="estado-filters">
-            {['ALL', 'BORRADOR', 'APROBADA', 'PAGADA'].map((f) => (
-              <button
-                key={f}
-                className={estadoFilter === f ? 'active' : ''}
-                onClick={() => setEstadoFilter(f)}
-              >
-                {f === 'ALL' ? 'Todas' : f.charAt(0) + f.slice(1).toLowerCase()}
-                {f === 'BORRADOR' && rayas.filter((r) => r.estado === 'BORRADOR').length > 0 && (
-                  <span className="count">{rayas.filter((r) => r.estado === 'BORRADOR').length}</span>
-                )}
-              </button>
-            ))}
-          </div>
-          {filteredRayas.length === 0 ? (
-            <div className="pd-empty">Sin rayas en este filtro.</div>
-          ) : (
-            <table className="rayas-table">
-              <thead>
-                <tr>
-                  <th>Semana</th>
-                  <th>Proyecto</th>
-                  <th>Cuadrilla</th>
-                  <th>Estado</th>
-                  <th style={{ textAlign: 'right' }}>Total destajo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRayas.map((r) => (
-                  <tr key={r.id}>
-                    <td className="small">{fmtDate(r.semanaInicio)} — {fmtDate(r.semanaFin)}</td>
-                    <td className="small">{r.proyecto?.codigo}</td>
-                    <td>
-                      {r.cuadrilla?.nombre}
-                      <span className="mono small muted"> {r.cuadrilla?.especialidad}</span>
-                    </td>
-                    <td>
-                      <span className={`badge estado-${r.estado?.toLowerCase()}`}>{r.estado}</span>
-                    </td>
-                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      <strong>{fmtMoney(r.totalDestajo)}</strong>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <p className="muted small" style={{ marginTop: '0.75rem' }}>
-            Crear nueva raya o aprobar/pagar desde el detalle del proyecto. Próxima iteración: gestión completa desde aquí.
-          </p>
-        </>
+        <TrabajadoresTab companyId={companyId} editable={captura} />
       )}
     </div>
   )
