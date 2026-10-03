@@ -69,7 +69,7 @@ export const PAGINAS = [
   { key: 'facturas',       label: 'Facturas',     prefixes: ['/facturas'] },
   { key: 'gastos',         label: 'Gastos',       prefixes: ['/gastos'] },
   { key: 'caja',           label: 'Caja chica',   prefixes: ['/caja-chica', '/reembolsos'] },
-  { key: 'destajo',        label: 'Destajo',      prefixes: ['/destajo'] },
+  { key: 'destajo',        label: 'Mano de obra', prefixes: ['/destajo'] },
   { key: 'proveedores',    label: 'Proveedores',  prefixes: ['/proveedores-bartiz'] },
   { key: 'edos-prov',      label: 'Edos. proveedor', prefixes: ['/cuentas-proveedores'] },
   { key: 'catalogo',       label: 'Catálogo',     prefixes: ['/catalogo', '/apu'] },
