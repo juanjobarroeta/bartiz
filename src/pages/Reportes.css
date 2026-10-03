@@ -48,7 +48,7 @@
 
 .month-bars {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 0.5rem;
   height: 180px;
   background: var(--surface);
@@ -64,8 +64,8 @@
   height: 100%;
   cursor: pointer;
 }
-.month-col.empty { opacity: 0.45; cursor: default; }
-.month-col.open .month-bar-wrap { background: #e0e7ff; border-radius: 4px; }
+.month-col.is-empty { opacity: 0.45; cursor: default; }
+.month-col.open .month-bar-wrap { background: var(--surface-2); border-radius: 4px; }
 .month-bar-wrap {
   flex: 1;
   width: 100%;
@@ -96,8 +96,8 @@
 
 .month-detail {
   background: var(--surface);
-  border: 1px solid #c7d2fe;
-  border-left: 4px solid #6366f1;
+  border: 1px solid var(--line-2);
+  border-left: 4px solid var(--info);
   border-radius: 8px;
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
@@ -133,7 +133,7 @@
 .months-table thead th { background: var(--surface2); font-size: 0.7rem; text-transform: uppercase; color: var(--ink-3); letter-spacing: 0.04em; }
 .months-table tr.clickable { cursor: pointer; }
 .months-table tr.clickable:hover { background: var(--surface2); }
-.months-table tr.active { background: #e0e7ff; }
+.months-table tr.active { background: var(--surface-2); }
 .mono { font-family: ui-monospace, Menlo, monospace; }
 .small { font-size: 0.8rem; }
 .muted { color: var(--ink-3); }
@@ -144,4 +144,13 @@
    columnas (el body oculta el desborde horizontal). */
 @media (max-width: 760px) {
   .months-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; }
+}
+
+/* Teléfono: totales en una columna; sin montos bajo cada barra (se encimaban). */
+@media (max-width: 700px) {
+  .totals-grid { grid-template-columns: 1fr; }
+  .reportes-page .toolbar { flex-wrap: wrap; }
+  .month-bars { gap: 0.2rem; padding: 0.5rem; }
+  .month-col .xs { display: none; }
+  .month-label { font-size: 0.6rem; }
 }

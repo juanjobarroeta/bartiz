@@ -72,7 +72,7 @@ export default function FileUpload({
   }
 
   return (
-    <div className="file-upload empty">
+    <div className="file-upload is-empty">
       <button
         type="button"
         className="file-btn"
