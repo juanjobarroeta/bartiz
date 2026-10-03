@@ -25,6 +25,7 @@ import { readTerms } from './ProveedoresBartiz'
 import { confirmDialog, alertDialog } from '../components/Dialog'
 import { useAuth } from '../auth/AuthContext'
 import { ivaEtiqueta, tasaNum } from '../lib/iva'
+import { Tracker } from '../components/ui'
 import '../components/Modal.css'
 import '../components/FileUpload.css'
 import '../components/SupplierPicker.css'
@@ -37,6 +38,73 @@ const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); retur
 const addDays = (d, n) => new Date(d.getTime() + n * DAY)
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+
+// Ciclo de vida de la requisición para el Tracker, derivado SÓLO de lo que
+// ya trae el detalle (estado, cotizaciones, adjudicaciones, movimiento).
+// Lo que no se puede inferir queda pendiente.
+function lifecycleSteps(data) {
+  const estado = data.estado
+  const cots = data.cotizaciones ?? []
+  const adjs = data.adjudicaciones ?? []
+  const isPaid = (e) => e === 'PAGADA' || e === 'CONCILIADA'
+  const rechazada = estado === 'RECHAZADA' || estado === 'CANCELADA'
+  const autorizada = estado === 'APROBADA' || estado === 'PAGADA' || adjs.length > 0 || !!data.aprobadaAt
+  const pagadas = adjs.filter((a) => isPaid(a.estado))
+  const pagada = estado === 'PAGADA' || !!data.bankTransaction || (adjs.length > 0 && pagadas.length === adjs.length)
+  const enTes = adjs.filter((a) => a.enviadaTesoreriaAt && !isPaid(a.estado)).length
+  const lastPago = pagadas
+    .map((a) => a.pagadaAt || a.bankTransaction?.fecha)
+    .filter(Boolean)
+    .sort()
+    .pop() || data.bankTransaction?.fecha
+
+  const steps = [
+    {
+      key: 'creada',
+      title: estado === 'BORRADOR' ? 'Borrador' : 'Creada',
+      sub: data.createdAt ? fmtDate(data.createdAt) : null,
+      status: estado === 'BORRADOR' ? 'current' : 'done',
+    },
+    {
+      key: 'cot',
+      title: cots.length ? `Cotizada · ${cots.length} cotizaci${cots.length === 1 ? 'ón' : 'ones'}` : 'Cotizada',
+      sub: cots.length ? null : 'Sin cotizaciones aún',
+      status: cots.length ? 'done' : 'pending',
+    },
+    rechazada
+      ? { key: 'aut', title: estado === 'CANCELADA' ? 'Cancelada' : 'Rechazada', sub: null, status: 'error' }
+      : {
+          key: 'aut',
+          title: 'Autorizada',
+          sub: autorizada ? (data.aprobadaAt ? fmtDate(data.aprobadaAt) : null) : 'En Compras por autorizar',
+          status: autorizada ? 'done' : 'pending',
+        },
+    {
+      key: 'pp',
+      title: 'Por pagar / En tesorería',
+      sub: !autorizada || rechazada
+        ? null
+        : pagada
+          ? null
+          : adjs.length
+            ? `${adjs.length - pagadas.length} de ${adjs.length} proveedor${adjs.length === 1 ? '' : 'es'} por pagar${enTes ? ` · ${enTes} en tesorería` : ''}`
+            : 'En cuentas por pagar',
+      status: pagada ? 'done' : 'pending',
+    },
+    {
+      key: 'pag',
+      title: 'Pagada',
+      sub: pagada ? (lastPago ? fmtDate(lastPago) : null) : pagadas.length ? `${pagadas.length} de ${adjs.length} pagados` : null,
+      status: pagada ? 'done' : 'pending',
+    },
+  ]
+  // El primer paso pendiente (si no está detenida) es el que está en curso.
+  if (!rechazada && estado !== 'BORRADOR') {
+    const i = steps.findIndex((s) => s.status === 'pending')
+    if (i >= 0) steps[i] = { ...steps[i], status: 'current' }
+  }
+  return steps
+}
 
 export default function RequisicionDetalle() {
   const { id } = useParams()
@@ -111,6 +179,8 @@ export default function RequisicionDetalle() {
     <div className="req-detalle">
       <button className="pd-back" onClick={() => navigate('/requisiciones')}>← Requisiciones</button>
 
+      <div className="req-overview">
+      <div className="req-overview-main">
       <header className="req-head">
         <div>
           <div className="muted small">
@@ -174,6 +244,12 @@ export default function RequisicionDetalle() {
       ) : (
         <BankLinkPanel data={data} reload={reload} />
       )}
+      </div>
+      <section className="req-tracker-card" aria-label="Seguimiento de la requisición">
+        <h3>Seguimiento</h3>
+        <Tracker steps={lifecycleSteps(data)} />
+      </section>
+      </div>
 
 
       <Modal open={newCotOpen} onClose={() => setNewCotOpen(false)} title="Nueva cotización" size="lg">

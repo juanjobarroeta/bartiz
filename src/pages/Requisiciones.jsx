@@ -27,6 +27,7 @@ import { alertDialog, confirmDialog } from '../components/Dialog'
 import { IVA_OPCIONES, ivaTasaDe, ivaValueDe, tasaNum } from '../lib/iva'
 import '../components/Modal.css'
 import '../components/SupplierPicker.css'
+import { StatFilters, FilterBar, StatusPill } from '../components/ui'
 import './Requisiciones.css'
 
 const fmtMoney = (n) =>
@@ -47,6 +48,22 @@ function requisicionTotal(r) {
   if (ofertas.length) return { amount: Math.min(...ofertas), estimated: true }
   return { amount: 0, estimated: false }
 }
+
+// Tono del StatusPill por estado + tarjetas de filtro (StatFilters).
+const ESTADO_TONE = {
+  BORRADOR: 'muted',
+  PENDIENTE: 'warn',
+  APROBADA: 'info',
+  PAGADA: 'pos',
+  RECHAZADA: 'neg',
+  CANCELADA: 'muted',
+}
+const ESTADO_STATS = [
+  { id: 'BORRADOR', label: 'Borrador', tone: 'muted' },
+  { id: 'PENDIENTE', label: 'Pendiente', tone: 'warn' },
+  { id: 'APROBADA', label: 'Aprobada', tone: 'info' },
+  { id: 'PAGADA', label: 'Pagada', tone: 'pos' },
+]
 
 const ESTADO_LABEL = {
   BORRADOR: 'Borrador',
@@ -139,13 +156,48 @@ export default function Requisiciones() {
   useEffect(() => { reload() }, [reload])
 
   // Borradores are server-side now; derive them from the list. They stay out of
-  // the main table (work in progress) and surface via the "Borradores" button.
+  // the main table (work in progress) unless the "Borrador" card is selected,
+  // and also surface via the "Borradores" button.
   const drafts = useMemo(() => rows.filter((r) => r.estado === 'BORRADOR'), [rows])
-  const visibleRows = useMemo(() => rows.filter((r) => r.estado !== 'BORRADOR'), [rows])
+
+  // Búsqueda (folio / concepto / proveedor) + obra: base de los conteos de las
+  // tarjetas, para que cuadren con lo que se ve.
+  const [q, setQ] = useState('')
+  const [obra, setObra] = useState(null)
+  const searched = useMemo(() => {
+    let out = rows
+    const term = q.trim().toLowerCase()
+    if (term) {
+      out = out.filter((r) =>
+        [
+          r.folio,
+          r.notas,
+          r.supplier?.razonSocial,
+          ...(r.cotizaciones ?? []).map((c) => c.supplierNombre ?? c.supplier?.razonSocial),
+          ...(r.adjudicaciones ?? []).map((a) => a.supplierNombre),
+          ...(r.partidas ?? []).map((p) => p.descripcion),
+        ].some((v) => v && String(v).toLowerCase().includes(term))
+      )
+    }
+    if (obra) out = out.filter((r) => String(r.proyecto?.id ?? r.proyectoId ?? '') === String(obra))
+    return out
+  }, [rows, q, obra])
+
+  const stats = useMemo(() => ESTADO_STATS.map((e) => {
+    const items = searched.filter((r) => r.estado === e.id)
+    const sum = items.reduce((a, r) => a + requisicionTotal(r).amount, 0)
+    return { ...e, count: items.length, amount: sum > 0 ? fmtMoney(sum) : null }
+  }), [searched])
+
   const filtered = useMemo(() => {
-    if (filter === 'ALL') return visibleRows
-    return visibleRows.filter((r) => r.estado === filter)
-  }, [visibleRows, filter])
+    if (filter === 'ALL') return searched.filter((r) => r.estado !== 'BORRADOR')
+    return searched.filter((r) => r.estado === filter)
+  }, [searched, filter])
+
+  const obraOpts = useMemo(
+    () => proyectos.map((p) => ({ value: p.id, label: [p.codigo, p.nombre].filter(Boolean).join(' · ') })),
+    [proyectos]
+  )
 
   const openNew = () => { setEditingDraft(null); setNewOpen(true) }
   const closeForm = () => { setNewOpen(false); setEditingDraft(null) }
@@ -183,34 +235,38 @@ export default function Requisiciones() {
 
   return (
     <div className="requisiciones-page">
-      <header>
-        <h1>Requisiciones de material</h1>
-        <p className="muted small">
-          Solicita materiales por requisición. Captura los precios de
-          cada proveedor por concepto, envíala a autorización y elige qué
-          proveedor surte cada concepto.
-        </p>
+      <header className="reqs-head">
+        <div>
+          <h1>Requisiciones de material</h1>
+          <p className="muted small">
+            Solicita materiales por requisición. Captura los precios de
+            cada proveedor por concepto, envíala a autorización y elige qué
+            proveedor surte cada concepto.
+          </p>
+        </div>
+        {rol !== 'CONTABILIDAD' && (
+          <button className="primary" onClick={openNew}>+ Nueva requisición</button>
+        )}
       </header>
 
-      <div className="toolbar">
-        <div className="filters">
-          {['ALL', 'PENDIENTE', 'APROBADA', 'PAGADA'].map((f) => (
-            <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
-              {f === 'ALL' ? 'Todas' : ESTADO_LABEL[f]}
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {drafts.length > 0 && (
-            <button className="secondary" onClick={() => setDraftsOpen(true)}>
-              Borradores ({drafts.length})
-            </button>
-          )}
-          {rol !== 'CONTABILIDAD' && (
-            <button className="primary" onClick={openNew}>+ Nueva requisición</button>
-          )}
-        </div>
-      </div>
+      <StatFilters
+        items={stats}
+        value={filter === 'ALL' ? null : filter}
+        onChange={(next) => setFilter(next ?? 'ALL')}
+        ariaLabel="Filtrar por estado"
+      />
+
+      <FilterBar
+        search={{ value: q, onChange: setQ, placeholder: 'Buscar folio, concepto o proveedor…' }}
+        filters={[{ id: 'obra', label: 'Obra', value: obra, options: obraOpts, onChange: setObra }]}
+        actions={drafts.length > 0 ? (
+          <button type="button" className="ui-btn sm" onClick={() => setDraftsOpen(true)}>
+            Borradores ({drafts.length})
+          </button>
+        ) : null}
+        total={filtered.length}
+        totalLabel={filtered.length === 1 ? 'requisición' : 'requisiciones'}
+      />
 
       <Modal open={newOpen} onClose={closeForm} title={editingDraft ? (editingDraft.estado === 'BORRADOR' ? 'Continuar requisición' : 'Editar requisición') : 'Nueva requisición de material'} size="lg">
         <NewRequisicionForm
@@ -236,10 +292,11 @@ export default function Requisiciones() {
         <div className="pd-empty">Cargando…</div>
       ) : filtered.length === 0 ? (
         <div className="pd-empty">
-          {visibleRows.length === 0 ? 'No hay requisiciones aún. Crea la primera con "Nueva requisición".' : 'Nada en este filtro.'}
+          {rows.length === 0 ? 'No hay requisiciones aún. Crea la primera con "Nueva requisición".' : 'Nada en este filtro.'}
         </div>
       ) : (
-        <table className="reqs-table">
+        <div className="ui-table-card">
+        <table className="reqs-table reqs-list">
           <thead>
             <tr>
               <th>Folio</th>
@@ -257,11 +314,15 @@ export default function Requisiciones() {
           </thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id} className="clickable" onClick={() => navigate(`/requisiciones/${r.id}`)}>
+              <tr
+                key={r.id}
+                className="clickable"
+                onClick={() => (r.estado === 'BORRADOR' ? continueDraft(r) : navigate(`/requisiciones/${r.id}`))}
+              >
                 <td className="mono">{r.folio}</td>
                 <td className="small">{r.proyecto?.codigo ?? '—'}</td>
                 <td>
-                  <span className={`badge estado-${r.estado.toLowerCase()}`}>{ESTADO_LABEL[r.estado] ?? r.estado}</span>
+                  <StatusPill tone={ESTADO_TONE[r.estado] ?? 'muted'}>{ESTADO_LABEL[r.estado] ?? r.estado}</StatusPill>
                 </td>
                 <td className="small">
                   {r.formaPago === 'CREDITO' ? 'Crédito' : r.formaPago === 'CONTADO' ? 'Contado' : <span className="muted">—</span>}
@@ -281,6 +342,12 @@ export default function Requisiciones() {
                 <td className="small">{r.supplier?.razonSocial ?? <span className="muted">— sin elegir —</span>}</td>
                 <td className="small muted">{fmtDate(r.createdAt)}</td>
                 <td className="reqs-actions" onClick={(e) => e.stopPropagation()}>
+                  {r.estado === 'BORRADOR' && (
+                    <>
+                      <button className="link small" onClick={() => continueDraft(r)}>Continuar</button>
+                      <button className="link small danger" onClick={() => removeSolicitud(r)}>Eliminar</button>
+                    </>
+                  )}
                   {r.estado === 'PENDIENTE' && (
                     <button className="link small" onClick={() => continueDraft(r)}>Editar</button>
                   )}
@@ -293,6 +360,7 @@ export default function Requisiciones() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )

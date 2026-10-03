@@ -20,12 +20,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../config/api'
 import { useAuth } from '../auth/AuthContext'
-import { Icon } from '../components/ds/Icon'
 import Modal from '../components/Modal'
 import '../components/Modal.css'
 import FileUpload from '../components/FileUpload'
 import '../components/FileUpload.css'
 import { money, compactMoney, MoneyParts } from '../lib/format'
+import { StatFilters, FilterBar, Drawer, DetailList, Tracker, StatusPill } from '../components/ui'
 import { readTerms } from './ProveedoresBartiz'
 import './CuentasPorPagar.css'
 
@@ -35,22 +35,87 @@ const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); retur
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 
-const ESTADO_META = {
-  APROBADA: { cls: 'plan', label: 'Autorizada' },
-  PENDIENTE: { cls: 'risk', label: 'Pendiente' },
-  PAGADA: { cls: 'active', label: 'Pagada' },
-}
-
-// Aging buckets (by days until vencimiento). Clickable — they filter the
-// table: vencido / hoy / esta semana / más adelante, per the admin workflow.
+// Filtros rápidos (StatFilters). Los de vencimiento usan daysUntil; "En
+// tesorería" es la etapa (enviadaTesoreriaAt) y se combina con ellos.
 const BUCKETS = [
   { id: 'vencido', label: 'Vencido', tone: 'neg', test: (d) => d != null && d < 0 },
-  { id: 'hoy', label: 'Vence hoy', tone: 'warn', test: (d) => d === 0 },
-  { id: 'semana', label: 'Esta semana', tone: 'info', test: (d) => d != null && d >= 1 && d <= 7 },
+  { id: 'semana', label: 'Esta semana', tone: 'warn', test: (d) => d != null && d >= 0 && d <= 7 },
   { id: 'despues', label: 'Más adelante', tone: 'muted', test: (d) => d != null && d > 7 },
   { id: 'sinfecha', label: 'Sin fecha', tone: 'muted', test: (d) => d == null },
 ]
+const ETAPA_OPTS = [
+  { value: 'porEnviar', label: 'Por enviar' },
+  { value: 'enTesoreria', label: 'En tesorería' },
+]
 
+const relVence = (d) =>
+  d == null ? '' : d < 0 ? `vencido hace ${Math.abs(d)} d` : d === 0 ? 'hoy' : `en ${d} d`
+
+// Tono + texto del vencimiento para StatusPill.
+function venceStatus(p) {
+  if (p.estado === 'PAGADA') return { tone: 'pos', label: 'Pagada' }
+  const d = p.daysUntil
+  if (d == null) return { tone: 'muted', label: 'Sin fecha' }
+  if (d < 0) return { tone: 'neg', label: `Vencido ${Math.abs(d)} d` }
+  if (d === 0) return { tone: 'warn', label: 'Vence hoy' }
+  if (d <= 7) return { tone: 'warn', label: `Vence en ${d} d` }
+  return { tone: 'muted', label: `Vence en ${d} d` }
+}
+
+// Seguimiento del renglón. Sólo se marca lo que el renglón permite inferir;
+// lo demás queda pendiente (nunca se inventa un paso).
+function trackerSteps(p) {
+  const pagada = p.estado === 'PAGADA'
+  const parcial = p.estado === 'PARCIAL' || (p.aplicado > 0.01 && !pagada)
+  if (p.kind === 'gasto') {
+    const steps = [
+      { key: 'reg', title: 'Gasto registrado', sub: p.createdAt ? fmtDate(p.createdAt) : null, status: 'done' },
+      { key: 'apr', title: 'Aprobado', sub: p.aprobadoAt ? fmtDate(p.aprobadoAt) : null, status: 'done' },
+      { key: 'tes', title: 'En tesorería', sub: p.enviadaTesoreriaAt ? fmtDate(p.enviadaTesoreriaAt) : 'Pendiente de envío', status: p.enviadaTesoreriaAt ? 'done' : 'pending' },
+      { key: 'pag', title: 'Pagado', sub: '—', status: pagada ? 'done' : 'pending' },
+    ]
+    return markCurrent(steps)
+  }
+  const cfdiKnown = p.cfdi !== undefined
+  const steps = [
+    { key: 'req', title: p.folio && p.folio !== '—' ? `Requisición ${p.folio}` : 'Requisición', sub: p.kind === 'legacy' ? 'anterior a adjudicaciones' : null, status: 'done' },
+    {
+      key: 'aut',
+      title: 'Autorizada',
+      sub: p.kind === 'legacy' ? 'sin adjudicar' : (p.aprobadaAt || p.createdAt) ? fmtDate(p.aprobadaAt || p.createdAt) : null,
+      status: 'done',
+    },
+    {
+      key: 'fac',
+      title: 'Factura (CFDI)',
+      sub: !cfdiKnown ? 'Se vincula al registrar el pago' : p.cfdi ? cfdiLabel(p.cfdi) : 'Sin factura vinculada',
+      status: cfdiKnown && p.cfdi ? 'done' : 'pending',
+      optional: true,
+    },
+    {
+      key: 'tes',
+      title: 'En tesorería',
+      sub: p.enviadaTesoreriaAt ? fmtDate(p.enviadaTesoreriaAt) : 'Pendiente de envío',
+      status: p.enviadaTesoreriaAt || pagada ? 'done' : 'pending',
+    },
+    {
+      key: 'pag',
+      title: pagada ? 'Pagada' : parcial ? 'Pago parcial' : 'Pagada',
+      sub: parcial ? `${money(p.aplicado)} de ${money(p.total)}` : '—',
+      status: pagada ? 'done' : 'pending',
+    },
+  ]
+  if (p.kind === 'legacy') return steps
+  return markCurrent(steps)
+}
+// El siguiente paso accionable (no opcional) después de lo hecho = en curso.
+function markCurrent(steps) {
+  const i = steps.findIndex((s) => s.status !== 'done' && !s.optional)
+  if (i >= 0) steps[i] = { ...steps[i], status: 'current' }
+  return steps
+}
+const cfdiLabel = (c) =>
+  [c.serie, c.folio].filter(Boolean).join('-') || (c.uuid ? c.uuid.slice(0, 8) + '…' : 'vinculada')
 
 // Per-supplier payable (adjudicación) → row. The due date is the approval date
 // plus the supplier's credit days (delivery días are informational, separate).
@@ -73,6 +138,7 @@ function fromAdjudicacion(a, suppliersById) {
     supplierName: a.supplierNombre ?? '—',
     detalle: null,
     proyecto: a.proyecto?.codigo ?? '—',
+    proyectoNombre: a.proyecto?.nombre ?? null,
     folio: a.folio ?? '—',
     total,
     // IVA ya incluido en total (null = adjudicación anterior al IVA por
@@ -84,7 +150,11 @@ function fromAdjudicacion(a, suppliersById) {
     diasCredito: dias,
     diasEntrega: a.diasEntrega,
     vencimiento: base ? addDays(startOfDay(new Date(base)), dias) : null,
+    aprobadaAt: a.aprobadaAt ?? null,
+    createdAt: a.createdAt ?? null,
     enviadaTesoreriaAt: a.enviadaTesoreriaAt ?? null,
+    // CFDI: sólo si el backend lo manda (undefined = sin dato, no "sin factura").
+    cfdi: 'cfdi' in a ? a.cfdi : 'cfdiId' in a ? (a.cfdiId ? { id: a.cfdiId } : null) : undefined,
     estado: a.estado === 'PAGADA' ? 'PAGADA' : a.estado === 'PARCIAL' ? 'PARCIAL' : 'APROBADA',
     payable: saldo > 0.01,
   }
@@ -101,12 +171,15 @@ function fromGasto(g) {
     supplierName: g.beneficiarioNombre ?? '—',
     detalle: g.descripcion ?? null,
     proyecto: g.proyecto?.codigo ?? '—',
+    proyectoNombre: g.proyecto?.nombre ?? null,
     folio: 'Gasto',
     monto: Number(g.importe) || 0,
     formaPago: 'CONTADO',
     diasCredito: 0,
     diasEntrega: null,
     vencimiento: base ? startOfDay(new Date(base)) : null,
+    aprobadoAt: g.aprobadoAt ?? null,
+    createdAt: g.createdAt ?? null,
     enviadaTesoreriaAt: g.enviadaTesoreriaAt ?? null,
     estado: 'APROBADA',
     payable: true,
@@ -126,8 +199,10 @@ function deriveFromRequisiciones(solicitudes, suppliersById) {
         // Renglón derivado de datos previos a adjudicaciones: sólo informativo.
         // Pagarlo crearía un pago sin aplicaciones (anticipo huérfano).
         kind: 'legacy',
+        solicitudId: s.id,
         supplierName: s.supplier?.razonSocial ?? '—',
         proyecto: s.proyecto?.codigo ?? '—',
+        proyectoNombre: s.proyecto?.nombre ?? null,
         folio: s.folio,
         monto: Number(s.total) || 0,
         formaPago: s.formaPago,
@@ -152,6 +227,7 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
   const [loadError, setLoadError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(null) // row being paid
+  const [selected, setSelected] = useState(null) // row shown in the drawer
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
@@ -270,24 +346,35 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
   const pay = (row, args) => (row.kind === 'gasto' ? payGasto(row, args) : payAdjudicacion(row, args))
 
   // Admin → tesorería hand-off. La tesorera trabaja del filtro "En tesorería".
+  const [sending, setSending] = useState(null)
   const enviarTesoreria = async (row) => {
     const url = row.kind === 'gasto'
       ? `/api/construccion/gastos/${row.id}/enviar-tesoreria`
       : `/api/construccion/adjudicaciones/${row.id}/enviar-tesoreria`
+    setSending(row.kind + row.id)
     try {
       await apiFetch(url, { method: 'POST' })
       setReloadKey((k) => k + 1)
+      // El drawer refleja el envío al instante (la recarga trae el dato real).
+      setSelected((s) => (s && s.kind === row.kind && s.id === row.id ? { ...s, enviadaTesoreriaAt: new Date().toISOString() } : s))
     } catch (e) {
       console.error('enviar a tesorería:', e)
+    } finally {
+      setSending(null)
     }
   }
 
-  // Filters: bucket (vencimiento) + etapa (por enviar / en tesorería).
+  // Filtros: tarjeta de vencimiento + etapa (por enviar / en tesorería) +
+  // búsqueda + obra + proveedor (+ CFDI si el backend lo manda).
   const [bucketFilter, setBucketFilter] = useState(null)
   const [etapa, setEtapa] = useState(etapaInicial) // todas | porEnviar | enTesoreria
   // Cambiar entre las dos entradas del nav (/cuentas-por-pagar y
   // /pagos-tesoreria) reutiliza el componente montado — re-sincroniza el filtro.
   useEffect(() => { setEtapa(etapaInicial) }, [etapaInicial])
+  const [q, setQ] = useState('')
+  const [obra, setObra] = useState(null)
+  const [proveedor, setProveedor] = useState(null)
+  const [cfdiFilter, setCfdiFilter] = useState(null)
 
   const today = startOfDay(new Date())
   const rows = useMemo(() => {
@@ -303,8 +390,28 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
       })
   }, [payables])
 
-  const visibleRows = useMemo(() => {
+  const hasCfdiData = rows.some((r) => r.cfdi !== undefined)
+
+  // Filtros de barra (todo menos tarjeta/etapa) — base para los conteos de
+  // las tarjetas, para que cuadren con lo que se ve.
+  const barRows = useMemo(() => {
     let out = rows
+    const term = q.trim().toLowerCase()
+    if (term) {
+      out = out.filter((p) =>
+        [p.supplierName, p.folio, p.detalle, p.proyecto, p.proyectoNombre]
+          .some((v) => v && String(v).toLowerCase().includes(term))
+      )
+    }
+    if (obra) out = out.filter((p) => p.proyecto === obra)
+    if (proveedor) out = out.filter((p) => p.supplierName === proveedor)
+    if (cfdiFilter === 'con') out = out.filter((p) => !!p.cfdi)
+    if (cfdiFilter === 'sin') out = out.filter((p) => p.cfdi === null)
+    return out
+  }, [rows, q, obra, proveedor, cfdiFilter])
+
+  const visibleRows = useMemo(() => {
+    let out = barRows
     if (bucketFilter) {
       const b = BUCKETS.find((x) => x.id === bucketFilter)
       if (b) out = out.filter((p) => b.test(p.daysUntil))
@@ -312,91 +419,88 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
     if (etapa === 'porEnviar') out = out.filter((p) => !p.enviadaTesoreriaAt)
     if (etapa === 'enTesoreria') out = out.filter((p) => !!p.enviadaTesoreriaAt)
     return out
-  }, [rows, bucketFilter, etapa])
+  }, [barRows, bucketFilter, etapa])
 
   const totals = useMemo(() => {
     const total = rows.reduce((a, p) => a + p.monto, 0)
-    const vencido = rows.filter((p) => p.daysUntil != null && p.daysUntil < 0).reduce((a, p) => a + p.monto, 0)
-    const next7 = rows.filter((p) => p.daysUntil != null && p.daysUntil >= 0 && p.daysUntil <= 7).reduce((a, p) => a + p.monto, 0)
-    const buckets = BUCKETS.map((b) => {
-      const items = rows.filter((p) => b.test(p.daysUntil))
-      return { ...b, count: items.length, sum: items.reduce((a, p) => a + p.monto, 0) }
+    const sum = (items) => items.reduce((a, p) => a + p.monto, 0)
+    const stats = BUCKETS.map((b) => {
+      const items = barRows.filter((p) => b.test(p.daysUntil))
+      return { ...b, count: items.length, amount: compactMoney(sum(items)) }
     })
-    return { total, vencido, next7, buckets }
-  }, [rows])
+    const enTes = barRows.filter((p) => p.enviadaTesoreriaAt)
+    stats.push({ id: 'enTesoreria', label: 'En tesorería', tone: 'info', count: enTes.length, amount: compactMoney(sum(enTes)) })
+    return { total, stats }
+  }, [rows, barRows])
 
   const cobertura = saldo != null && totals.total > 0 ? Math.round((saldo / totals.total) * 100) : null
+
+  const obraOpts = useMemo(() => {
+    const m = new Map()
+    for (const r of rows) if (r.proyecto && r.proyecto !== '—' && !m.has(r.proyecto)) m.set(r.proyecto, r.proyectoNombre)
+    return [...m].sort((a, b) => a[0].localeCompare(b[0])).map(([v, n]) => ({ value: v, label: n ? `${v} · ${n}` : v }))
+  }, [rows])
+  const provOpts = useMemo(() => {
+    const m = new Map()
+    for (const r of rows) if (r.supplierName && r.supplierName !== '—') m.set(r.supplierName, (m.get(r.supplierName) || 0) + 1)
+    return [...m].sort((a, b) => a[0].localeCompare(b[0], 'es')).map(([v, n]) => ({ value: v, label: v, hint: n }))
+  }, [rows])
+
+  const filters = [
+    { id: 'etapa', label: 'Etapa', value: etapa === 'todas' ? null : etapa, options: ETAPA_OPTS, onChange: (v) => setEtapa(v ?? 'todas') },
+    { id: 'obra', label: 'Obra', value: obra, options: obraOpts, onChange: setObra },
+    { id: 'prov', label: 'Proveedor', value: proveedor, options: provOpts, onChange: setProveedor },
+  ]
+  if (hasCfdiData) {
+    filters.push({
+      id: 'cfdi', label: 'CFDI', value: cfdiFilter,
+      options: [{ value: 'con', label: 'Con CFDI' }, { value: 'sin', label: 'Sin CFDI' }],
+      onChange: setCfdiFilter,
+    })
+  }
+  const anyFilter = bucketFilter || etapa !== 'todas' || q.trim() || obra || proveedor || cfdiFilter
+  const clearAll = () => { setBucketFilter(null); setEtapa('todas'); setQ(''); setObra(null); setProveedor(null); setCfdiFilter(null) }
+  const visibleSum = visibleRows.reduce((a, p) => a + p.monto, 0)
+
+  const openPay = (row) => { setSelected(null); setPaying(row) }
 
   return (
     <div className="ds">
       <div className="page cxp">
-        {/* KPI strip */}
-        <div className="kpi-row">
-          <div className="kpi feature">
-            <div className="kpi-top"><div className="kpi-ic"><Icon name="receipt" /></div><div className="kpi-label">Total por pagar</div></div>
-            <div className="kpi-value">{money(totals.total)}</div>
-            <div className="kpi-sub"><span>{rows.length} cuentas abiertas</span></div>
-          </div>
-          <div className="kpi">
-            <div className="kpi-top"><div className="kpi-ic" style={{ background: 'var(--neg-soft)', color: 'var(--neg)' }}><Icon name="clock" /></div><div className="kpi-label">Vencido</div></div>
-            <div className="kpi-value" style={{ color: totals.vencido > 0 ? 'var(--neg)' : 'var(--ink)' }}>{money(totals.vencido)}</div>
-            <div className="kpi-sub"><span>requiere acción</span></div>
-          </div>
-          <div className="kpi">
-            <div className="kpi-top"><div className="kpi-ic" style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }}><Icon name="calendar" /></div><div className="kpi-label">Vence ≤ 7 días</div></div>
-            <div className="kpi-value">{money(totals.next7)}</div>
-            <div className="kpi-sub"><span>a programar</span></div>
-          </div>
-          <div className="kpi">
-            <div className="kpi-top"><div className="kpi-ic" style={{ background: 'var(--pos-soft)', color: 'var(--pos)' }}><Icon name="bank" /></div><div className="kpi-label">Saldo en bancos</div></div>
-            <div className="kpi-value">{saldo != null ? <MoneyParts value={saldo} /> : '—'}</div>
-            <div className="kpi-sub">
-              {cobertura != null && (
-                <span className={'pill ' + (cobertura >= 100 ? 'brand' : 'warn')}>
-                  {cobertura}% de cobertura
-                </span>
-              )}
-            </div>
-          </div>
+        {/* Resumen: total abierto + saldo en bancos (sin datos de muestra). */}
+        <div className="ui-headline">
+          <span>Total por pagar <b>{money(totals.total)}</b> · {rows.length} cuenta{rows.length === 1 ? '' : 's'}</span>
+          <span className="sep" aria-hidden="true">|</span>
+          <span>
+            Saldo en bancos <b>{saldo != null ? <MoneyParts value={saldo} /> : '—'}</b>
+            {' · '}cobertura{' '}
+            <b style={cobertura != null && cobertura < 100 ? { color: 'var(--warn)' } : undefined}>
+              {cobertura != null ? `${cobertura}%` : '—'}
+            </b>
+          </span>
         </div>
 
-        {/* Aging buckets — clickable filters */}
-        <div className="cxp-buckets">
-          {totals.buckets.map((b) => (
-            <button
-              type="button"
-              key={b.id}
-              className={'cxp-bucket ' + b.tone + (bucketFilter === b.id ? ' active' : '')}
-              onClick={() => setBucketFilter(bucketFilter === b.id ? null : b.id)}
-              title="Filtrar por vencimiento"
-            >
-              <div className="cxp-bucket-label">{b.label}</div>
-              <div className="cxp-bucket-sum num">{compactMoney(b.sum)}</div>
-              <div className="cxp-bucket-count">{b.count} cuenta{b.count === 1 ? '' : 's'}</div>
-            </button>
-          ))}
-        </div>
+        <StatFilters
+          items={totals.stats}
+          value={[bucketFilter, etapa === 'enTesoreria' ? 'enTesoreria' : null].filter(Boolean)}
+          onChange={(next, id) => {
+            if (id === 'enTesoreria') setEtapa(next ? 'enTesoreria' : 'todas')
+            else setBucketFilter(next)
+          }}
+        />
+
+        <FilterBar
+          search={{ value: q, onChange: setQ, placeholder: 'Buscar proveedor o folio…' }}
+          filters={filters}
+          actions={anyFilter ? (
+            <button type="button" className="ui-btn sm" onClick={clearAll}>Limpiar filtros</button>
+          ) : null}
+          total={visibleRows.length}
+          totalLabel={<>cuenta{visibleRows.length === 1 ? '' : 's'} · {money(visibleSum)}</>}
+        />
 
         {/* Payables table */}
         <div className="card">
-          <div className="card-head">
-            <h3>Cuentas por pagar</h3>
-            <div className="cxp-etapa">
-              {[['todas', 'Todas'], ['porEnviar', 'Por enviar'], ['enTesoreria', 'En tesorería']].map(([id, label]) => (
-                <button
-                  type="button"
-                  key={id}
-                  className={'cxp-etapa-btn' + (etapa === id ? ' active' : '')}
-                  onClick={() => setEtapa(id)}
-                >
-                  {label}
-                  {id === 'enTesoreria' && rows.some((r) => r.enviadaTesoreriaAt) && (
-                    <span className="cxp-etapa-n">{rows.filter((r) => r.enviadaTesoreriaAt).length}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
           {loading ? (
             <div className="empty">Cargando…</div>
           ) : visibleRows.length === 0 ? (
@@ -424,15 +528,14 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
                   {visibleRows.map((p) => {
                     const overdue = p.daysUntil != null && p.daysUntil < 0
                     const soon = p.daysUntil != null && p.daysUntil >= 0 && p.daysUntil <= 7
-                    const rel = p.daysUntil == null ? ''
-                      : p.daysUntil < 0 ? `vencido hace ${Math.abs(p.daysUntil)} d`
-                      : p.daysUntil === 0 ? 'hoy'
-                      : `en ${p.daysUntil} d`
+                    const rel = relVence(p.daysUntil)
                     return (
                       <tr
                         key={p.kind + p.id}
-                        onClick={() => { if (p.solicitudId) navigate(`/requisiciones/${p.solicitudId}`) }}
-                        style={p.solicitudId ? undefined : { cursor: 'default' }}
+                        onClick={() => setSelected(p)}
+                        className={selected && selected.kind === p.kind && selected.id === p.id ? 'cxp-row-sel' : undefined}
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setSelected(p) }}
                       >
                         <td>
                           <span className="proj-name">{p.supplierName}</span>
@@ -442,7 +545,7 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
                         <td className="mono" style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{p.folio}</td>
                         <td>
                           {p.formaPago === 'CREDITO'
-                            ? <span className="pill brand">Crédito{p.diasCredito ? ` ${p.diasCredito}d` : ''}</span>
+                            ? <span className="pill">Crédito{p.diasCredito ? ` ${p.diasCredito}d` : ''}</span>
                             : p.formaPago === 'CONTADO'
                             ? <span className="pill">Contado</span>
                             : <span className="money muted">—</span>}
@@ -468,10 +571,10 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
                         </td>
                         <td>
                           {p.enviadaTesoreriaAt
-                            ? <span className="status active"><span className="sdot" />En tesorería</span>
-                            : <span className="status plan"><span className="sdot" />Por enviar</span>}
+                            ? <StatusPill tone="info">En tesorería</StatusPill>
+                            : <StatusPill tone="muted">Por enviar</StatusPill>}
                         </td>
-                        <td className="r" onClick={(e) => e.stopPropagation()}>
+                        <td className="r" onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                           {p.kind === 'legacy' ? (
                             <span className="muted small" title="Requisición autorizada antes de las adjudicaciones; adjudícala en Compras por autorizar para poder pagarla.">
                               sin adjudicar
@@ -504,6 +607,15 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
         )}
       </div>
 
+      <PayableDrawer
+        row={selected}
+        onClose={() => setSelected(null)}
+        onEnviar={enviarTesoreria}
+        sending={selected ? sending === selected.kind + selected.id : false}
+        onPagar={openPay}
+        onVerRequisicion={(id) => navigate(`/requisiciones/${id}`)}
+      />
+
       <Modal open={!!paying} onClose={() => setPaying(null)} title="Registrar pago" size="sm">
         {paying && (
           <PayModal
@@ -520,6 +632,93 @@ export default function CuentasPorPagar({ etapaInicial = 'todas' }) {
         )}
       </Modal>
     </div>
+  )
+}
+
+// Detalle de una cuenta por pagar (drawer lateral): datos, seguimiento y las
+// mismas acciones de la tabla (→ Tesorería / Pagar).
+function PayableDrawer({ row, onClose, onEnviar, sending, onPagar, onVerRequisicion }) {
+  const p = row
+  const vs = p ? venceStatus(p) : null
+  const legacy = p?.kind === 'legacy'
+  return (
+    <Drawer
+      open={!!p}
+      onClose={onClose}
+      title={p ? (p.kind === 'gasto' ? `Gasto · ${p.supplierName}` : `${p.folio !== '—' ? p.folio + ' · ' : ''}${p.supplierName}`) : ''}
+      subtitle={p && (
+        <>
+          <StatusPill tone={vs.tone}>{vs.label}</StatusPill>
+          {p.proyecto !== '—' && <StatusPill tone="muted">{p.proyecto}{p.proyectoNombre ? ` · ${p.proyectoNombre}` : ''}</StatusPill>}
+        </>
+      )}
+      footer={p && (legacy ? (
+        <>
+          <span className="muted small" style={{ marginRight: 'auto' }}>
+            Autorizada antes de las adjudicaciones: adjudícala en Compras por autorizar para poder pagarla.
+          </span>
+          <button type="button" className="ui-btn" onClick={onClose}>Cerrar</button>
+        </>
+      ) : (
+        <>
+          {p.solicitudId && (
+            <button type="button" className="ui-btn" style={{ marginRight: 'auto' }} onClick={() => onVerRequisicion(p.solicitudId)}>
+              Ver requisición
+            </button>
+          )}
+          {!p.enviadaTesoreriaAt && (
+            <button type="button" className="ui-btn" onClick={() => onEnviar(p)} disabled={sending} title="Mandar a tesorería para pago">
+              {sending ? 'Enviando…' : '→ Tesorería'}
+            </button>
+          )}
+          <button type="button" className="ui-btn primary" onClick={() => onPagar(p)}>Pagar</button>
+        </>
+      ))}
+    >
+      {p && (
+        <>
+          <DetailList
+            rows={[
+              { key: 'monto', label: p.aplicado > 0.01 ? 'Saldo por pagar' : 'Monto', value: money(p.monto), strong: true },
+              p.aplicado > 0.01 && { key: 'tot', label: 'Total de la compra', value: <>{money(p.total)}<span className="ui-dl-note">pagado {money(p.aplicado)}</span></> },
+              p.iva != null && { key: 'iva', label: 'IVA', value: p.iva > 0.005 ? `incluido ${money(p.iva)}` : 'sin IVA' },
+              { key: 'prov', label: p.kind === 'gasto' ? 'Beneficiario' : 'Proveedor', value: p.supplierName },
+              p.detalle && { key: 'det', label: 'Concepto', value: p.detalle },
+              {
+                key: 'venc', label: 'Vencimiento',
+                value: <>{fmtDate(p.vencimiento)}{p.daysUntil != null && <span className="ui-dl-note">{relVence(p.daysUntil)}</span>}</>,
+              },
+              { key: 'obra', label: 'Obra', value: p.proyecto !== '—' ? `${p.proyecto}${p.proyectoNombre ? ' · ' + p.proyectoNombre : ''}` : '—' },
+              p.kind !== 'gasto' && {
+                key: 'folio', label: 'Requisición',
+                value: p.solicitudId
+                  ? <button type="button" className="ui-link" onClick={() => onVerRequisicion(p.solicitudId)}>{p.folio} →</button>
+                  : p.folio,
+              },
+              {
+                key: 'pago', label: 'Forma de pago',
+                value: p.formaPago === 'CREDITO'
+                  ? `Crédito · ${p.diasCredito} días`
+                  : p.formaPago === 'CONTADO' ? 'Contado' : '—',
+              },
+              p.diasEntrega != null && { key: 'ent', label: 'Entrega', value: `${p.diasEntrega} días` },
+              p.kind !== 'gasto' && {
+                key: 'cfdi', label: 'CFDI',
+                value: p.cfdi === undefined
+                  ? <span className="muted">Se vincula al registrar el pago</span>
+                  : p.cfdi ? <span style={{ color: 'var(--pos)' }}>{cfdiLabel(p.cfdi)} · vinculado ✓</span>
+                  : <span style={{ color: 'var(--warn)' }}>Sin factura</span>,
+              },
+              { key: 'etapa', label: 'Etapa', value: p.enviadaTesoreriaAt ? <StatusPill tone="info">En tesorería</StatusPill> : <StatusPill tone="muted">Por enviar</StatusPill> },
+            ]}
+          />
+          <div className="ui-drawer-section">
+            <h4>Seguimiento</h4>
+            <Tracker steps={trackerSteps(p)} />
+          </div>
+        </>
+      )}
+    </Drawer>
   )
 }
 

@@ -1,51 +1,14 @@
 /* Cuentas por pagar — page-specific extras. Everything else is the DECOLSA
    design system (styles/design-system.css), scoped under `.ds`. */
 
-.ds .cxp-buckets {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: var(--gap);
-  margin-bottom: var(--gap);
+/* Renglón abierto en el drawer + foco por teclado (la fila abre el detalle). */
+.ds .cxp .ptable tbody tr { cursor: pointer; }
+.ds .cxp .ptable tbody tr.cxp-row-sel { background: var(--surface-2); }
+.ds .cxp .ptable tbody tr:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+/* Móvil: la tabla conserva su scroll horizontal en vez de partir celdas. */
+@media (max-width: 760px) {
+  .ds .cxp .ptable td, .ds .cxp .ptable th { white-space: nowrap; }
 }
-@media (max-width: 1100px) { .ds .cxp-buckets { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 620px) { .ds .cxp-buckets { grid-template-columns: repeat(2, 1fr); } }
-
-.ds .cxp-bucket {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--line-2);
-  border-radius: var(--r-md);
-  padding: 13px 15px;
-  box-shadow: var(--shadow-sm);
-  /* Clickable filter: button reset + affordance. */
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: box-shadow 0.12s, transform 0.12s;
-}
-.ds .cxp-bucket:hover { box-shadow: var(--shadow-md, 0 2px 8px rgba(0,0,0,0.08)); }
-.ds .cxp-bucket.active { outline: 2px solid var(--brand, #e2571e); outline-offset: -1px; }
-.ds .cxp-bucket.neg { border-left-color: var(--neg); }
-.ds .cxp-bucket.warn { border-left-color: var(--warn); }
-.ds .cxp-bucket.info { border-left-color: var(--info); }
-.ds .cxp-bucket.muted { border-left-color: var(--line-strong); }
-.ds .cxp-bucket-label {
-  font-family: var(--font-display);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-  color: var(--ink-3);
-}
-.ds .cxp-bucket-sum {
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-top: 6px;
-  color: var(--ink);
-}
-.ds .cxp-bucket.neg .cxp-bucket-sum { color: var(--neg); }
-.ds .cxp-bucket-count { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
 
 .ds .cxp-note {
   margin: var(--gap) 0 0;
@@ -99,18 +62,6 @@
 .cxp-cfdi-item.active { outline: 2px solid var(--brand, #e2571e); outline-offset: -1px; }
 .cxp-cfdi-emisor { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Etapa segmented control (Todas / Por enviar / En tesorería). */
-.ds .cxp-etapa { display: inline-flex; gap: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
-.ds .cxp-etapa-btn {
-  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-2);
-  background: transparent; border: none; border-radius: 8px; padding: 5px 12px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.ds .cxp-etapa-btn.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
-.ds .cxp-etapa-n {
-  font-size: 10.5px; font-weight: 700; background: var(--brand-soft, #fdeae0); color: var(--brand-strong, #c24a17);
-  border-radius: 999px; padding: 1px 7px;
-}
 .cxp-pay-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
 .cxp-pay .stack { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; font-size: 0.82rem; font-weight: 600; color: var(--ink-2); }
 .cxp-pay .stack select, .cxp-pay .stack input { font-size: 0.9rem; padding: 8px 10px; border: 1px solid var(--line-2, #e5e1da); border-radius: 8px; }

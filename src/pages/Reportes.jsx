@@ -121,7 +121,7 @@ export default function Reportes() {
               const ingH = (m.ingresosEstimaciones / maxBar) * 100
               const empty = m.totalGastado === 0 && m.ingresosEstimaciones === 0
               return (
-                <div key={m.mes} className={`month-col ${isOpen ? 'open' : ''} ${empty ? 'empty' : ''}`}>
+                <div key={m.mes} className={`month-col ${isOpen ? 'open' : ''} ${empty ? 'is-empty' : ''}`}>
                   <div className="month-bar-wrap" onClick={() => setOpenMonth(isOpen ? null : m.mes)}>
                     <div className="bar-pair">
                       <div className="bar gasto" style={{ height: `${totalH}%` }} title={`Gastado ${fmtMoney(m.totalGastado)}`} />
