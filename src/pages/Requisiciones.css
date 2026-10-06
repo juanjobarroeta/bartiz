@@ -98,6 +98,13 @@
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) {
   .lines { --cols: minmax(0, 1fr) 64px 64px 78px 24px; }
+  /* Alta de requisición en el celular: el concepto ocupa su propio renglón
+     (ancho completo, y su lista de insumos también) y debajo van cantidad,
+     unidad, IVA y quitar. Sin encabezado: cada campo trae su placeholder. */
+  .lines:not(.cot-lines) { --cols: minmax(0, 1fr) minmax(0, 1fr) 84px 24px; }
+  .lines:not(.cot-lines) .lines-head { display: none; }
+  .lines:not(.cot-lines) .line-row > .concepto-combo { grid-column: 1 / -1; }
+  .lines:not(.cot-lines) .line-row { border-bottom: 1px dashed var(--line); padding-bottom: 0.55rem; }
   .lines.cot-lines { --cols: minmax(0, 1fr) 56px 96px 88px; }
   .lines.cot-lines .cot-unit { display: none; }
 }

@@ -15,6 +15,10 @@
   border-radius: 10px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   width: 100%;
+  /* Es item flex del backdrop: sin esto su ancho mínimo es el de su
+     contenido (p. ej. una tabla con min-width) y en el celular el panel se
+     sale de la pantalla y recorta todo a la derecha. */
+  min-width: 0;
   max-height: calc(100vh - 8rem);
   display: flex;
   flex-direction: column;
