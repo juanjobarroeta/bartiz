@@ -1,0 +1,8 @@
+.pct { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pct input {
+  width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--line-2); border-radius: var(--r-sm);
+  font-size: 0.85rem; font-family: var(--font-ui); background: var(--surface); color: var(--ink); text-align: right;
+}
+.pct input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-tint); }
+.pct input.pct-total { background: var(--surface-2); font-size: 0.8rem; }
+.pct input.pct-total:disabled { opacity: 0.6; }
