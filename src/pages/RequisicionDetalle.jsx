@@ -592,9 +592,6 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
   // Forma de pago de la oferta: precargada de las condiciones del proveedor.
   const [credito, setCredito] = useState(false)
   const [diasCredito, setDiasCredito] = useState('')
-  // Base de los precios capturados: la cotización del proveedor puede venir
-  // con IVA; se guarda siempre sin IVA (÷1.16) para comparar parejo.
-  const [conIva, setConIva] = useState(false)
   const pickSupplier = (s) => {
     setSupplier(s)
     if (s) {
@@ -638,8 +635,8 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       .filter((p) => !noOferto[p.id] && parseFloat(pus[p.id]) >= 0)
       .map((p) => ({
         solicitudPartidaId: p.id,
-        // Con IVA se divide entre la tasa de ESA línea (exenta / 0 % se queda igual).
-        precioUnitario: Math.round(((parseFloat(pus[p.id]) || 0) / (conIva ? 1 + tasaNum(p.ivaTasa) : 1)) * 10000) / 10000,
+        // Precio sin IVA; el IVA lo pone la tasa de la línea.
+        precioUnitario: Math.round((parseFloat(pus[p.id]) || 0) * 10000) / 10000,
       }))
       .filter((l) => l.precioUnitario > 0)
     if (lineas.length === 0) {
@@ -728,12 +725,10 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
       <OfferTerms
         credito={credito}
         diasCredito={diasCredito}
-        conIva={conIva}
         diasEntrega={diasEntrega}
         onChange={(patch) => {
           if ('credito' in patch) setCredito(patch.credito)
           if ('diasCredito' in patch) setDiasCredito(patch.diasCredito)
-          if ('conIva' in patch) setConIva(patch.conIva)
           if ('diasEntrega' in patch) setDiasEntrega(patch.diasEntrega)
         }}
       />
@@ -754,7 +749,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
           <span>Concepto</span>
           <span className="cot-unit">Unidad</span>
           <span className="num">Cantidad</span>
-          <span className="num">P. unitario {conIva ? 'c/IVA' : 's/IVA'}</span>
+          <span className="num">P. unitario s/IVA</span>
           <span className="num">Importe</span>
         </div>
         {requisicion.partidas.map((p) => {
@@ -796,7 +791,6 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
         <div className="line-row">
           <strong className="line-total">Total cotización</strong>
           <OfferTotals
-            conIva={conIva}
             lineas={requisicion.partidas
               .filter((p) => !noOferto[p.id])
               .map((p) => ({ importe: (parseFloat(pus[p.id]) || 0) * p.cantidad, tasa: tasaNum(p.ivaTasa) }))}

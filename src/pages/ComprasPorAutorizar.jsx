@@ -134,21 +134,29 @@ export default function ComprasPorAutorizar() {
   const clearAwards = (reqId) => setAwards((a) => ({ ...a, [reqId]: {} }))
 
   const authorize = async (req) => {
-    const map = awards[req.id] ?? {}
+    let map = awards[req.id] ?? {}
+    // Sin ganadores elegidos, Autorizar toma lo más barato de cada concepto
+    // (lo dice la confirmación); antes el botón quedaba deshabilitado y
+    // parecía falta de permisos.
+    const automatico = Object.keys(map).length === 0
+    if (automatico) {
+      map = cheapestFor(req)
+      if (Object.keys(map).length === 0) {
+        setError(`${req.folio} no tiene precios capturados. Ábrela y captura las cotizaciones antes de autorizar.`)
+        return
+      }
+      setAwards((a) => ({ ...a, [req.id]: map }))
+    }
     const assigned = Object.keys(map).length
     const totalConcepts = (req.partidas ?? []).length
-    if (assigned === 0) {
-      setError('Adjudica al menos un concepto antes de autorizar.')
-      return
-    }
     // Autorizar compromete dinero: pasa a cuentas por pagar. Confirmar, y si
     // es parcial, decir explícitamente qué NO se va a comprar.
     const faltan = totalConcepts - assigned
     const ok = await confirmDialog({
       title: `Autorizar ${req.folio}`,
-      message: faltan > 0
-        ? `Se autorizarán ${assigned} de ${totalConcepts} conceptos. Los ${faltan} sin adjudicar NO se comprarán en esta requisición. La compra pasa a cuentas por pagar.`
-        : `Se autorizan los ${totalConcepts} conceptos y la compra pasa a cuentas por pagar.`,
+      message: (automatico ? 'Se adjudica a cada concepto el proveedor más barato. ' : '') + (faltan > 0
+        ? `Se autorizarán ${assigned} de ${totalConcepts} conceptos. Los ${faltan} sin precio/adjudicar NO se comprarán en esta requisición. La compra pasa a cuentas por pagar.`
+        : `Se autorizan los ${totalConcepts} conceptos y la compra pasa a cuentas por pagar.`),
       okLabel: 'Autorizar',
     })
     if (!ok) return
@@ -282,8 +290,13 @@ function RequisicionCard({ req, budget, award, busy, onAward, onAutoCheapest, on
         <div className="cpa-card-actions">
           <button className="btn-ghost small" onClick={onAutoCheapest} disabled={busy || cots.length === 0}>Adjudicar lo más barato</button>
           {assigned > 0 && <button className="link small" onClick={onClear} disabled={busy}>Limpiar</button>}
-          <button className="btn-primary small" onClick={onAuthorize} disabled={busy || assigned === 0}>
-            {busy ? 'Autorizando…' : allAwarded ? 'Autorizar' : `Autorizar (${assigned}/${partidas.length})`}
+          <button
+            className="btn-primary small"
+            onClick={onAuthorize}
+            disabled={busy || cots.length === 0}
+            title={cots.length === 0 ? 'Sin cotizaciones: captura precios primero' : assigned === 0 ? 'Adjudica lo más barato de cada concepto y autoriza' : undefined}
+          >
+            {busy ? 'Autorizando…' : allAwarded || assigned === 0 ? 'Autorizar' : `Autorizar (${assigned}/${partidas.length})`}
           </button>
         </div>
       </div>
