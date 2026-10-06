@@ -22,6 +22,7 @@ import { apiFetch } from '../config/api'
 import Modal from '../components/Modal'
 import SupplierPicker from '../components/SupplierPicker'
 import OfferTerms, { OfferTotals } from '../components/OfferTerms'
+import PrecioConTotal from '../components/PrecioConTotal'
 import { readTerms } from './ProveedoresBartiz'
 import { alertDialog, confirmDialog } from '../components/Dialog'
 import { IVA_OPCIONES, ivaTasaDe, ivaValueDe, tasaNum } from '../lib/iva'
@@ -31,8 +32,6 @@ import './Requisiciones.css'
 
 const fmtMoney = (n) =>
   n == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0)
-const fmtMoneyDec = (n) =>
-  n == null ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(Number(n) || 0)
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('es-MX', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
@@ -629,7 +628,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
               <input
                 value={p.unidad}
                 onChange={(e) => updatePart(idx, 'unidad', e.target.value)}
-                placeholder="Unidad (ton, m3…)"
+                placeholder="Unidad (L, ton, m3…)"
                 aria-label="Unidad"
                 className="line-unit"
               />
@@ -648,6 +647,12 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
               </button>
             </div>
             {p._budget && <LineBudgetHint budget={p._budget} unidad={p.unidad} pedido={p.cantidad} />}
+            {/^\s*\$?\d+([.,]\d+)?\s*$/.test(p.unidad || '') && (
+              <div className="line-unit-warn small">
+                «Unidad» es litro, tonelada, pieza… El precio va abajo, en la columna del proveedor
+                (precio unitario o el total del ticket con IVA).
+              </div>
+            )}
           </div>
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
@@ -777,23 +782,17 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
                 <tr key={p.key}>
                   <td className="oc-concept">{p.descripcion}</td>
                   <td className="oc-qty mono small">{p.cantidad || 0} {p.unidad}</td>
-                  {offers.map((o, idx) => {
-                    const pu = parseFloat(o.prices[p.key]) || 0
-                    const imp = pu * (Number(p.cantidad) || 0)
-                    return (
-                      <td key={o.key} className="oc-price">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={o.prices[p.key] ?? ''}
-                          onChange={(e) => setOfferPrice(idx, p.key, e.target.value)}
-                          placeholder="P.U. sin IVA"
-                          aria-label={`Precio unitario de ${p.descripcion}`}
-                        />
-                        {pu > 0 && <div className="muted small">= {fmtMoneyDec(imp)}</div>}
-                      </td>
-                    )
-                  })}
+                  {offers.map((o, idx) => (
+                    <td key={o.key} className="oc-price">
+                      <PrecioConTotal
+                        pu={o.prices[p.key]}
+                        cantidad={p.cantidad}
+                        tasa={tasaNum(ivaTasaDe(p.iva))}
+                        onPu={(v) => setOfferPrice(idx, p.key, v)}
+                        concepto={p.descripcion}
+                      />
+                    </td>
+                  ))}
                 </tr>
               ))}
               <tr className="offers-total-row">

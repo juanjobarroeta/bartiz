@@ -21,6 +21,7 @@ import Modal from '../components/Modal'
 import FileUpload from '../components/FileUpload'
 import SupplierPicker from '../components/SupplierPicker'
 import OfferTerms, { OfferTotals } from '../components/OfferTerms'
+import PrecioConTotal from '../components/PrecioConTotal'
 import { readTerms } from './ProveedoresBartiz'
 import { confirmDialog, alertDialog } from '../components/Dialog'
 import { useAuth } from '../auth/AuthContext'
@@ -749,7 +750,7 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
           <span>Concepto</span>
           <span className="cot-unit">Unidad</span>
           <span className="num">Cantidad</span>
-          <span className="num">P. unitario s/IVA</span>
+          <span className="num">P.U. s/IVA · o total c/IVA</span>
           <span className="num">Importe</span>
         </div>
         {requisicion.partidas.map((p) => {
@@ -774,14 +775,12 @@ function NewCotizacionForm({ requisicion, onClose, onCreated }) {
               {omitida ? (
                 <span className="muted small">no ofertó</span>
               ) : (
-                <input
-                  type="number"
-                  step="0.01"
-                  value={pus[p.id]}
-                  onChange={(e) => setPus((o) => ({ ...o, [p.id]: e.target.value }))}
-                  placeholder="0.00"
-                  aria-label={`Precio unitario de ${p.descripcion}`}
-                  className="num"
+                <PrecioConTotal
+                  pu={pus[p.id]}
+                  cantidad={p.cantidad}
+                  tasa={tasaNum(p.ivaTasa)}
+                  onPu={(v) => setPus((o) => ({ ...o, [p.id]: v }))}
+                  concepto={p.descripcion}
                 />
               )}
               <span className="num">{omitida ? '—' : fmtMoney(pu * p.cantidad)}</span>
