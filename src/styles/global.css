@@ -330,3 +330,9 @@ em, i {
   }
 }
 
+
+/* iPhone: Safari hace zoom al enfocar un campo con letra < 16px y la página
+   queda recortada a la derecha. En pantallas táctiles los campos van a 16px. */
+@media (hover: none) and (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
+}
