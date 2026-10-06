@@ -86,7 +86,6 @@ function formFromSolicitud(sol) {
       key: uid(),
       supplier: c.supplier ? { id: c.supplier.id, razonSocial: c.supplier.razonSocial, rfc: c.supplier.rfc } : null,
       freeText: c.supplierId ? '' : (c.supplierNombre ?? ''),
-      conIva: false, // los precios guardados son SIN IVA (canónico)
       credito: !!c.tieneCredito,
       diasCredito: c.diasCredito != null ? String(c.diasCredito) : '',
       diasEntrega: c.diasEntrega != null ? String(c.diasEntrega) : '',
@@ -453,7 +452,7 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
 
   // ── Offers (proveedor columns) ──
   const addOffer = () =>
-    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', conIva: false, credito: false, diasCredito: '', diasEntrega: '', prices: {} }])
+    setOffers((arr) => [...arr, { key: uid(), supplier: null, freeText: '', credito: false, diasCredito: '', diasEntrega: '', prices: {} }])
   const removeOffer = (idx) =>
     setOffers((arr) => arr.filter((_, i) => i !== idx))
   const updateOffer = (idx, patch) =>
@@ -496,12 +495,9 @@ function NewRequisicionForm({ companyId, proyectos, initialDraft, onClose, onCre
         diasEntrega: o.diasEntrega !== '' && o.diasEntrega != null ? parseInt(o.diasEntrega, 10) : null,
         lineas: lines
           .map((p, idx) => {
-            const raw = parseFloat(o.prices[p.key]) || 0
-            // Canónico sin IVA: lo capturado "con IVA" se convierte con la
-            // tasa de ESA línea (÷1.16 si es gravada; una línea exenta o al
-            // 0 % no trae IVA dentro y se queda igual).
-            const sinIva = o.conIva ? raw / (1 + (ivaTasaDe(p.iva) ?? 0)) : raw
-            return { partidaIndex: idx, precioUnitario: Math.round(sinIva * 10000) / 10000 }
+            // Precio sin IVA; el IVA lo pone la tasa de la línea.
+            const pu = parseFloat(o.prices[p.key]) || 0
+            return { partidaIndex: idx, precioUnitario: Math.round(pu * 10000) / 10000 }
           })
           .filter((l) => l.precioUnitario > 0),
       }))
@@ -791,7 +787,7 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
                           step="0.01"
                           value={o.prices[p.key] ?? ''}
                           onChange={(e) => setOfferPrice(idx, p.key, e.target.value)}
-                          placeholder={o.conIva ? 'P.U. con IVA' : 'P.U. sin IVA'}
+                          placeholder="P.U. sin IVA"
                           aria-label={`Precio unitario de ${p.descripcion}`}
                         />
                         {pu > 0 && <div className="muted small">= {fmtMoneyDec(imp)}</div>}
@@ -805,7 +801,6 @@ function OffersSection({ companyId, partidas, offers, offerTotal, addOffer, remo
                 {offers.map((o) => (
                   <td key={o.key} className="oc-price">
                     <OfferTotals
-                      conIva={!!o.conIva}
                       lineas={conceptRows.map((p) => ({
                         importe: (parseFloat(o.prices[p.key]) || 0) * (Number(p.cantidad) || 0),
                         tasa: tasaNum(ivaTasaDe(p.iva)),
@@ -874,7 +869,6 @@ function OfferSupplierHead({ offer, companyId, onChange, onRemove }) {
           compact
           credito={!!offer.credito}
           diasCredito={offer.diasCredito}
-          conIva={!!offer.conIva}
           diasEntrega={offer.diasEntrega}
           onChange={onChange}
         />

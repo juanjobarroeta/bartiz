@@ -1,16 +1,17 @@
 import './OfferTerms.css'
 
 /**
- * Condiciones de una oferta de proveedor: forma de pago, base de precios
- * (sin / con IVA) y días de entrega. Reemplaza los checkboxes sueltos —
+ * Condiciones de una oferta de proveedor: forma de pago y días de entrega.
+ * Los precios se capturan siempre SIN IVA; el IVA lo pone la tasa de cada
+ * línea (16 %, 0 % o exento), así hay un solo selector de IVA. Reemplaza los checkboxes sueltos —
  * "Contado" marcado significaba crédito y la etiqueta quedaba debajo de la
  * casilla, pegada al checkbox de IVA — por controles segmentados donde cada
  * opción dice lo que es.
  *
  * Todo es controlado: `onChange(patch)` recibe sólo las llaves que cambian
- * (`credito`, `diasCredito`, `conIva`, `diasEntrega`).
+ * (`credito`, `diasCredito`, `diasEntrega`).
  */
-export default function OfferTerms({ credito, diasCredito, conIva, diasEntrega, onChange, compact = false }) {
+export default function OfferTerms({ credito, diasCredito, diasEntrega, onChange, compact = false }) {
   return (
     <div className={'oterms' + (compact ? ' compact' : '')}>
       <div className="oterm">
@@ -37,16 +38,6 @@ export default function OfferTerms({ credito, diasCredito, conIva, diasEntrega, 
             días
           </span>
         )}
-      </div>
-
-      <div className="oterm">
-        <span className="oterm-l">Precios</span>
-        <Segmented
-          value={conIva ? 'con' : 'sin'}
-          options={[['sin', 'Sin IVA'], ['con', 'Con IVA']]}
-          onChange={(v) => onChange({ conIva: v === 'con' })}
-          title="Cómo vienen los precios en la cotización del proveedor. Se guardan sin IVA para comparar parejo."
-        />
       </div>
 
       <div className="oterm">
@@ -89,24 +80,22 @@ function Segmented({ value, options, onChange, title }) {
 
 /**
  * Desglose de una oferta línea por línea con la tasa de cada línea
- * (16 %, 0 % o exento): `lineas` = [{ importe, tasa }] con el importe tal
- * como se capturó; si `conIva`, ese importe ya trae el IVA de SU tasa.
+ * (16 %, 0 % o exento): `lineas` = [{ importe, tasa }] con el importe sin IVA.
  */
-export function desglose(lineas, conIva) {
+export function desglose(lineas) {
   let sub = 0
   let iva = 0
   for (const { importe, tasa } of lineas) {
     const t = Number(tasa) || 0
-    const base = conIva ? importe / (1 + t) : importe
-    sub += base
-    iva += base * t
+    sub += importe
+    iva += importe * t
   }
   return { sub, iva }
 }
 
 /** Subtotal, IVA y total para que no haya duda de qué número se compara. */
-export function OfferTotals({ lineas, conIva }) {
-  const { sub, iva } = desglose(lineas, conIva)
+export function OfferTotals({ lineas }) {
+  const { sub, iva } = desglose(lineas)
   const fmt = (n) => n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 })
   return (
     <div className="otot">
