@@ -672,12 +672,12 @@ function PresupuestosTab({ proyecto, contrato, ejecutado, navigate, onRefresh })
           <div>
             <h3>Aún no hay presupuesto</h3>
             <p className="muted small">
-              Sube el Excel del template (PROTOTIPO 2R / 3R) y el sistema detecta
-              capítulos, conceptos e insumos automáticamente.
+              Sube los Excel de tus prototipos y elige cuántas unidades incluir de cada uno.
+              También puedes importar un presupuesto en PDF.
             </p>
           </div>
           <button className="primary" onClick={() => setImportOpen(true)}>
-            📤 Importar presupuesto desde Excel
+            Importar presupuesto
           </button>
         </div>
       )}
