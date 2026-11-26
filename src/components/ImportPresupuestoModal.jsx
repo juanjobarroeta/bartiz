@@ -1,157 +1,221 @@
-/**
- * ImportPresupuestoModal — Excel scanner for Gerardo's master presupuesto.
- *
- * Flow:
- *   1. Drop / pick a .xls or .xlsx file
- *   2. POST /scan → returns parsed tree + warnings (no DB write)
- *   3. Render preview: total, capítulos, depth, warnings
- *   4. On confirm → POST /import with the same parsed payload
- *   5. On success, calls onImported() so the page can reload
- *
- * The scan response is cached in component state; if the user edits the
- * file before importing, they have to scan again. Server re-validates the
- * payload shape on /import so a tampered client can't write garbage.
- */
-
-import { useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { apiFetch } from '../config/api'
+import { componerPresupuestos } from '../lib/componerPresupuestos'
 import Modal from './Modal'
-import { alertDialog, confirmDialog } from './Dialog'
+import { confirmDialog } from './Dialog'
 import './ImportPresupuestoModal.css'
 
-const fmtMoney = (n) =>
-  n == null
-    ? '—'
-    : new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN',
-        maximumFractionDigits: 2,
-      }).format(Number(n) || 0)
+const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
+const fmtMoney = (n) => n == null ? '—' : moneda.format(n)
+const esCantidad = (valor) =>
+  String(valor).trim() !== '' && Number.isSafeInteger(Number(valor)) && Number(valor) >= 0
+const formatos = [
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/pdf',
+]
 
-export default function ImportPresupuestoModal({
-  open,
-  onClose,
-  proyectoId,
-  onImported,
-}) {
-  const inputRef = useRef(null)
-  const [file, setFile] = useState(null) // { name, blob }
-  const [scan, setScan] = useState(null) // PresupuestoParseResult + extras
+function ResumenPresupuesto({ scan }) {
+  return (
+    <>
+      <div className="imp-stats">
+        <div>
+          <span className="muted small">Capítulos</span>
+          <strong>{scan.totals.branchCount}</strong>
+        </div>
+        <div>
+          <span className="muted small">Conceptos</span>
+          <strong>{scan.totals.leafCount}</strong>
+        </div>
+        <div>
+          <span className="muted small">Profundidad máx.</span>
+          <strong>{scan.totals.maxDepth}</strong>
+        </div>
+        <div>
+          <span className="muted small">Insumos</span>
+          <strong>{scan.insumos?.length ?? 0}</strong>
+        </div>
+        <div className="imp-stats-total">
+          <span className="muted small">Costo directo del proyecto</span>
+          <strong>{fmtMoney(scan.totals.sumLeafImporte)}</strong>
+        </div>
+      </div>
+
+      {scan.caratula?.subtotal != null && (
+        <div className="imp-banner info small">
+          Subtotal de carátula {fmtMoney(scan.caratula.subtotal)}
+          {scan.caratula.utilidad != null && <> · utilidad {fmtMoney(scan.caratula.utilidad)}</>}
+          {scan.caratula.total != null && <> · total {fmtMoney(scan.caratula.total)}</>}
+        </div>
+      )}
+      {/* Capítulos preview */}
+      <details open className="imp-details">
+        <summary>Capítulos detectados ({scan.branches.filter(b => b.nivel === 1).length})</summary>
+        <table className="imp-table">
+          <thead>
+            <tr>
+              <th style={{ width: 60 }}>Código</th>
+              <th>Descripción</th>
+              <th style={{ textAlign: 'right' }}>Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scan.branches.filter(b => b.nivel === 1).map((b) => (
+              <tr key={b.codigo}>
+                <td className="mono">{b.codigo}</td>
+                <td>{b.descripcion}</td>
+                <td style={{ textAlign: 'right' }}>{fmtMoney(b.importeReportado)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+
+      {/* Warnings */}
+      {scan.warnings?.length > 0 && (
+        <details className="imp-details warnings">
+          <summary>
+            ⚠ {scan.warnings.length} advertencia(s) del presupuesto
+          </summary>
+          <ul className="imp-warnings">
+            {scan.warnings.slice(0, 50).map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+            {scan.warnings.length > 50 && (
+              <li className="muted">…y {scan.warnings.length - 50} más</li>
+            )}
+          </ul>
+        </details>
+      )}
+    </>
+  )
+}
+
+export default function ImportPresupuestoModal({ open, ...props }) {
+  return open ? <Importador {...props} /> : null
+}
+
+function Importador({ onClose, proyectoId, onImported, scanPath, onConfirmImport }) {
+  const [archivos, setArchivos] = useState([])
+  const [stage, setStage] = useState('pick')
   const [busy, setBusy] = useState(false)
-  const [stage, setStage] = useState('pick') // pick | preview | importing | done
+  const [leyendo, setLeyendo] = useState('')
+  const [error, setError] = useState('')
   const [importResult, setImportResult] = useState(null)
-
-  // Decolsa workflow extras — captured at import time, persisted on Proyecto.
-  const [viviendasObjetivo, setViviendasObjetivo] = useState('')
-  const [aplicaIva, setAplicaIva] = useState(false) // vivienda no causa IVA
+  const [viviendasEditadas, setViviendasEditadas] = useState(null)
+  const [aplicaIva, setAplicaIva] = useState(false)
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFinPlan, setFechaFinPlan] = useState('')
 
-  const reset = () => {
-    setFile(null)
-    setScan(null)
-    setStage('pick')
-    setImportResult(null)
-    if (inputRef.current) inputRef.current.value = ''
-  }
+  const modelos = useMemo(() => archivos
+    .filter(a => esCantidad(a.cantidad) && Number(a.cantidad) > 0)
+    .map(a => ({ nombre: a.blob.name, scan: a.scan, cantidad: Number(a.cantidad) })), [archivos])
 
+  const { scan, problema } = useMemo(() => {
+    if (stage !== 'preview') return {}
+    if (archivos.some(a => !esCantidad(a.cantidad))) {
+      return { problema: 'Usa un número entero de cero en adelante para cada archivo.' }
+    }
+    if (!modelos.length) return { problema: 'Incluye al menos una unidad en el proyecto.' }
+    try {
+      return { scan: componerPresupuestos(modelos) }
+    } catch (err) {
+      return { problema: err.message }
+    }
+  }, [stage, archivos, modelos])
+
+  const copias = modelos.reduce((total, modelo) => total + modelo.cantidad, 0)
+  const viviendas = viviendasEditadas ?? (copias > 1 ? String(copias) : '')
+  const configInvalida = viviendas !== '' && (!esCantidad(viviendas) || Number(viviendas) <= 0)
+  const yaImportado = archivos.some(a => a.scan?.alreadyHasPresupuesto)
   const close = () => {
-    reset()
+    if (busy) return
+    if (importResult) onImported?.(importResult)
     onClose?.()
   }
 
-  const onPick = (f) => {
-    if (!f) return
-    if (
-      !/\.(xls|xlsx|pdf)$/i.test(f.name) &&
-      f.type !== 'application/vnd.ms-excel' &&
-      f.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' &&
-      f.type !== 'application/pdf'
-    ) {
-      alertDialog({ message: 'Sólo se aceptan archivos .xls, .xlsx o .pdf.' })
+  const agregar = (lista) => {
+    if (busy) return
+    const nuevos = Array.from(lista)
+    const invalido = nuevos.find(f => !/\.(xls|xlsx|pdf)$/i.test(f.name) && !formatos.includes(f.type))
+    if (invalido) {
+      setError(`Elige un archivo .xls, .xlsx o .pdf. No se pudo agregar ${invalido.name}.`)
       return
     }
-    setFile({ name: f.name, blob: f })
+    setError('')
+    setArchivos(actuales => {
+      const resultado = [...actuales]
+      for (const blob of nuevos) {
+        const id = JSON.stringify([blob.name, blob.size, blob.lastModified])
+        if (!resultado.some(a => a.id === id)) resultado.push({ id, blob, cantidad: '1', scan: null })
+      }
+      return resultado
+    })
+  }
+
+  const actualizar = (id, cambios) => {
+    setArchivos(actuales => actuales.map(a => a.id === id ? { ...a, ...cambios } : a))
   }
 
   const doScan = async () => {
-    if (!file) return
+    if (!archivos.length || busy) return
     setBusy(true)
+    setError('')
+    let nombre
     try {
-      const fd = new FormData()
-      fd.append('file', file.blob)
-      const result = await apiFetch(
-        `/api/construccion/proyectos/${proyectoId}/presupuesto/scan`,
-        { method: 'POST', body: fd }
-      )
-      setScan(result)
+      for (const archivo of archivos) {
+        if (archivo.scan) continue
+        nombre = archivo.blob.name
+        setLeyendo(nombre)
+        const fd = new FormData()
+        fd.append('file', archivo.blob)
+        const result = await apiFetch(scanPath ?? `/api/construccion/proyectos/${proyectoId}/presupuesto/scan`, {
+          method: 'POST', body: fd,
+        })
+        actualizar(archivo.id, { scan: result })
+      }
       setStage('preview')
     } catch (err) {
-      alertDialog({
-        message: err.message || 'No se pudo leer el archivo. Verifica que sea el template correcto.',
-      })
+      setError(`No se pudo leer ${nombre}. ${err.message}`)
     } finally {
+      setLeyendo('')
       setBusy(false)
     }
   }
 
   const doImport = async () => {
-    if (!scan) return
-    if (scan.alreadyHasPresupuesto) {
-      alertDialog({
-        message:
-          'Este proyecto ya tiene un presupuesto cargado. Archívalo antes de importar otro.',
-      })
-      return
-    }
-    const ok = await confirmDialog({
-      title: 'Confirmar importación',
-      message: `Se crearán ${scan.totals.branchCount} capítulos y ${scan.totals.leafCount} conceptos por un total de ${fmtMoney(scan.totals.sumLeafImporte)}. ¿Continuar?`,
-      okLabel: 'Sí, importar',
-    })
-    if (!ok) return
-
-    setStage('importing')
+    if (!scan || busy || yaImportado || configInvalida) return
+    setError('')
     setBusy(true)
     try {
-      // Trim what we send back: the server doesn't need warnings (already
-      // computed) or rowIndex past the validation step, but stripping is
-      // optional. We send the whole thing for parity with the scan response
-      // shape — it's ~50KB.
-      // Compute weekCount from fechas if both provided. Round up to whole weeks.
-      let weekCount = null
-      if (fechaInicio && fechaFinPlan) {
-        const ms = new Date(fechaFinPlan).getTime() - new Date(fechaInicio).getTime()
-        if (ms > 0) weekCount = Math.ceil(ms / (1000 * 60 * 60 * 24 * 7))
-      }
+      const ok = await confirmDialog({
+        title: onConfirmImport ? 'Crear proyecto con presupuesto' : 'Confirmar importación',
+        message: `Se incluirán ${copias} unidad(es) de ${modelos.length} archivo(s) por un costo directo de ${fmtMoney(scan.totals.sumLeafImporte)}. ¿Continuar?`,
+        okLabel: onConfirmImport ? 'Crear proyecto' : 'Importar presupuesto',
+      })
+      if (!ok) return
+      setStage('importing')
+      const duracionMs = fechaInicio && fechaFinPlan ? new Date(fechaFinPlan) - new Date(fechaInicio) : 0
+      const { caratula, formato, branches, leaves, insumos, warnings, totals } = scan
       const payload = {
-        parsed: {
-          caratula: scan.caratula,
-          // Formato detectado (p. ej. LISTA_CONCEPTOS): decide la granularidad
-          // de la plantilla de estimaciones (por concepto vs por capítulo).
-          formato: scan.formato,
-          branches: scan.branches,
-          leaves: scan.leaves,
-          insumos: scan.insumos,
-          warnings: scan.warnings,
-          totals: scan.totals,
-        },
-        filename: scan.filename ?? file?.name ?? null,
-        viviendasObjetivo: viviendasObjetivo ? parseInt(viviendasObjetivo, 10) : null,
+        parsed: { caratula, formato, branches, leaves, insumos, warnings, totals },
+        filename: scan.filename ?? modelos[0].nombre,
+        viviendasObjetivo: viviendas ? Number(viviendas) : null,
         aplicaIva,
-        weekCount,
+        weekCount: duracionMs > 0 ? Math.ceil(duracionMs / (1000 * 60 * 60 * 24 * 7)) : null,
         fechaInicio: fechaInicio ? new Date(fechaInicio).toISOString() : null,
         fechaFinPlan: fechaFinPlan ? new Date(fechaFinPlan).toISOString() : null,
         confirmed: true,
       }
-      const result = await apiFetch(
-        `/api/construccion/proyectos/${proyectoId}/presupuesto/import`,
-        { method: 'POST', body: payload }
-      )
+      const result = onConfirmImport
+        ? await onConfirmImport(payload)
+        : await apiFetch(`/api/construccion/proyectos/${proyectoId}/presupuesto/import`, {
+            method: 'POST', body: payload,
+          })
       setImportResult(result)
       setStage('done')
     } catch (err) {
-      alertDialog({ message: err.message || 'Error al importar' })
+      setError(err.message || 'No se pudo importar el presupuesto.')
       setStage('preview')
     } finally {
       setBusy(false)
@@ -159,115 +223,90 @@ export default function ImportPresupuestoModal({
   }
 
   return (
-    <Modal open={open} onClose={close} title="Importar presupuesto" size="lg">
+    <Modal open onClose={close} title={onConfirmImport ? 'Crear proyecto con presupuesto' : 'Importar presupuesto'} size="lg">
+      {error && <div role="alert" className="imp-banner danger">{error}</div>}
       {stage === 'pick' && (
         <div className="imp-pick">
-          <p className="muted small" style={{ marginTop: 0 }}>
-            Sube el archivo del presupuesto (Excel o PDF). Se detecta el formato
-            automáticamente: hoja <strong>PRESUPUESTO</strong> (capítulos
-            numerados <span className="mono">1.1.3.5.1</span> + hoja INSUMOS),
-            hoja <strong>Matrices</strong> (análisis de precios unitarios estilo
-            Opus), hoja <strong>LISTA DE CONCEPTOS</strong> (filas
-            CAPITULO/CONCEPTO agrupadas por local + hoja MATERIALES), o un
-            <strong> PDF de "Presupuesto por Actividades"</strong> (licitación —
-            se lee con IA y se valida contra los totales impresos). En todos
-            los casos se crea el presupuesto del proyecto con sus conceptos e
-            insumos.
+          <p className="muted small">
+            Selecciona un presupuesto por modelo. Después de leer los archivos podrás indicar cuántas unidades de cada modelo incluye el proyecto.
           </p>
+          <details className="imp-details">
+            <summary>Formatos compatibles</summary>
+            <p className="small imp-formatos">
+              Excel con hoja PRESUPUESTO, Matrices o LISTA DE CONCEPTOS. También puedes cargar un PDF de Presupuesto por Actividades.
+            </p>
+          </details>
           <label
             className="imp-drop"
-            onDragOver={(e) => {
-              e.preventDefault()
-              e.currentTarget.classList.add('dragover')
-            }}
-            onDragLeave={(e) => e.currentTarget.classList.remove('dragover')}
-            onDrop={(e) => {
+            onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('dragover') }}
+            onDragLeave={e => e.currentTarget.classList.remove('dragover')}
+            onDrop={e => {
               e.preventDefault()
               e.currentTarget.classList.remove('dragover')
-              onPick(e.dataTransfer.files?.[0])
+              agregar(e.dataTransfer.files)
             }}
           >
             <input
-              ref={inputRef}
-              type="file"
-              accept=".xls,.xlsx,.pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf"
-              onChange={(e) => onPick(e.target.files?.[0])}
-              hidden
+              className="imp-picker"
+              type="file" multiple disabled={busy}
+              accept={['.xls', '.xlsx', '.pdf', ...formatos].join(',')}
+              onChange={e => { agregar(e.target.files); e.target.value = '' }}
             />
-            {file ? (
-              <div className="imp-file">
-                <strong>📄 {file.name}</strong>
-                <button
-                  type="button"
-                  className="link small"
-                  onClick={(e) => { e.preventDefault(); reset() }}
-                >
-                  cambiar
-                </button>
-              </div>
-            ) : (
-              <span className="muted">
-                Arrastra el archivo aquí o haz clic para seleccionarlo.
-              </span>
-            )}
+            Arrastra los presupuestos aquí o selecciona archivos Excel o PDF.
           </label>
+          {archivos.map(a => (
+            <div className="imp-file" key={a.id}>
+              <strong>{a.blob.name}</strong>
+              <button type="button" disabled={busy} aria-label={`Quitar ${a.blob.name}`} onClick={() => {
+                setArchivos(actuales => actuales.filter(f => f.id !== a.id))
+                setError('')
+              }}>Quitar</button>
+            </div>
+          ))}
+          {leyendo && <p role="status">Leyendo {leyendo}…</p>}
           <div className="modal-actions">
-            <button onClick={close}>Cancelar</button>
-            <button className="primary" onClick={doScan} disabled={!file || busy}>
-              {busy ? 'Leyendo…' : 'Analizar archivo'}
+            <button onClick={close} disabled={busy}>Cancelar</button>
+            <button className="primary" onClick={doScan} disabled={!archivos.length || busy}>
+              Analizar {archivos.length === 1 ? 'archivo' : 'archivos'}
             </button>
           </div>
         </div>
       )}
 
-      {stage === 'preview' && scan && (
+      {stage === 'preview' && (
         <div className="imp-preview">
-          {scan.alreadyHasPresupuesto && (
-            <div className="imp-banner danger">
-              ⚠ Este proyecto ya tiene un presupuesto cargado. Archívalo primero
-              antes de importar otro.
-            </div>
-          )}
-
-          <h3 style={{ marginTop: 0 }}>{scan.caratula?.titulo ?? file?.name}</h3>
-
-          <div className="imp-stats">
-            <div>
-              <span className="muted small">Capítulos</span>
-              <strong>{scan.totals.branchCount}</strong>
-            </div>
-            <div>
-              <span className="muted small">Conceptos (leaves)</span>
-              <strong>{scan.totals.leafCount}</strong>
-            </div>
-            <div>
-              <span className="muted small">Profundidad máx.</span>
-              <strong>{scan.totals.maxDepth}</strong>
-            </div>
-            <div>
-              <span className="muted small">Insumos</span>
-              <strong>{scan.insumos?.length ?? 0}</strong>
-            </div>
-            <div className="imp-stats-total">
-              <span className="muted small">Costo directo (Σ leaves)</span>
-              <strong>{fmtMoney(scan.totals.sumLeafImporte)}</strong>
-            </div>
+          <p>Indica cuántas unidades de cada presupuesto se incluirán. Usa cero para excluir un archivo.</p>
+          <div className="imp-modelos">
+            <table className="imp-table">
+              <thead><tr><th>Presupuesto</th><th>Costo por unidad</th><th>Unidades</th><th>Importe</th></tr></thead>
+              <tbody>{archivos.map(({ id, blob, cantidad, scan: lectura }) => (
+                <tr key={id}>
+                  <td>
+                    {blob.name}
+                    {lectura.caratula?.titulo && lectura.caratula.titulo !== blob.name && (
+                      <div className="muted small">{lectura.caratula.titulo}</div>
+                    )}
+                  </td>
+                  <td>{fmtMoney(lectura.totals.sumLeafImporte)}</td>
+                  <td><input type="number" min="0" step="1" value={cantidad} disabled={busy}
+                    aria-label={`Unidades de ${blob.name}`}
+                    onChange={e => { actualizar(id, { cantidad: e.target.value }); setError('') }}
+                  /></td>
+                  <td>{fmtMoney(esCantidad(cantidad) ? lectura.totals.sumLeafImporte * Number(cantidad) : null)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
-
-          {scan.caratula?.subtotal != null && (
-            <div className="imp-banner info small">
-              CARÁTULA dice: subtotal {fmtMoney(scan.caratula.subtotal)}
-              {scan.caratula.utilidad != null && <> · utilidad {fmtMoney(scan.caratula.utilidad)}</>}
-              {scan.caratula.total != null && <> · total {fmtMoney(scan.caratula.total)}</>}
-            </div>
-          )}
+          {yaImportado && <div role="alert" className="imp-banner danger">Este proyecto ya tiene un presupuesto cargado.</div>}
+          {problema && <div role="alert" className="imp-banner danger">{problema}</div>}
+          {scan && <ResumenPresupuesto scan={scan} />}
 
           {/* Datos del proyecto — alimentan el flujo de estimaciones */}
           <fieldset className="imp-fieldset">
             <legend>Configuración del proyecto</legend>
             <p className="muted small" style={{ margin: '0 0 0.6rem' }}>
               Estos campos se usan para calcular avance por vivienda y la curva
-              esperada del cliente. Editables después en el proyecto.
+              esperada del cliente. Ajusta el número de viviendas si un archivo cubre varias.
             </p>
             <div className="imp-grid">
               <label>
@@ -276,9 +315,9 @@ export default function ImportPresupuestoModal({
                   type="number"
                   min="1"
                   step="1"
-                  value={viviendasObjetivo}
-                  onChange={(e) => setViviendasObjetivo(e.target.value)}
-                  placeholder="48 (2 torres × 24)"
+                  value={viviendas}
+                  onChange={(e) => setViviendasEditadas(e.target.value)}
+                  placeholder="p. ej., 48"
                 />
               </label>
               <label className="imp-check">
@@ -307,91 +346,29 @@ export default function ImportPresupuestoModal({
               </label>
             </div>
           </fieldset>
-
-
-          {/* Capítulos preview */}
-          <details open className="imp-details">
-            <summary>Capítulos detectados ({scan.branches.filter(b => b.nivel === 1).length})</summary>
-            <table className="imp-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 60 }}>Código</th>
-                  <th>Descripción</th>
-                  <th style={{ textAlign: 'right' }}>Importe (rollup)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scan.branches.filter(b => b.nivel === 1).map((b) => (
-                  <tr key={b.codigo}>
-                    <td className="mono">{b.codigo}</td>
-                    <td>{b.descripcion}</td>
-                    <td style={{ textAlign: 'right' }}>{fmtMoney(b.importeReportado)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
-
-          {/* Warnings */}
-          {scan.warnings?.length > 0 && (
-            <details className="imp-details warnings">
-              <summary>
-                ⚠ {scan.warnings.length} advertencia(s) — el archivo es importable
-                pero revisa estos puntos
-              </summary>
-              <ul className="imp-warnings">
-                {scan.warnings.slice(0, 50).map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-                {scan.warnings.length > 50 && (
-                  <li className="muted">…y {scan.warnings.length - 50} más</li>
-                )}
-              </ul>
-            </details>
-          )}
-
+          {configInvalida && <div role="alert" className="imp-banner danger">Ingresa un número entero positivo de viviendas.</div>}
           <div className="modal-actions">
-            <button onClick={() => { reset(); setStage('pick') }}>Cambiar archivo</button>
-            <button
-              className="primary"
-              onClick={doImport}
-              disabled={busy || scan.alreadyHasPresupuesto}
-            >
-              Confirmar e importar
+            <button disabled={busy} onClick={() => { setError(''); setStage('pick') }}>Cambiar archivos</button>
+            <button className="primary" onClick={doImport} disabled={!scan || busy || yaImportado || configInvalida}>
+              {onConfirmImport ? 'Crear proyecto con presupuesto' : 'Confirmar e importar'}
             </button>
           </div>
         </div>
       )}
 
-      {stage === 'importing' && (
-        <div className="imp-importing">
-          <p>Importando presupuesto… esto puede tardar 20–40 segundos para presupuestos grandes.</p>
-        </div>
-      )}
+      {stage === 'importing' && <p role="status" className="imp-importing">Guardando el presupuesto del proyecto…</p>}
 
       {stage === 'done' && importResult && (
         <div className="imp-done">
-          <div className="imp-banner success">
-            ✓ Presupuesto importado
-          </div>
+          <div className="imp-banner success">{onConfirmImport ? 'Proyecto creado con presupuesto' : 'Presupuesto importado'}</div>
           <ul className="imp-result">
-            <li><strong>{importResult.branchCount}</strong> capítulos creados</li>
-            <li><strong>{importResult.leafCount}</strong> conceptos (leaves)</li>
+            <li><strong>{importResult.branchCount}</strong> capítulos</li>
+            <li><strong>{importResult.leafCount}</strong> conceptos</li>
             <li><strong>{importResult.conceptosCreated}</strong> conceptos nuevos en catálogo</li>
-            <li><strong>{importResult.insumosCreated}</strong> insumos nuevos en catálogo</li>
+            <li><strong>{importResult.insumosCreated}</strong> insumos procesados</li>
             <li>Costo directo: <strong>{fmtMoney(importResult.total)}</strong></li>
           </ul>
-          <div className="modal-actions">
-            <button
-              className="primary"
-              onClick={() => {
-                onImported?.()
-                close()
-              }}
-            >
-              Listo
-            </button>
-          </div>
+          <div className="modal-actions"><button className="primary" onClick={close}>Listo</button></div>
         </div>
       )}
     </Modal>

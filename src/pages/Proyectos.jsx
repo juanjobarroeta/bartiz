@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../config/api'
+import ImportPresupuestoModal from '../components/ImportPresupuestoModal'
 import { Icon } from '../components/ds/Icon'
 import { money } from '../lib/format'
 import { BADGE_COLORS } from '../data/dashboardSample'
@@ -27,10 +28,17 @@ const ESTADO_META = {
 }
 
 const TIPO_LABEL = { GOBIERNO: 'Gobierno', PRIVADO: 'Privado', MIXTO: 'Mixto' }
+const PROYECTO_INICIAL = {
+  codigo: '', nombre: '', descripcion: '', ubicacion: '', tipo: 'PRIVADO', montoContratado: '',
+}
 
 export default function Proyectos() {
+  const auth = useAuth()
+  return <ProyectosEmpresa key={auth.activeCompany?.id} {...auth} />
+}
+
+function ProyectosEmpresa({ activeCompany, companies, selectCompany, user, logout }) {
   const navigate = useNavigate()
-  const { activeCompany, companies, selectCompany, user, logout } = useAuth()
 
   const [proyectos, setProyectos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,14 +46,8 @@ export default function Proyectos() {
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [nuevo, setNuevo] = useState({
-    codigo: '',
-    nombre: '',
-    descripcion: '',
-    ubicacion: '',
-    tipo: 'PRIVADO',
-    montoContratado: '',
-  })
+  const [nuevo, setNuevo] = useState(PROYECTO_INICIAL)
+  const [proyectoParaImportar, setProyectoParaImportar] = useState(null)
 
   const cargar = useCallback(async () => {
     if (!activeCompany?.id) {
@@ -75,34 +77,34 @@ export default function Proyectos() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!activeCompany?.id) return
-    setSubmitting(true)
     setError(null)
+    const body = {
+      companyId: activeCompany.id,
+      codigo: nuevo.codigo.trim(),
+      nombre: nuevo.nombre.trim(),
+      descripcion: nuevo.descripcion.trim() || undefined,
+      ubicacion: nuevo.ubicacion.trim() || undefined,
+      tipo: nuevo.tipo,
+    }
+    if (!body.codigo || !body.nombre) {
+      setError('Ingresa el código y el nombre del proyecto.')
+      return
+    }
+    const monto = Number(nuevo.montoContratado)
+    if (monto > 0) body.montoContratado = monto
+
+    if (e.nativeEvent.submitter?.value !== 'manual') {
+      setProyectoParaImportar(body)
+      return
+    }
+    setSubmitting(true)
     try {
-      const body = {
-        companyId: activeCompany.id,
-        codigo: nuevo.codigo.trim(),
-        nombre: nuevo.nombre.trim(),
-        descripcion: nuevo.descripcion.trim() || undefined,
-        ubicacion: nuevo.ubicacion.trim() || undefined,
-        tipo: nuevo.tipo,
-      }
-      if (nuevo.montoContratado) {
-        const parsed = parseFloat(nuevo.montoContratado)
-        if (parsed > 0) body.montoContratado = parsed
-      }
       const created = await apiFetch('/api/construccion/proyectos', {
         method: 'POST',
         body,
       })
       setProyectos((prev) => [created, ...prev])
-      setNuevo({
-        codigo: '',
-        nombre: '',
-        descripcion: '',
-        ubicacion: '',
-        tipo: 'PRIVADO',
-        montoContratado: '',
-      })
+      setNuevo(PROYECTO_INICIAL)
       setMostrarFormulario(false)
     } catch (err) {
       setError(err.message || 'Error al crear proyecto')
@@ -204,6 +206,7 @@ export default function Proyectos() {
                   <input
                     className="input"
                     required
+                    maxLength={40}
                     value={nuevo.codigo}
                     onChange={(e) => setNuevo({ ...nuevo, codigo: e.target.value })}
                     placeholder="OBR-2026-001"
@@ -264,11 +267,29 @@ export default function Proyectos() {
                   onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })}
                 />
               </label>
-              <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {submitting ? 'Creando…' : 'Crear proyecto'}
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="submit" value="importar" className="btn btn-primary" disabled={submitting}>
+                  Continuar con presupuestos
+                </button>
+                <button type="submit" value="manual" className="btn btn-ghost" disabled={submitting}>
+                  {submitting ? 'Creando…' : 'Crear sin presupuesto'}
+                </button>
+              </div>
             </form>
           </div>
+        )}
+
+        {proyectoParaImportar && (
+          <ImportPresupuestoModal
+            open
+            scanPath={`/api/construccion/proyectos/presupuesto/scan?companyId=${encodeURIComponent(proyectoParaImportar.companyId)}`}
+            onConfirmImport={(presupuesto) => apiFetch('/api/construccion/proyectos', {
+              method: 'POST',
+              body: { ...proyectoParaImportar, presupuesto },
+            })}
+            onImported={({ proyectoId }) => navigate(`/proyectos/${proyectoId}`)}
+            onClose={() => setProyectoParaImportar(null)}
+          />
         )}
 
         <div className="card">
